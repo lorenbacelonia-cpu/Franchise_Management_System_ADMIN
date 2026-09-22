@@ -1,0 +1,68 @@
+-- ============================================================================
+-- TABACO CITY TRD PORTAL - FRANCHISE MANAGEMENT DATABASE SCHEMA
+-- Exactly based on the Registration Form & Dashboard UI
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS franchise_records_tricycle_admin (
+    id VARCHAR(50) PRIMARY KEY,
+    application_no VARCHAR(50) NOT NULL,
+    city_plate_number VARCHAR(50) NOT NULL UNIQUE,
+    mtop_number VARCHAR(50) NOT NULL,
+    vehicle_category VARCHAR(20) DEFAULT 'Tricycle',
+    operator_last_name VARCHAR(100),
+    operator_first_name VARCHAR(100),
+    operator_middle_name VARCHAR(100),
+    operator_name VARCHAR(150) NOT NULL,
+    operator_contact VARCHAR(30),
+    operator_address TEXT NOT NULL,
+    residential_address TEXT NOT NULL,
+    driver_last_name VARCHAR(100),
+    driver_first_name VARCHAR(100),
+    driver_middle_name VARCHAR(100),
+    driver_name VARCHAR(150) NOT NULL,
+    driver_address TEXT,
+    expiration_date DATE NOT NULL,
+    route_parada VARCHAR(100),
+    tourist_guide VARCHAR(10) DEFAULT 'Yes',
+    availability VARCHAR(50) DEFAULT 'Available / On-Duty',
+    status VARCHAR(30) DEFAULT 'Active',
+    fare_matrix JSON,
+    standard_fare VARCHAR(50),
+    violations_count INT DEFAULT 0,
+    has_permanent_qr BOOLEAN DEFAULT FALSE,
+    qr_generated_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS franchise_records_pedicab_admin (
+    id VARCHAR(50) PRIMARY KEY,
+    application_no VARCHAR(50) NOT NULL,
+    city_plate_number VARCHAR(50) NOT NULL UNIQUE,
+    mtop_number VARCHAR(50) NOT NULL,
+    vehicle_category VARCHAR(20) DEFAULT 'Pedicab',
+    operator_last_name VARCHAR(100),
+    operator_first_name VARCHAR(100),
+    operator_middle_name VARCHAR(100),
+    operator_name VARCHAR(150) NOT NULL,
+    operator_contact VARCHAR(30),
+    operator_address TEXT NOT NULL,
+    residential_address TEXT NOT NULL,
+    driver_last_name VARCHAR(100),
+    driver_first_name VARCHAR(100),
+    driver_middle_name VARCHAR(100),
+    driver_name VARCHAR(150) NOT NULL,
+    driver_address TEXT,
+    expiration_date DATE NOT NULL,
+    route_parada VARCHAR(100),
+    tourist_guide VARCHAR(10) DEFAULT 'Yes',
+    availability VARCHAR(50) DEFAULT 'Available / On-Duty',
+    status VARCHAR(30) DEFAULT 'Active',
+    fare_matrix JSON,
+    standard_fare VARCHAR(50),
+    violations_count INT DEFAULT 0,
+    has_permanent_qr BOOLEAN DEFAULT FALSE,
+    qr_generated_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

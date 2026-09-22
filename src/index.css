@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #f3f4f6;
+    --card-bg: #ffffff;
+    --emerald-primary: #059669;
+    --emerald-hover: #047857;
+    --emerald-light: #d1fae5;
+    --emerald-text: #065f46;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: #0f172a;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Figma Card & Container Styling */
+.figma-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.figma-action-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.figma-action-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.figma-btn-green {
+  background-color: #059669;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 0.5rem 1.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.figma-btn-green:hover {
+  background-color: #047857;
+}
+
+/* Badge styles */
+.badge-active {
+  background-color: #d1fae5;
+  color: #047857;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+.badge-pending {
+  background-color: #fef3c7;
+  color: #b45309;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+.badge-expired {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
