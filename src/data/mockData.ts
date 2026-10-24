@@ -1,4 +1,4 @@
-﻿import type { FranchiseRecord, PendingReview, PassengerComplaint, ViolationRecord } from '../types';
+import type { FranchiseRecord, PendingReview, PassengerComplaint, ViolationRecord } from '../types';
 
 export const initialFranchises: FranchiseRecord[] = [];
 

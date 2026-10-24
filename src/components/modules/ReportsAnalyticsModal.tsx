@@ -1,6 +1,6 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
-import { X, BarChart3, Download, TrendingUp, AlertTriangle, CheckCircle2, ShieldCheck, Printer } from 'lucide-react';
+import { X, BarChart3, AlertTriangle, CheckCircle2, ShieldCheck, Printer } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -27,7 +27,6 @@ export const ReportsAnalyticsModal: React.FC = () => {
   const totalUnits = filteredFranchises.length;
   const activeUnits = filteredFranchises.filter(f => f.status === 'Active').length;
   const expiredUnits = filteredFranchises.filter(f => f.status === 'Expired').length;
-  const deactivatedUnits = filteredFranchises.filter(f => f.status === 'Deactivated').length;
   const complianceRate = totalUnits > 0 ? ((activeUnits / totalUnits) * 100).toFixed(1) : '100.0';
 
   // 2. DYNAMIC VIOLATIONS FILTERING
@@ -45,7 +44,6 @@ export const ReportsAnalyticsModal: React.FC = () => {
 
   const totalCitations = filteredViolations.length;
   const pendingCitations = filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length;
-  const settledCitations = filteredViolations.filter(v => v.status === 'Settled').length;
   const totalFines = filteredViolations.reduce((acc, curr) => acc + (Number(curr.fineAmount) || 0), 0);
 
   // 3. DYNAMIC MONTHLY REGISTRATIONS & RENEWALS (Based on actual dates in system)
@@ -123,7 +121,7 @@ export const ReportsAnalyticsModal: React.FC = () => {
             <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">${f.cityPlateNumber || f.mtopNumber}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.operatorName}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.driverName}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.route || 'Tabaco City Line'}</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.routeParada || 'Tabaco City Line'}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">
               <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; background: ${f.status === 'Active' ? '#dcfce7; color: #166534;' : '#fee2e2; color: #991b1b;'}">
                 ${f.status}
