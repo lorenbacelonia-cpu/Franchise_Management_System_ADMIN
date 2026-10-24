@@ -161,7 +161,7 @@ export const AdminPasscodeModal: React.FC<AdminPasscodeModalProps> = ({
                   setPasscode(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="Enter 8-digit admin passcode (e.g. admin or 01012005)..."
+                placeholder="Enter confidential administrator passcode..."
                 className={`w-full pl-9 pr-10 py-2.5 bg-slate-50 border rounded-xl text-xs text-slate-900 font-medium focus:outline-none transition-all ${
                   error
                     ? 'border-rose-400 ring-2 ring-rose-200 bg-rose-50/30'

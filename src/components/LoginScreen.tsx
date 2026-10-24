@@ -18,7 +18,7 @@ import {
   Building2,
   BadgeCheck,
   HelpCircle,
-  Sparkles
+  X
 } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
@@ -27,9 +27,9 @@ export const LoginScreen: React.FC = () => {
   // Mode: 'login' | 'signup'
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 
-  // Sign In State
-  const [identifier, setIdentifier] = useState('ADM-2026-001');
-  const [password, setPassword] = useState('admin');
+  // Sign In State (clean slate, no pre-filled credentials)
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -57,25 +57,28 @@ export const LoginScreen: React.FC = () => {
     setMode(newMode);
   };
 
-  // Quick preset loader for fast testing
-  const handleQuickPreset = (presetId: string, presetPass: string) => {
-    setIdentifier(presetId);
-    setPassword(presetPass);
-    setError(null);
-  };
-
   // Handle Login submission
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!identifier.trim()) {
+      setError('Please enter your Admin ID or Official Email.');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
     setIsLoading(true);
 
     setTimeout(() => {
       const result = loginAdmin(identifier, password, rememberMe);
       setIsLoading(false);
       if (!result.success) {
-        setError(result.error || 'Authentication failed. Please verify credentials.');
+        setError(result.error || 'Authentication failed. Please verify your credentials.');
       }
     }, 300);
   };
@@ -106,11 +109,11 @@ export const LoginScreen: React.FC = () => {
       return;
     }
 
-    // Validate TRD Staff Authorization Passcode (security measure for official government portal)
+    // Validate TRD Staff Authorization Passcode (confidential verification)
     const validStaffPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'admin', 'admin123', 'trdadmin', '123456'];
     const cleanPasscode = signupPasscode.trim().toUpperCase();
     if (!validStaffPasscodes.map(p => p.toUpperCase()).includes(cleanPasscode)) {
-      setError('Invalid TRD Authorization Passcode. Authorized city personnel passcode is required to create an admin account (hint: 01012005 or TRD2026).');
+      setError('Invalid TRD Authorization Passcode. Confidential authorization is required for administrative registration.');
       return;
     }
 
@@ -139,7 +142,7 @@ export const LoginScreen: React.FC = () => {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 border border-slate-800">
         
-        {/* Left Brand Panel (Figma Design) */}
+        {/* Left Brand Panel */}
         <div className="bg-[#0b1326] p-8 sm:p-12 text-white flex flex-col justify-between relative overflow-hidden">
           
           {/* Subtle Radar/Concentric Circles Background */}
@@ -290,7 +293,7 @@ export const LoginScreen: React.FC = () => {
                         required
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="e.g. ADM-2026-001 or admin@franchise.gov.ph"
+                        placeholder="Enter your Admin ID or official email"
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
@@ -359,39 +362,8 @@ export const LoginScreen: React.FC = () => {
                   </button>
                 </form>
 
-                {/* Quick Credentials Helper Pills for convenience */}
-                <div className="mt-5 p-3 rounded-xl bg-slate-100 border border-slate-200">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 mb-2">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Quick Authorized Logins for Testing:</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPreset('ADM-2026-001', 'admin')}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 text-[10px] font-semibold hover:bg-slate-50 hover:border-emerald-500 transition-colors cursor-pointer"
-                    >
-                      Chief Admin (ADM-2026-001 / admin)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPreset('licensing@tabaco.gov.ph', 'admin')}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 text-[10px] font-semibold hover:bg-slate-50 hover:border-emerald-500 transition-colors cursor-pointer"
-                    >
-                      Licensing Officer (admin)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPreset('ADM-2026-001', '01012005')}
-                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 text-[10px] font-semibold hover:bg-slate-50 hover:border-emerald-500 transition-colors cursor-pointer"
-                    >
-                      Master Passcode (01012005)
-                    </button>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-center text-xs text-slate-600">
-                  Need a new admin account?{' '}
+                <p className="mt-6 text-center text-xs text-slate-600">
+                  Need an administrator account?{' '}
                   <button
                     type="button"
                     onClick={() => handleSwitchMode('signup')}
@@ -561,28 +533,28 @@ export const LoginScreen: React.FC = () => {
                   </div>
 
                   {/* TRD STAFF AUTHORIZATION PASSCODE */}
-                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3">
+                  <div className="bg-slate-100 border border-slate-200 rounded-xl p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-bold text-emerald-950 uppercase tracking-wider">
+                      <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider">
                         TRD Staff Authorization Passcode
                       </label>
-                      <span className="text-[10px] text-emerald-700 font-mono font-bold">Required</span>
+                      <span className="text-[10px] text-slate-500 font-mono font-semibold">Confidential</span>
                     </div>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-emerald-600">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <BadgeCheck className="w-4 h-4" />
                       </div>
                       <input
-                        type="text"
+                        type="password"
                         required
                         value={signupPasscode}
                         onChange={(e) => setSignupPasscode(e.target.value)}
-                        placeholder="Enter City TRD staff passcode (e.g. 01012005 or TRD2026)"
-                        className="w-full pl-9 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        placeholder="Enter authorized personnel passcode"
+                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
-                    <p className="text-[10px] text-emerald-800 mt-1.5 leading-snug">
-                      Security validation ensures only designated city personnel can activate an administrative profile. Use official TRD authorization key: <span className="font-mono font-bold">01012005</span>.
+                    <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
+                      Authorized TRD personnel authorization passcode is required to create an administrative profile.
                     </p>
                   </div>
 
@@ -625,7 +597,14 @@ export const LoginScreen: React.FC = () => {
       {/* Forgot Password Help Modal */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center mx-auto text-amber-700 mb-3">
               <HelpCircle className="w-6 h-6" />
             </div>
@@ -633,22 +612,20 @@ export const LoginScreen: React.FC = () => {
               Administrator Access Recovery
             </h3>
             <p className="text-xs text-slate-600 text-center mt-2 leading-relaxed">
-              Administrative passwords can be reset by the Division Head or verified using the TRD Master Passcode.
+              If you have lost access to your administrator account or require credential recovery, please coordinate directly with the TRD Division Head or City System Administrator.
             </p>
-            <div className="my-4 p-3 bg-slate-100 rounded-xl text-xs space-y-1.5 border border-slate-200 font-mono text-slate-700">
-              <p><span className="font-bold text-slate-900">Emergency Override:</span> 01012005</p>
-              <p><span className="font-bold text-slate-900">Default Super Admin:</span> ADM-2026-001</p>
-              <p><span className="font-bold text-slate-900">Default Password:</span> admin</p>
+            <div className="my-4 p-3.5 bg-slate-50 rounded-xl text-xs space-y-1.5 border border-slate-200 text-slate-700">
+              <p className="font-semibold text-slate-800">For Authorized City Staff:</p>
+              <p className="text-slate-600 leading-relaxed text-[11px]">
+                Authorized administrators may authenticate using their issued administrative credentials or the internal confidential Division Passcode in the login password field.
+              </p>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setShowForgotModal(false);
-                handleQuickPreset('ADM-2026-001', '01012005');
-              }}
+              onClick={() => setShowForgotModal(false)}
               className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors"
             >
-              Use Emergency Passcode & Continue
+              Close
             </button>
           </div>
         </div>
