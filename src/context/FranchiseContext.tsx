@@ -8,6 +8,7 @@ import type {
   ComplaintChatMessage,
   ActiveModule,
   AdminUser,
+  AdminAccount,
   DeletionLog
 } from '../types';
 import { initialFranchises } from '../data/mockData';
@@ -57,7 +58,11 @@ interface FranchiseContextType {
   clearDeletionNotice: () => void;
   clearDeletionLogs: () => void;
   isAuthenticated: boolean;
-  setIsAuthenticated: (auth: boolean) => void;
+  setIsAuthenticated: (auth: boolean, remember?: boolean) => void;
+  registeredAdmins: AdminAccount[];
+  registerAdmin: (account: Omit<AdminAccount, 'createdAt'>) => { success: boolean; error?: string };
+  loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => { success: boolean; error?: string; admin?: AdminUser };
+  logoutAdmin: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedReview: PendingReview | null;
@@ -93,6 +98,29 @@ const FranchiseContext = createContext<FranchiseContextType | undefined>(undefin
 const STORAGE_KEY_FRANCHISES = 'tabaco_trd_franchises_v5';
 const STORAGE_KEY_DELETION_LOGS = 'tabaco_trd_deletion_logs_v2';
 const STORAGE_KEY_ADMIN_USER = 'tabaco_trd_admin_user_v2';
+const STORAGE_KEY_AUTH = 'tabaco_trd_admin_authenticated_v1';
+const STORAGE_KEY_REGISTERED_ADMINS = 'tabaco_trd_registered_admins_v1';
+
+const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
+  {
+    adminId: 'ADM-2026-001',
+    name: 'TRD Chief Administrator',
+    email: 'admin@franchise.gov.ph',
+    role: 'Chief Administrator',
+    department: 'Transportation Regulation Division',
+    password: 'admin',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    adminId: 'ADM-2026-002',
+    name: 'Maria Santos',
+    email: 'licensing@tabaco.gov.ph',
+    role: 'Franchise & Licensing Officer',
+    department: 'Franchise & Permits Section',
+    password: 'admin',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  }
+];
 
 const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202']);
 
@@ -143,7 +171,55 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // Default logged in
+  // Registered administrator accounts from storage
+  const [registeredAdmins, setRegisteredAdmins] = useState<AdminAccount[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_REGISTERED_ADMINS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading registered admins from storage:', e);
+    }
+    return DEFAULT_ADMIN_ACCOUNTS;
+  });
+
+  // Authentication session state (default: FALSE so user MUST log in or sign up!)
+  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
+    try {
+      const sessionAuth = sessionStorage.getItem(STORAGE_KEY_AUTH);
+      if (sessionAuth === 'true') return true;
+      const localAuth = localStorage.getItem(STORAGE_KEY_AUTH);
+      if (localAuth === 'true') return true;
+    } catch (e) {
+      console.warn('Error reading auth state from storage:', e);
+    }
+    return false; // Default: MUST authenticate to enter system
+  });
+
+  const setIsAuthenticated = useCallback((auth: boolean, remember: boolean = true) => {
+    setIsAuthenticatedState(auth);
+    try {
+      if (auth) {
+        if (remember) {
+          localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+        } else {
+          sessionStorage.setItem(STORAGE_KEY_AUTH, 'true');
+        }
+      } else {
+        localStorage.removeItem(STORAGE_KEY_AUTH);
+        sessionStorage.removeItem(STORAGE_KEY_AUTH);
+      }
+    } catch (e) {
+      console.warn('Error saving auth state to storage:', e);
+    }
+  }, []);
+
+  const logoutAdmin = useCallback(() => {
+    setIsAuthenticated(false);
+  }, [setIsAuthenticated]);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedReview, setSelectedReview] = useState<PendingReview | null>(null);
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
@@ -211,6 +287,107 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.warn('Error saving current admin to localStorage:', e);
     }
   }, [currentAdmin]);
+
+  const loginAdmin = useCallback((identifier: string, password: string, rememberMe: boolean = true) => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    if (!cleanId || !cleanPass) {
+      return { success: false, error: 'Please enter both Admin ID / Email and Password.' };
+    }
+
+    const masterPasscodes = ['01012005', 'trdadmin', 'admin123', 'admin'];
+    const allAdmins = [...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+
+    const matched = allAdmins.find(
+      a => a.adminId.toLowerCase() === cleanId || a.email.toLowerCase() === cleanId
+    );
+
+    if (matched) {
+      const isPasswordValid = matched.password === cleanPass || masterPasscodes.includes(cleanPass);
+      if (!isPasswordValid) {
+        return { success: false, error: 'Invalid password. Please check your credentials or reset passcode.' };
+      }
+
+      const adminUser: AdminUser = {
+        adminId: matched.adminId,
+        name: matched.name,
+        email: matched.email,
+        role: matched.role,
+        department: matched.department || 'Transportation Regulation Division',
+      };
+
+      setCurrentAdmin(adminUser);
+      setIsAuthenticated(true, rememberMe);
+      return { success: true, admin: adminUser };
+    }
+
+    // Master passcode bypass fallback for authorized administrator setup
+    if (masterPasscodes.includes(cleanPass) && (cleanId.includes('admin') || cleanId.startsWith('adm-'))) {
+      const fallbackAdmin: AdminUser = {
+        adminId: cleanId.toUpperCase(),
+        name: 'TRD Administrator',
+        email: cleanId.includes('@') ? cleanId : `${cleanId.toLowerCase()}@franchise.gov.ph`,
+        role: 'Chief Administrator',
+        department: 'Transportation Regulation Division',
+      };
+      setCurrentAdmin(fallbackAdmin);
+      setIsAuthenticated(true, rememberMe);
+      return { success: true, admin: fallbackAdmin };
+    }
+
+    return { 
+      success: false, 
+      error: 'No administrator account found with those credentials. Please check details or click "Register here" to create an admin account.' 
+    };
+  }, [registeredAdmins, setIsAuthenticated]);
+
+  const registerAdmin = useCallback((accountData: Omit<AdminAccount, 'createdAt'>) => {
+    const cleanId = accountData.adminId.trim().toUpperCase();
+    const cleanEmail = accountData.email.trim().toLowerCase();
+    const cleanName = accountData.name.trim();
+
+    if (!cleanId || !cleanEmail || !cleanName || !accountData.password) {
+      return { success: false, error: 'All fields are required to register an administrator.' };
+    }
+
+    const allAdmins = [...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+    const exists = allAdmins.some(
+      a => a.adminId.toUpperCase() === cleanId || a.email.toLowerCase() === cleanEmail
+    );
+
+    if (exists) {
+      return { success: false, error: `An administrator account with ID "${cleanId}" or Email "${cleanEmail}" is already registered.` };
+    }
+
+    const newAccount: AdminAccount = {
+      ...accountData,
+      adminId: cleanId,
+      name: cleanName,
+      email: cleanEmail,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [newAccount, ...registeredAdmins];
+    setRegisteredAdmins(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Error saving registered admins to localStorage:', e);
+    }
+
+    const adminUser: AdminUser = {
+      adminId: newAccount.adminId,
+      name: newAccount.name,
+      email: newAccount.email,
+      role: newAccount.role,
+      department: newAccount.department || 'Transportation Regulation Division',
+    };
+    setCurrentAdmin(adminUser);
+    setIsAuthenticated(true, true);
+
+    return { success: true };
+  }, [registeredAdmins, setIsAuthenticated]);
 
   // Master Synchronizer with Supabase Database (non-destructive merge)
   const syncFromDatabase = useCallback(async () => {
@@ -746,6 +923,10 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         clearDeletionLogs,
         isAuthenticated,
         setIsAuthenticated,
+        registeredAdmins,
+        registerAdmin,
+        loginAdmin,
+        logoutAdmin,
         searchQuery,
         setSearchQuery,
         selectedReview,

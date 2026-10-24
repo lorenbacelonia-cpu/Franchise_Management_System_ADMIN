@@ -147,6 +147,17 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
+  department?: string;
+}
+
+export interface AdminAccount {
+  adminId: string;
+  name: string;
+  email: string;
+  role: string;
+  department?: string;
+  password?: string;
+  createdAt?: string;
 }
 
 export interface DeletionLog {
