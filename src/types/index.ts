@@ -1,6 +1,6 @@
 export type VehicleCategory = 'Tricycle' | 'Pedicab';
 
-export type FranchiseStatus = 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review';
+export type FranchiseStatus = 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review' | 'Expired';
 
 export interface FareMatrixItem {
   id?: string;
@@ -100,6 +100,16 @@ export interface PendingReview {
   reviewNotes?: string;
 }
 
+export interface ComplaintChatMessage {
+  id: string;
+  sender: 'complainant' | 'admin';
+  senderName: string;
+  message: string;
+  timestamp: string;
+  image?: string;
+  filename?: string;
+}
+
 export interface PassengerComplaint {
   id: string;
   complainantName: string;
@@ -110,7 +120,47 @@ export interface PassengerComplaint {
   incidentDate: string;
   issueType: string;
   description: string;
+  evidenceImage?: string;
+  evidenceFilename?: string;
   status: 'Under Investigation' | 'Resolved' | 'Escalated';
+  adminRemarks?: string;
+  adminResponse?: string;
+  chatMessages?: ComplaintChatMessage[];
+}
+
+export interface MobileNotification {
+  id?: string;
+  recipient_type: 'passenger' | 'enforcer' | 'all';
+  recipient_username?: string;
+  title: string;
+  message: string;
+  record_type?: 'violation' | 'complaint' | 'review' | 'general';
+  record_id?: string;
+  plate_number?: string;
+  status?: string;
+  is_read?: boolean;
+  created_at?: string;
+}
+
+export interface AdminUser {
+  adminId: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface DeletionLog {
+  id: string;
+  recordType: 'Passenger Complaint' | 'Violation Citation' | 'Franchise Record';
+  itemTitle: string;
+  cityPlateNumber: string;
+  vehicleCategory: VehicleCategory;
+  issueOrViolationType: string;
+  deletedBy: string;
+  deletedByEmail?: string;
+  deletedAt: string;
+  originalRecordDetails?: any;
+  reason?: string;
 }
 
 export type ActiveModule = 
@@ -123,3 +173,4 @@ export type ActiveModule =
   | 'reports'
   | 'violation_entry'
   | 'deactivation';
+

@@ -45,8 +45,8 @@ export const QuickActions: React.FC = () => {
     },
     {
       id: 'violation_entry',
-      title: 'Violation Entry',
-      description: 'Violation Tracking',
+      title: 'Violations & Reports',
+      description: 'Monitor enforcer & passenger reports',
       icon: AlertTriangle,
       iconColor: 'text-amber-500',
     },

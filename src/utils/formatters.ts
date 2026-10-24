@@ -47,3 +47,23 @@ export function maskUsername(username?: string): string {
   const maskCount = Math.max(trimmed.length - 5, 7);
   return `${prefix}${'*'.repeat(maskCount)}${suffix}`;
 }
+
+/**
+ * Masks a complainant's full name for privacy protection
+ * Shows first 2 chars of first name + masked middle + last 2 chars of last name
+ * Example: "Maria Santos" -> "Ma***** S*****os"
+ * Example: "Roberto Gomez" -> "Ro***** G*****ez"
+ */
+export function maskName(fullName?: string): string {
+  if (!fullName) return 'Ano*****ous';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    const n = parts[0];
+    return n.slice(0, 2) + '*'.repeat(Math.max(n.length - 2, 3));
+  }
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const maskedFirst = first.slice(0, 2) + '*'.repeat(Math.max(first.length - 2, 3));
+  const maskedLast = last.charAt(0) + '*'.repeat(Math.max(last.length - 2, 3)) + last.slice(-2);
+  return `${maskedFirst} ${maskedLast}`;
+}

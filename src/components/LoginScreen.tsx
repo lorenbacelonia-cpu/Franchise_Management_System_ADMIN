@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
-  const { setIsAuthenticated } = useFranchise();
+  const { setIsAuthenticated, setCurrentAdmin } = useFranchise();
   const [adminId, setAdminId] = useState('ADM-2026-001');
   const [email, setEmail] = useState('admin@franchise.gov.ph');
   const [password, setPassword] = useState('••••••••••••');
@@ -21,8 +21,15 @@ export const LoginScreen: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentAdmin({
+      adminId: adminId.trim() || 'ADM-2026-001',
+      name: email.includes('@') ? email.split('@')[0].toUpperCase() + ' (Admin)' : 'TRD Chief Administrator',
+      email: email.trim() || 'admin@franchise.gov.ph',
+      role: 'Chief Administrator',
+    });
     setIsAuthenticated(true);
   };
+
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 sm:p-6 lg:p-8">

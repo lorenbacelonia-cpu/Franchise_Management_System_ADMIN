@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
-import { X, RefreshCw, CheckCircle2, Calendar, Search } from 'lucide-react';
+import { X, RefreshCw, CheckCircle2, Calendar, Search, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { isRecordExpired } from '../../utils/fareUtils';
 
 export const ProcessRenewalModal: React.FC = () => {
   const { activeModule, setActiveModule, franchises, renewFranchise, vehicleCategory } = useFranchise();
@@ -9,15 +10,27 @@ export const ProcessRenewalModal: React.FC = () => {
 
   if (activeModule !== 'renewal') return null;
 
-  const categoryFranchises = franchises.filter(f => 
-    f.vehicleCategory === vehicleCategory &&
-    (!filterText || 
-      f.mtopNumber.toLowerCase().includes(filterText.toLowerCase()) ||
-      f.operatorName.toLowerCase().includes(filterText.toLowerCase()))
-  );
+  const categoryFranchises = franchises
+    .filter(f => 
+      f.vehicleCategory === vehicleCategory &&
+      (!filterText || 
+        f.mtopNumber.toLowerCase().includes(filterText.toLowerCase()) ||
+        f.operatorName.toLowerCase().includes(filterText.toLowerCase()) ||
+        f.driverName.toLowerCase().includes(filterText.toLowerCase()) ||
+        f.status.toLowerCase().includes(filterText.toLowerCase()))
+    )
+    .sort((a, b) => {
+      // Prioritize expired units at top
+      if (a.status === 'Expired' && b.status !== 'Expired') return -1;
+      if (b.status === 'Expired' && a.status !== 'Expired') return 1;
+      return 0;
+    });
 
   const handleRenew = (id: string) => {
-    renewFranchise(id);
+    // Generate next year's renewal expiry date (1 year from now)
+    const nextYear = new Date().getFullYear() + 1;
+    const newExpiryDate = `${nextYear}-01-15`;
+    renewFranchise(id, { newExpiry: newExpiryDate });
     confetti({
       particleCount: 70,
       spread: 60,
@@ -60,7 +73,7 @@ export const ProcessRenewalModal: React.FC = () => {
               type="text"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              placeholder="Search City Plate No., operator, or driver..."
+              placeholder="Search City Plate No., operator, driver, or status..."
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
@@ -79,11 +92,20 @@ export const ProcessRenewalModal: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {categoryFranchises.map((item) => {
-                  const isRenewed = item.expirationDate.startsWith('2027');
+                {categoryFranchises.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                      <p className="text-sm font-semibold text-slate-600">No {vehicleCategory} Records Available for Renewal</p>
+                      <p className="text-xs text-slate-400 mt-1">There are currently 0 records matching your query.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  categoryFranchises.map((item) => {
+                  const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
+                  const isRenewed = item.status === 'Active' && !isExpired;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={item.id} className={isExpired ? "bg-rose-50/40 hover:bg-rose-50/70 transition-colors" : "hover:bg-slate-50/80 transition-colors"}>
                       <td className="px-5 py-3 font-mono font-bold text-slate-900">{item.mtopNumber}</td>
                       <td className="px-5 py-3 font-semibold text-slate-800">
                         {item.operatorName}
@@ -92,25 +114,28 @@ export const ProcessRenewalModal: React.FC = () => {
                       <td className="px-5 py-3 font-mono text-xs text-slate-600">{item.plateNumber}</td>
                       <td className="px-5 py-3 text-xs text-slate-600 flex items-center space-x-1 mt-1">
                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                        <span>{item.expirationDate}</span>
+                        <span className={isExpired ? "font-bold text-rose-700" : ""}>{item.expirationDate}</span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          item.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center space-x-1 ${
+                          item.status === 'Active' && !isExpired
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                            : 'bg-rose-100 text-rose-800 border border-rose-300'
                         }`}>
-                          {item.status}
+                          {isExpired && <AlertCircle className="h-3 w-3 mr-1 text-rose-600" />}
+                          <span>{isExpired ? 'Expired' : item.status}</span>
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
                         {isRenewed ? (
                           <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                            Renewed (2027)
+                            Valid ({item.expirationDate})
                           </span>
                         ) : (
                           <button
                             onClick={() => handleRenew(item.id)}
-                            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1 ml-auto"
+                            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1 ml-auto cursor-pointer"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                             <span>Renew Permit</span>
@@ -119,7 +144,8 @@ export const ProcessRenewalModal: React.FC = () => {
                       </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>

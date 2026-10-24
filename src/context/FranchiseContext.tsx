@@ -1,34 +1,45 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { 
   VehicleCategory, 
   FranchiseRecord, 
   PendingReview, 
   ViolationRecord, 
   PassengerComplaint, 
-  ActiveModule 
+  ComplaintChatMessage,
+  ActiveModule,
+  AdminUser,
+  DeletionLog
 } from '../types';
-import { 
-  initialFranchises, 
-  initialPendingReviews, 
-  initialViolations, 
-  initialComplaints 
-} from '../data/mockData';
-import { buildPermanentQrPayload } from '../utils/fareUtils';
+import { initialFranchises } from '../data/mockData';
+import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus } from '../utils/fareUtils';
 import { 
   fetchFranchiseRecordsFromSupabase, 
-  saveFranchiseRegistrationInSupabase,
   saveFranchiseRecordInSupabase, 
   savePermanentQRCodeInSupabase,
   updateFranchiseQrInSupabase,
   saveFranchiseRenewalInSupabase,
+  syncExpiredFranchiseRecordsInSupabase,
   saveViolationInSupabase,
   fetchViolationsFromSupabase,
   updateViolationStatusInSupabase,
   saveDriverRegistryUpdateInSupabase,
   saveDeactivationInSupabase,
   fetchPassengerComplaintsFromSupabase,
-  updatePassengerComplaintStatusInSupabase
+  updatePassengerComplaintStatusInSupabase,
+  saveComplaintReplyInSupabase,
+  deletePassengerComplaintFromSupabase,
+  deleteViolationInSupabase,
+  deleteFranchiseRecordInSupabase,
+  fetchPendingReviewsFromSupabase,
+  updatePendingReviewStatusInSupabase
 } from '../lib/supabaseClient';
+
+interface DeletionNotice {
+  message: string;
+  deletedBy: string;
+  timestamp: string;
+  recordType: string;
+}
 
 interface FranchiseContextType {
   vehicleCategory: VehicleCategory;
@@ -39,6 +50,12 @@ interface FranchiseContextType {
   pendingReviews: PendingReview[];
   violations: ViolationRecord[];
   complaints: PassengerComplaint[];
+  deletionLogs: DeletionLog[];
+  currentAdmin: AdminUser;
+  setCurrentAdmin: (admin: AdminUser) => void;
+  lastDeletionNotice: DeletionNotice | null;
+  clearDeletionNotice: () => void;
+  clearDeletionLogs: () => void;
   isAuthenticated: boolean;
   setIsAuthenticated: (auth: boolean) => void;
   searchQuery: string;
@@ -48,69 +65,129 @@ interface FranchiseContextType {
   selectedFranchiseId: string | null;
   setSelectedFranchiseId: (id: string | null) => void;
   
+  // Real-time Database Sync status & triggers
+  isSyncing: boolean;
+  lastSyncedAt: Date | null;
+  syncFromDatabase: () => Promise<void>;
+
   // Actions
-  addFranchise: (newRecord: Omit<FranchiseRecord, 'id' | 'qrCodeData' | 'violationsCount' | 'status' | 'documentsVerified'>) => string;
-  generatePermanentQr: (id: string) => void;
-  generateAllPermanentQr: () => void;
-  renewFranchise: (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => void;
-  deactivateFranchise: (id: string, reason?: string) => void;
-  addViolation: (newViol: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => void;
-  updateViolationStatus: (id: string, status: 'Pending' | 'Settled' | 'Under Investigation') => void;
-  updateComplaintStatus: (id: string, status: 'Under Investigation' | 'Resolved' | 'Escalated') => void;
-  updateDriver: (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => void;
-  approveReview: (reviewId: string) => void;
-  rejectReview: (reviewId: string, notes: string) => void;
+  addFranchise: (newRecord: Omit<FranchiseRecord, 'id' | 'qrCodeData' | 'violationsCount' | 'status' | 'documentsVerified'>) => Promise<string>;
+  deleteFranchise: (id: string, customReason?: string) => Promise<void>;
+  generatePermanentQr: (id: string) => Promise<void>;
+  generateAllPermanentQr: () => Promise<void>;
+  renewFranchise: (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => Promise<void>;
+  deactivateFranchise: (id: string, reason?: string) => Promise<void>;
+  addViolation: (newViol: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => Promise<void>;
+  updateViolationStatus: (id: string, status: 'Pending' | 'Settled' | 'Under Investigation', remarks?: string) => Promise<void>;
+  deleteViolation: (id: string, customReason?: string) => Promise<void>;
+  updateComplaintStatus: (id: string, status: 'Under Investigation' | 'Resolved' | 'Escalated', adminRemarks?: string) => Promise<void>;
+  deleteComplaint: (id: string, customReason?: string) => Promise<void>;
+  addComplaintReply: (complaintId: string, message: string) => Promise<void>;
+  updateDriver: (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => Promise<void>;
+  approveReview: (reviewId: string) => Promise<void>;
+  rejectReview: (reviewId: string, notes: string) => Promise<void>;
 }
 
 const FranchiseContext = createContext<FranchiseContextType | undefined>(undefined);
 
-const STORAGE_KEY_FRANCHISES = 'tabaco_trd_franchises_v2';
-const STORAGE_KEY_VIOLATIONS = 'tabaco_trd_violations_v2';
+const STORAGE_KEY_FRANCHISES = 'tabaco_trd_franchises_v5';
+const STORAGE_KEY_DELETION_LOGS = 'tabaco_trd_deletion_logs_v2';
+const STORAGE_KEY_ADMIN_USER = 'tabaco_trd_admin_user_v2';
+
+const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202']);
 
 export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>('Tricycle');
   const [activeModule, setActiveModule] = useState<ActiveModule>('overview');
 
-  // Initialize franchises from localStorage if available to survive page reloads permanently
+  // Purge any stale local mock storage from previous versions
+  useEffect(() => {
+    try {
+      localStorage.removeItem('tabaco_trd_franchises_v2');
+      localStorage.removeItem('tabaco_trd_franchises_v3');
+      localStorage.removeItem('tabaco_trd_violations_v2');
+      localStorage.removeItem('tabaco_trd_franchises_v4');
+      localStorage.removeItem('tabaco_trd_deletion_logs_v2');
+    } catch {}
+  }, []);
+
+  // Franchise records with local persistence + cloud sync (empty by default, strictly submitted drivers)
   const [franchises, setFranchises] = useState<FranchiseRecord[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_FRANCHISES);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const realOnly = parsed.filter(f => !LEGACY_MOCK_IDS.has(f.id)).map(f => {
+            const resolvedStatus = resolveFranchiseStatus(f.status, f.expirationDate);
+            const updated = { ...f, status: resolvedStatus };
+            return { ...updated, qrCodeData: buildPermanentQrPayload(updated) };
+          });
+          return realOnly;
         }
       }
     } catch (e) {
       console.warn('Error reading franchises from localStorage:', e);
     }
-    return initialFranchises;
+    return []; // Clean slate
+    return initialFranchises.map(f => {
+      const resolvedStatus = resolveFranchiseStatus(f.status, f.expirationDate);
+      const updated = { ...f, status: resolvedStatus };
+      return { ...updated, qrCodeData: buildPermanentQrPayload(updated) };
+    });
   });
 
-  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>(initialPendingReviews);
-  
-  const [violations, setViolations] = useState<ViolationRecord[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_VIOLATIONS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Error reading violations from localStorage:', e);
-    }
-    return initialViolations;
-  });
+  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
+  const [violations, setViolations] = useState<ViolationRecord[]>([]);
+  const [complaints, setComplaints] = useState<PassengerComplaint[]>([]);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const [complaints, setComplaints] = useState<PassengerComplaint[]>(initialComplaints);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // Default logged in
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedReview, setSelectedReview] = useState<PendingReview | null>(null);
-  const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>('fr-102');
+  const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
 
-  // Always keep localStorage synchronized with state changes
+  const defaultAdminUser: AdminUser = {
+    adminId: 'ADM-2026-001',
+    name: 'TRD Chief Administrator',
+    email: 'admin@franchise.gov.ph',
+    role: 'System Administrator',
+  };
+
+  const [currentAdmin, setCurrentAdmin] = useState<AdminUser>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_ADMIN_USER);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      console.warn('Error reading admin user from localStorage:', e);
+    }
+    return defaultAdminUser;
+  });
+
+  const [deletionLogs, setDeletionLogs] = useState<DeletionLog[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_DELETION_LOGS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading deletion logs from localStorage:', e);
+    }
+    return [];
+  });
+
+  const [lastDeletionNotice, setLastDeletionNotice] = useState<DeletionNotice | null>(null);
+
+  const clearDeletionNotice = () => setLastDeletionNotice(null);
+  const clearDeletionLogs = () => {
+    setDeletionLogs([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY_DELETION_LOGS);
+    } catch {}
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(franchises));
@@ -121,94 +198,191 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_VIOLATIONS, JSON.stringify(violations));
+      localStorage.setItem(STORAGE_KEY_DELETION_LOGS, JSON.stringify(deletionLogs));
     } catch (e) {
-      console.warn('Error saving violations to localStorage:', e);
+      console.warn('Error saving deletion logs to localStorage:', e);
     }
-  }, [violations]);
+  }, [deletionLogs]);
 
-  // Sync live records from role-partitioned Supabase tables when category changes or on mount & live interval
   useEffect(() => {
-    const syncData = () => {
-      fetchFranchiseRecordsFromSupabase(vehicleCategory).then((dbRecords) => {
-        if (dbRecords && dbRecords.length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEY_ADMIN_USER, JSON.stringify(currentAdmin));
+    } catch (e) {
+      console.warn('Error saving current admin to localStorage:', e);
+    }
+  }, [currentAdmin]);
+
+  // Master Synchronizer with Supabase Database (non-destructive merge)
+  const syncFromDatabase = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const [dbRecords, dbViolations, dbComplaints, dbReviews] = await Promise.all([
+        fetchFranchiseRecordsFromSupabase(vehicleCategory),
+        fetchViolationsFromSupabase(vehicleCategory),
+        fetchPassengerComplaintsFromSupabase(),
+        fetchPendingReviewsFromSupabase()
+      ]);
+
+      // Synchronize live database records with state
+      if (Array.isArray(dbRecords)) {
+        if (dbRecords.length > 0) {
+          syncExpiredFranchiseRecordsInSupabase(dbRecords, vehicleCategory).catch(err => {
+            console.warn('Auto-sync expired records notice:', err);
+          });
           setFranchises(prev => {
-            const combined = [...dbRecords];
-            // Preserve any newly registered records from local session that might still be syncing
-            prev.forEach(localItem => {
-              if (localItem.vehicleCategory === vehicleCategory && !combined.some(dbItem => dbItem.mtopNumber === localItem.mtopNumber)) {
-                combined.unshift(localItem);
-              }
-            });
-            return combined.map(item => {
-              const localMatch = prev.find(p => p.mtopNumber === item.mtopNumber);
-              if (localMatch && localMatch.hasPermanentQr) {
-                return {
-                  ...item,
-                  hasPermanentQr: true,
-                  qrGeneratedDate: item.qrGeneratedDate || localMatch.qrGeneratedDate
-                };
-              }
-              return item;
-            });
+            const otherCategory = prev.filter(p => p.vehicleCategory !== vehicleCategory);
+            return [...dbRecords, ...otherCategory];
           });
+        } else {
+          setFranchises(prev => prev.filter(p => p.vehicleCategory !== vehicleCategory));
         }
-      });
+      }
 
-      fetchViolationsFromSupabase(vehicleCategory).then((dbViolations) => {
-        if (dbViolations && dbViolations.length > 0) {
-          setViolations(prev => {
-            const combined = [...dbViolations];
-            (prev || []).forEach(localItem => {
-              if (!combined.some(dbItem => dbItem.id === localItem.id || (dbItem.cityPlateNumber === localItem.cityPlateNumber && dbItem.dateSubmitted === localItem.dateSubmitted && dbItem.violationType === localItem.violationType))) {
-                combined.push(localItem);
-              }
-            });
-            return combined;
+      if (Array.isArray(dbViolations)) {
+        setViolations(dbViolations);
+      }
+      if (Array.isArray(dbReviews)) {
+        setPendingReviews(dbReviews);
+      }
+      if (Array.isArray(dbComplaints)) {
+        setComplaints(dbComplaints);
+      }
+
+      // For complaints, preserve local chat replies if present
+      if (false && dbComplaints && dbComplaints.length > 0) {
+        setComplaints(prev => {
+          const incomingComplaints = dbComplaints;
+          return incomingComplaints.map(incoming => {
+            const existing = prev.find(p => p.id === incoming.id);
+            if (existing) {
+              const existingIds = new Set((existing.chatMessages || []).map(m => m.id));
+              const newMsgs = (incoming.chatMessages || []).filter(m => !existingIds.has(m.id));
+              // Ensure an active Escalated or Resolved admin decision is NEVER overwritten with stale Under Investigation
+              const resolvedStatus = (incoming.status === 'Under Investigation' && (existing.status === 'Resolved' || existing.status === 'Escalated'))
+                ? existing.status
+                : (incoming.status || existing.status);
+
+              return {
+                ...incoming,
+                status: resolvedStatus,
+                adminRemarks: incoming.adminRemarks || existing.adminRemarks,
+                evidenceImage: incoming.evidenceImage || existing.evidenceImage,
+                evidenceFilename: incoming.evidenceFilename || existing.evidenceFilename,
+                chatMessages: [
+                  ...(existing.chatMessages || []).map(m => {
+                    const matchedIncoming = (incoming.chatMessages || []).find(im => im.id === m.id);
+                    return matchedIncoming?.image ? { ...m, image: matchedIncoming.image, filename: matchedIncoming.filename || m.filename } : m;
+                  }),
+                  ...newMsgs
+                ],
+              };
+            }
+            return incoming;
           });
-        }
-      });
+        });
+      }
 
-      // Sync mobile passenger complaints in real-time
-      fetchPassengerComplaintsFromSupabase().then((dbComplaints) => {
-        if (dbComplaints && dbComplaints.length > 0) {
-          setComplaints(dbComplaints);
-        }
-      });
-    };
-
-    // Initial sync
-    syncData();
-
-    // Auto-poll every 3.5 seconds to instantly pick up reports sent from mobile web
-    const intervalId = setInterval(syncData, 3500);
-    return () => clearInterval(intervalId);
+      setLastSyncedAt(new Date());
+    } catch (error) {
+      console.error('Error synchronizing with Supabase database:', error);
+    } finally {
+      setIsSyncing(false);
+    }
   }, [vehicleCategory]);
 
-  const addFranchise = (data: Omit<FranchiseRecord, 'id' | 'qrCodeData' | 'violationsCount' | 'status' | 'documentsVerified'>): string => {
-    const id = `fr-${Date.now()}`;
-    const newRecord: FranchiseRecord = {
+  // Sync live records from Supabase tables on mount, when vehicleCategory changes, and every 5 seconds
+  useEffect(() => {
+    syncFromDatabase();
+    const intervalId = setInterval(syncFromDatabase, 5000);
+    return () => clearInterval(intervalId);
+  }, [syncFromDatabase]);
+
+  const addFranchise = async (data: Omit<FranchiseRecord, 'id' | 'qrCodeData' | 'violationsCount' | 'status' | 'documentsVerified'>): Promise<string> => {
+    let id = `fr-${Date.now()}`;
+    const targetCategory = data.vehicleCategory || vehicleCategory;
+    const catDefaultMatrix = getDefaultFareMatrix(targetCategory);
+    const resolvedMatrix = data.fareMatrix && data.fareMatrix.length > 0 ? data.fareMatrix : catDefaultMatrix;
+    const baseFare = resolvedMatrix[0]?.regularFare 
+      ? cleanFare(resolvedMatrix[0].regularFare, targetCategory === 'Pedicab' ? '15.00' : '20.00') 
+      : (targetCategory === 'Pedicab' ? '15.00' : '20.00');
+    const resolvedStandardFare = data.standardFare && !data.standardFare.includes('50.00 Minimum')
+      ? data.standardFare 
+      : `₱${baseFare} Minimum`;
+
+    const initialStatus = resolveFranchiseStatus('Active', data.expirationDate);
+
+    let newRecord: FranchiseRecord = {
       ...data,
       id,
+      vehicleCategory: targetCategory,
+      fareMatrix: resolvedMatrix,
+      standardFare: resolvedStandardFare,
       qrCodeData: '',
       violationsCount: 0,
-      status: 'Active',
+      status: initialStatus,
       documentsVerified: true,
-      hasPermanentQr: false, // Starts false until permanent QR code is generated by Admin
+      hasPermanentQr: false,
     };
     newRecord.qrCodeData = buildPermanentQrPayload(newRecord);
 
-    setFranchises(prev => [newRecord, ...prev]);
-    setSelectedFranchiseId(id);
+    // Save to Supabase (and obtain true UUID if returned)
+    try {
+      const saved = await saveFranchiseRecordInSupabase(newRecord, data.vehicleCategory);
+      if (Array.isArray(saved) && saved.length > 0 && saved[0]?.id) {
+        id = saved[0].id;
+        newRecord.id = id;
+        newRecord.qrCodeData = buildPermanentQrPayload(newRecord);
+      }
+    } catch (err) {
+      console.warn('Could not post franchise to remote Supabase, saved securely in local system registry:', err);
+    }
 
-    // Save to both role-partitioned tables
-    saveFranchiseRegistrationInSupabase(newRecord, data.vehicleCategory);
-    saveFranchiseRecordInSupabase(newRecord, data.vehicleCategory);
+    // Immediately store in local state & localStorage so it appears in records right away
+    setFranchises(prev => {
+      const plate = (newRecord.cityPlateNumber || newRecord.mtopNumber).toLowerCase();
+      const filtered = prev.filter(f => f.id !== id && (f.cityPlateNumber || f.mtopNumber).toLowerCase() !== plate);
+      return [newRecord, ...filtered];
+    });
+    setSelectedFranchiseId(id);
 
     return id;
   };
 
-  const generatePermanentQr = (id: string) => {
+  const deleteFranchise = async (id: string, customReason?: string) => {
+    const target = franchises.find(f => f.id === id);
+    if (!target) return;
+
+    const removerLabel = `${currentAdmin.name} (${currentAdmin.adminId})`;
+    const todayIso = new Date().toISOString();
+    const plate = target.cityPlateNumber || target.mtopNumber || 'N/A';
+
+    const newLog: DeletionLog = {
+      id: `del-fran-${Date.now()}`,
+      recordType: 'Franchise Record',
+      itemTitle: `${plate} — ${target.driverName} (Operator: ${target.operatorName})`,
+      cityPlateNumber: plate,
+      vehicleCategory: target.vehicleCategory,
+      issueOrViolationType: 'Franchise Record Removal',
+      deletedBy: removerLabel,
+      deletedByEmail: currentAdmin.email,
+      deletedAt: todayIso,
+      originalRecordDetails: target,
+      reason: customReason || 'Authorized administrator franchise record removal'
+    };
+
+    setDeletionLogs(prev => [newLog, ...prev]);
+    setLastDeletionNotice({
+      message: `Franchise Record for ${plate} (${target.driverName}) has been permanently removed by ${removerLabel}.`,
+      deletedBy: removerLabel,
+      timestamp: todayIso,
+      recordType: 'Franchise Record'
+    });
+
+    setFranchises(prev => prev.filter(f => f.id !== id && f.mtopNumber !== plate && f.cityPlateNumber !== plate));
+    await deleteFranchiseRecordInSupabase(id, plate, target.vehicleCategory);
+  };
+
+  const generatePermanentQr = async (id: string) => {
     const today = new Date().toISOString().split('T')[0];
     const target = franchises.find(f => f.id === id);
     if (target) {
@@ -219,7 +393,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
       const fullQrPayload = buildPermanentQrPayload(updatedTarget);
       
-      savePermanentQRCodeInSupabase({
+      await savePermanentQRCodeInSupabase({
         franchise_id: target.id,
         mtop_number: target.mtopNumber,
         city_plate_number: target.cityPlateNumber || target.mtopNumber,
@@ -227,7 +401,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         driver_license_no: target.driverLicenseNo || 'N02-18-994820',
         qr_payload: fullQrPayload,
       }, target.vehicleCategory);
-      updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
+      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
     }
     setFranchises(prev => prev.map(item => {
       if (item.id === id) {
@@ -245,9 +419,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const generateAllPermanentQr = () => {
+  const generateAllPermanentQr = async () => {
     const today = new Date().toISOString().split('T')[0];
-    franchises.forEach(target => {
+    for (const target of franchises) {
       const updatedTarget: FranchiseRecord = {
         ...target,
         hasPermanentQr: true,
@@ -255,7 +429,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
       const fullQrPayload = buildPermanentQrPayload(updatedTarget);
 
-      savePermanentQRCodeInSupabase({
+      await savePermanentQRCodeInSupabase({
         franchise_id: target.id,
         mtop_number: target.mtopNumber,
         city_plate_number: target.cityPlateNumber || target.mtopNumber,
@@ -263,8 +437,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         driver_license_no: target.driverLicenseNo || 'N02-18-994820',
         qr_payload: fullQrPayload,
       }, target.vehicleCategory);
-      updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
-    });
+      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
+    }
     setFranchises(prev => prev.map(item => {
       const updated = {
         ...item,
@@ -278,12 +452,13 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const renewFranchise = (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => {
+  const renewFranchise = async (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => {
     const target = franchises.find(f => f.id === id);
     const newExpiry = renewalData?.newExpiry || '2027-01-15';
     if (target) {
-      saveFranchiseRenewalInSupabase({
+      await saveFranchiseRenewalInSupabase({
         mtop_number: target.mtopNumber,
+        city_plate_number: target.cityPlateNumber || target.mtopNumber,
         operator_name: target.operatorName,
         driver_name: target.driverName,
         previous_expiry: target.expirationDate,
@@ -295,20 +470,24 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setFranchises(prev => prev.map(item => {
       if (item.id === id) {
-        return {
+        const updated = {
           ...item,
-          status: 'Active',
+          status: 'Active' as const,
           expirationDate: newExpiry,
+        };
+        return {
+          ...updated,
+          qrCodeData: buildPermanentQrPayload(updated),
         };
       }
       return item;
     }));
   };
 
-  const deactivateFranchise = (id: string, reason: string = 'Administrative Deactivation') => {
+  const deactivateFranchise = async (id: string, reason: string = 'Administrative Deactivation') => {
     const target = franchises.find(f => f.id === id);
     if (target) {
-      saveDeactivationInSupabase({
+      await saveDeactivationInSupabase({
         mtop_number: target.mtopNumber,
         operator_name: target.operatorName,
         driver_name: target.driverName,
@@ -327,7 +506,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const addViolation = (data: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => {
+  const addViolation = async (data: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => {
     const newViol: ViolationRecord = {
       ...data,
       id: `viol-${Date.now()}`,
@@ -338,7 +517,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const target = franchises.find(f => f.id === data.franchiseId || f.mtopNumber === data.mtopNumber);
     const cat = target?.vehicleCategory || vehicleCategory;
-    saveViolationInSupabase(newViol, cat);
+    await saveViolationInSupabase(newViol, cat);
 
     setFranchises(prev => prev.map(item => {
       if (item.id === data.franchiseId || item.mtopNumber === data.mtopNumber) {
@@ -351,20 +530,26 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const updateViolationStatus = (id: string, status: 'Pending' | 'Settled' | 'Under Investigation') => {
+  const updateViolationStatus = async (id: string, status: 'Pending' | 'Settled' | 'Under Investigation', remarks?: string) => {
     const targetViol = violations.find(v => v.id === id);
     if (targetViol) {
       const targetFranchise = franchises.find(f => f.mtopNumber === targetViol.cityPlateNumber || f.id === targetViol.franchiseId);
       const cat = targetFranchise?.vehicleCategory || (targetViol.cityPlateNumber.startsWith('P-') ? 'Pedicab' : 'Tricycle');
-      updateViolationStatusInSupabase(id, status, cat);
+      await updateViolationStatusInSupabase(id, status, cat, {
+        enforcerName: targetViol.enforcerName,
+        reportedBy: targetViol.reportedBy,
+        plateNumber: targetViol.cityPlateNumber || targetViol.mtopNumber,
+        violationType: targetViol.violationType,
+        remarks: remarks || targetViol.remarks
+      });
     }
-    setViolations(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+    setViolations(prev => prev.map(v => v.id === id ? { ...v, status, remarks: remarks || v.remarks } : v));
   };
 
-  const updateDriver = (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => {
+  const updateDriver = async (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => {
     const target = franchises.find(f => f.mtopNumber === mtopNumber);
     const cat = target?.vehicleCategory || vehicleCategory;
-    saveDriverRegistryUpdateInSupabase({
+    await saveDriverRegistryUpdateInSupabase({
       mtop_number: mtopNumber,
       driver_name: driverData.driverName,
       license_no: driverData.licenseNo,
@@ -387,7 +572,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const approveReview = (reviewId: string) => {
+  const approveReview = async (reviewId: string) => {
     const target = pendingReviews.find(r => r.id === reviewId);
     if (!target) return;
 
@@ -396,7 +581,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ));
 
     const plate = target.cityPlateAssigned || target.mtopAssigned || '1243';
-    const newId = addFranchise({
+    const newId = await addFranchise({
       cityPlateNumber: plate,
       mtopNumber: plate,
       plateNumber: target.vehicleCategory === 'Tricycle' ? `${plate}-TR` : `${plate}-PED`,
@@ -415,17 +600,131 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
 
     setSelectedFranchiseId(newId);
+
+    // Sync approval and notify mobile applicant
+    await updatePendingReviewStatusInSupabase(reviewId, 'Approved', 'Franchise application approved and license issued.', {
+      applicantName: target.applicantName,
+      cityPlateAssigned: plate,
+      vehicleCategory: target.vehicleCategory
+    });
   };
 
-  const rejectReview = (reviewId: string, notes: string) => {
+  const rejectReview = async (reviewId: string, notes: string) => {
+    const target = pendingReviews.find(r => r.id === reviewId);
     setPendingReviews(prev => prev.map(r => 
       r.id === reviewId ? { ...r, status: 'Rejected' as const, reviewNotes: notes } : r
     ));
+
+    // Sync rejection and notify mobile applicant
+    await updatePendingReviewStatusInSupabase(reviewId, 'Rejected', notes, {
+      applicantName: target?.applicantName,
+      cityPlateAssigned: target?.cityPlateAssigned || target?.mtopAssigned,
+      vehicleCategory: target?.vehicleCategory
+    });
   };
 
-  const updateComplaintStatus = (id: string, status: 'Under Investigation' | 'Resolved' | 'Escalated') => {
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, status } : c));
-    updatePassengerComplaintStatusInSupabase(id, status);
+  const deleteViolation = async (id: string, customReason?: string) => {
+    const target = violations.find(v => v.id === id);
+    if (!target) return;
+
+    const removerLabel = `${currentAdmin.name} (${currentAdmin.adminId})`;
+    const todayIso = new Date().toISOString();
+
+    const newLog: DeletionLog = {
+      id: `del-viol-${Date.now()}`,
+      recordType: 'Violation Citation',
+      itemTitle: `${target.cityPlateNumber || target.mtopNumber} — ${target.violationType} (Fine: ₱${Number(target.fineAmount || 0).toLocaleString()})`,
+      cityPlateNumber: target.cityPlateNumber || target.mtopNumber || 'N/A',
+      vehicleCategory: (target.cityPlateNumber?.startsWith('P-') ? 'Pedicab' : vehicleCategory),
+      issueOrViolationType: target.violationType,
+      deletedBy: removerLabel,
+      deletedByEmail: currentAdmin.email,
+      deletedAt: todayIso,
+      originalRecordDetails: target,
+      reason: customReason || 'Authorized administrator citation removal'
+    };
+
+    setDeletionLogs(prev => [newLog, ...prev]);
+    setLastDeletionNotice({
+      message: `Violation Citation "${target.violationType}" for ${target.cityPlateNumber} has been removed from the active system by ${removerLabel}.`,
+      deletedBy: removerLabel,
+      timestamp: todayIso,
+      recordType: 'Violation Citation'
+    });
+
+    setViolations(prev => prev.filter(v => v.id !== id));
+    await deleteViolationInSupabase(id, vehicleCategory, (target as any)?.evidenceImage || (target as any)?.evidence_image);
+  };
+
+  const updateComplaintStatus = async (
+    id: string, 
+    status: 'Under Investigation' | 'Resolved' | 'Escalated', 
+    adminRemarks?: string
+  ) => {
+    const target = complaints.find(c => c.id === id);
+    setComplaints(prev => prev.map(c => 
+      c.id === id ? { ...c, status, adminRemarks: adminRemarks || c.adminRemarks } : c
+    ));
+    await updatePassengerComplaintStatusInSupabase(id, status, {
+      complainantName: target?.complainantName,
+      cityPlateNumber: target?.cityPlateNumber,
+      issueType: target?.issueType,
+      adminRemarks: adminRemarks || target?.adminRemarks
+    });
+  };
+
+  const deleteComplaint = async (id: string, customReason?: string) => {
+    const target = complaints.find(c => c.id === id);
+    if (!target) return;
+
+    const removerLabel = `${currentAdmin.name} (${currentAdmin.adminId})`;
+    const todayIso = new Date().toISOString();
+
+    const newLog: DeletionLog = {
+      id: `del-comp-${Date.now()}`,
+      recordType: 'Passenger Complaint',
+      itemTitle: `Complaint on Plate ${target.cityPlateNumber} — ${target.issueType} (Complainant: ${target.complainantName})`,
+      cityPlateNumber: target.cityPlateNumber || target.mtopNumber || 'N/A',
+      vehicleCategory: target.vehicleCategory || vehicleCategory,
+      issueOrViolationType: target.issueType,
+      deletedBy: removerLabel,
+      deletedByEmail: currentAdmin.email,
+      deletedAt: todayIso,
+      originalRecordDetails: target,
+      reason: customReason || 'Authorized administrator complaint removal'
+    };
+
+    setDeletionLogs(prev => [newLog, ...prev]);
+    setLastDeletionNotice({
+      message: `Passenger Report "${target.issueType}" on ${target.cityPlateNumber} has been removed from the active system by ${removerLabel}.`,
+      deletedBy: removerLabel,
+      timestamp: todayIso,
+      recordType: 'Passenger Complaint'
+    });
+
+    setComplaints(prev => prev.filter(c => c.id !== id));
+    await deletePassengerComplaintFromSupabase(id, target?.evidenceImage);
+  };
+
+  const addComplaintReply = async (complaintId: string, message: string) => {
+    const target = complaints.find(c => c.id === complaintId);
+    const newMsg: ComplaintChatMessage = {
+      id: `msg-admin-${Date.now()}`,
+      sender: 'admin',
+      senderName: currentAdmin.name || 'TRD Admin',
+      message,
+      timestamp: new Date().toISOString(),
+    };
+    setComplaints(prev => prev.map(c =>
+      c.id === complaintId
+        ? { ...c, chatMessages: [...(c.chatMessages || []), newMsg] }
+        : c
+    ));
+
+    await saveComplaintReplyInSupabase(complaintId, message, currentAdmin.name || 'TRD Admin', {
+      complainantName: target?.complainantName,
+      cityPlateNumber: target?.cityPlateNumber
+    });
   };
 
   return (
@@ -439,6 +738,12 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         pendingReviews,
         violations,
         complaints,
+        deletionLogs,
+        currentAdmin,
+        setCurrentAdmin,
+        lastDeletionNotice,
+        clearDeletionNotice,
+        clearDeletionLogs,
         isAuthenticated,
         setIsAuthenticated,
         searchQuery,
@@ -447,14 +752,21 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setSelectedReview,
         selectedFranchiseId,
         setSelectedFranchiseId,
+        isSyncing,
+        lastSyncedAt,
+        syncFromDatabase,
         addFranchise,
+        deleteFranchise,
         generatePermanentQr,
         generateAllPermanentQr,
         renewFranchise,
         deactivateFranchise,
         addViolation,
         updateViolationStatus,
+        deleteViolation,
         updateComplaintStatus,
+        deleteComplaint,
+        addComplaintReply,
         updateDriver,
         approveReview,
         rejectReview,

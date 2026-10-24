@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
-import { ArrowLeft, Users, Search, QrCode, Lock, Sparkles, CheckCircle2, Check } from 'lucide-react';
+import type { FranchiseRecord } from '../../types';
+import { ArrowLeft, Users, Search, QrCode, Lock, Sparkles, CheckCircle2, Check, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { AdminPasscodeModal } from '../AdminPasscodeModal';
 
 export const FranchiseRecordsModal: React.FC = () => {
   const { 
@@ -11,10 +13,12 @@ export const FranchiseRecordsModal: React.FC = () => {
     vehicleCategory, 
     setSelectedFranchiseId,
     generatePermanentQr,
-    generateAllPermanentQr 
+    generateAllPermanentQr,
+    deleteFranchise
   } = useFranchise();
   const [search, setSearch] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
+  const [franchiseToDelete, setFranchiseToDelete] = useState<FranchiseRecord | null>(null);
 
   if (activeModule !== 'franchise_records') return null;
 
@@ -23,7 +27,8 @@ export const FranchiseRecordsModal: React.FC = () => {
     const matchesSearch = !search || 
       f.mtopNumber.toLowerCase().includes(search.toLowerCase()) ||
       f.operatorName.toLowerCase().includes(search.toLowerCase()) ||
-      f.driverName.toLowerCase().includes(search.toLowerCase());
+      f.driverName.toLowerCase().includes(search.toLowerCase()) ||
+      (f.status || '').toLowerCase().includes(search.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -163,7 +168,18 @@ export const FranchiseRecordsModal: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filtered.map((item) => (
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Users className="h-8 w-8 text-slate-300" />
+                        <p className="text-sm font-semibold text-slate-600">No {vehicleCategory} Records Found</p>
+                        <p className="text-xs text-slate-400">The database table has 0 records. Use "Register Franchise" to add new units.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3.5 font-bold text-slate-900">{item.mtopNumber}</td>
                     <td className="px-5 py-3.5 font-semibold text-slate-800">{item.operatorName}</td>
@@ -172,9 +188,9 @@ export const FranchiseRecordsModal: React.FC = () => {
                     <td className="px-5 py-3.5">
                       <span className={
                         item.status === 'Active' ? 'badge-active' :
-                        item.status === 'Under Review' ? 'badge-pending' : 'badge-expired'
+                        item.status === 'Pending Renewal' || item.status === 'Under Review' ? 'badge-pending' : 'badge-expired'
                       }>
-                        {item.status === 'Under Review' ? 'Pending' : item.status}
+                        {item.status}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
@@ -191,28 +207,43 @@ export const FranchiseRecordsModal: React.FC = () => {
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      {item.hasPermanentQr ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        {item.hasPermanentQr ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQrGenerator(item.id)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300"
+                            title="View permanent QR code"
+                          >
+                            <QrCode className="h-3.5 w-3.5 text-slate-600" />
+                            <span>View QR Code</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateSingleQr(item.id, item.mtopNumber)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm bg-[#05b875] hover:bg-[#049d63] text-white shadow-emerald-600/20 active:scale-[0.98]"
+                            title="Generate permanent QR code for this unit"
+                          >
+                            <QrCode className="h-3.5 w-3.5 text-white" />
+                            <span>Generate QR Code</span>
+                          </button>
+                        )}
+
                         <button
-                          onClick={() => handleOpenQrGenerator(item.id)}
-                          className="inline-flex items-center space-x-1 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300"
-                          title="View permanent QR code"
+                          type="button"
+                          onClick={() => setFranchiseToDelete(item)}
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 active:scale-[0.98]"
+                          title="Delete franchise record (Admin authorization required)"
                         >
-                          <QrCode className="h-3.5 w-3.5 text-slate-600" />
-                          <span>View QR Code</span>
+                          <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                          <span>Delete</span>
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => handleGenerateSingleQr(item.id, item.mtopNumber)}
-                          className="inline-flex items-center space-x-1 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm bg-[#05b875] hover:bg-[#049d63] text-white shadow-emerald-600/20 active:scale-[0.98]"
-                          title="Generate permanent QR code for this unit"
-                        >
-                          <QrCode className="h-3.5 w-3.5 text-white" />
-                          <span>Generate QR Code</span>
-                        </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -220,6 +251,25 @@ export const FranchiseRecordsModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Admin Passcode Authorization Modal for Franchise Deletion */}
+      <AdminPasscodeModal
+        isOpen={!!franchiseToDelete}
+        title={`Delete ${vehicleCategory} Franchise Record`}
+        description={`You are about to permanently delete the master franchise record, registered driver details, and permanent QR code badge for unit ${franchiseToDelete?.mtopNumber} (${franchiseToDelete?.driverName}). This action is recorded in audit logs and cannot be undone.`}
+        itemType="Franchise Record"
+        itemName={`${franchiseToDelete?.mtopNumber} — ${franchiseToDelete?.driverName}`}
+        confirmButtonText="Authorize & Delete Record"
+        onClose={() => setFranchiseToDelete(null)}
+        onConfirm={(reason) => {
+          if (franchiseToDelete) {
+            deleteFranchise(franchiseToDelete.id, reason);
+            setNotification(`Franchise record ${franchiseToDelete.mtopNumber} (${franchiseToDelete.driverName}) has been permanently deleted.`);
+            setTimeout(() => setNotification(null), 5000);
+            setFranchiseToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -39,6 +39,7 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [operatorLastName, setOperatorLastName] = useState('');
   const [operatorFirstName, setOperatorFirstName] = useState('');
   const [operatorMiddleName, setOperatorMiddleName] = useState('');
+  const [operatorContact, setOperatorContact] = useState('0917-882-1920');
   const [residentialAddress, setResidentialAddress] = useState('');
   const [expirationDate, setExpirationDate] = useState('2027-01-15');
   const [driverAvailability, setDriverAvailability] = useState('Available / On-Duty');
@@ -56,36 +57,21 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [paradaRoute, setParadaRoute] = useState('Sua-Igot 24 Tabaco');
   const [cityPlateNo, setCityPlateNo] = useState(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
 
-  // Sync category and default fare matrix when switching vehicle mode from dashboard
-  useEffect(() => {
-    if (vehicleCategory) {
-      setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
-      const defaultRows = getDefaultFareMatrix(vehicleCategory).map(f => ({
-        id: f.id || `fare-${Math.random()}`,
-        destination: f.destination,
-        regularFare: cleanFare(f.regularFare, vehicleCategory === 'Pedicab' ? '15.00' : '20.00'),
-        studentFare: cleanFare(f.studentFare, '15.00'),
-        seniorPwdFare: cleanFare(f.seniorPwdFare || f.discountedFare, '16.00'),
-      }));
-      setFareMatrix(defaultRows);
-    }
-  }, [vehicleCategory]);
-
   // Fare Adjustment Matrix (per Destination / Route) - Separate Student & Senior 20%
   const [fareMatrix, setFareMatrix] = useState<FareRow[]>([
     {
       id: 'fare-1',
-      destination: 'Poblication to Miss pina',
-      regularFare: '50.00',
-      studentFare: '15.00',
-      seniorPwdFare: '40.00',
+      destination: 'Short Distance (Base)',
+      regularFare: '20.00',
+      studentFare: '16.00',
+      seniorPwdFare: '16.00',
     },
     {
       id: 'fare-2',
-      destination: 'Short Distance (Base)',
-      regularFare: '20.00',
-      studentFare: '15.00',
-      seniorPwdFare: '16.00',
+      destination: 'Poblacion to Miss pina',
+      regularFare: '50.00',
+      studentFare: '40.00',
+      seniorPwdFare: '40.00',
     },
     {
       id: 'fare-3',
@@ -96,19 +82,42 @@ export const RegisterFranchiseModal: React.FC = () => {
     }
   ]);
 
+  // Sync category and default fare matrix when switching vehicle mode from dashboard
+  useEffect(() => {
+    if (vehicleCategory) {
+      setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
+      const defaultRows = getDefaultFareMatrix(vehicleCategory).map(f => {
+        const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
+        const reg = cleanFare(f.regularFare, fallback);
+        const regNum = parseFloat(reg);
+        const discount = (regNum * 0.8).toFixed(2);
+        return {
+          id: f.id || `fare-${Math.random()}`,
+          destination: f.destination,
+          regularFare: reg,
+          studentFare: cleanFare(f.studentFare, discount),
+          seniorPwdFare: cleanFare(f.seniorPwdFare || f.discountedFare, discount),
+        };
+      });
+      setFareMatrix(defaultRows);
+    }
+  }, [vehicleCategory]);
+
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   if (activeModule !== 'register') return null;
 
   const handleAddFareRow = () => {
+    const defaultReg = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
+    const defaultDiscount = vehicleCategory === 'Pedicab' ? '12.00' : '16.00';
     setFareMatrix(prev => [
       ...prev,
       {
         id: `fare-${Date.now()}`,
         destination: '',
-        regularFare: vehicleCategory === 'Pedicab' ? '15.00' : '20.00',
-        studentFare: '15.00',
-        seniorPwdFare: '16.00',
+        regularFare: defaultReg,
+        studentFare: defaultDiscount,
+        seniorPwdFare: defaultDiscount,
       }
     ]);
   };
@@ -120,7 +129,21 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   const handleUpdateFareRow = (id: string, field: keyof FareRow, value: string) => {
     const formattedValue = field === 'destination' ? formatTitleCase(value) : value;
-    setFareMatrix(prev => prev.map(r => r.id === id ? { ...r, [field]: formattedValue } : r));
+    setFareMatrix(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, [field]: formattedValue };
+      // When regular fare is typed or changed, automatically re-compute exact 20% discount for Student & Senior/PWD
+      if (field === 'regularFare') {
+        const cleanedStr = value.replace(/[₱Php\s,]/gi, '');
+        const num = parseFloat(cleanedStr);
+        if (!isNaN(num) && num > 0) {
+          const discount = (num * 0.8).toFixed(2);
+          updated.studentFare = discount;
+          updated.seniorPwdFare = discount;
+        }
+      }
+      return updated;
+    }));
   };
 
   const handleReset = () => {
@@ -128,6 +151,7 @@ export const RegisterFranchiseModal: React.FC = () => {
     setOperatorLastName('');
     setOperatorFirstName('');
     setOperatorMiddleName('');
+    setOperatorContact('0917-882-1920');
     setResidentialAddress('');
     setDriverLastName('');
     setDriverFirstName('');
@@ -136,7 +160,7 @@ export const RegisterFranchiseModal: React.FC = () => {
     setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const operatorFullName = [operatorFirstName, operatorMiddleName, operatorLastName]
@@ -149,20 +173,30 @@ export const RegisterFranchiseModal: React.FC = () => {
       .filter(Boolean)
       .join(' ') || operatorFullName;
 
-    const baseFareAmount = fareMatrix[0] ? cleanFare(fareMatrix[0].regularFare, '20.00') : (vehicleCategory === 'Pedicab' ? '15.00' : '50.00');
+    const baseFareAmount = fareMatrix[0] 
+      ? cleanFare(fareMatrix[0].regularFare, vehicleCategory === 'Pedicab' ? '15.00' : '20.00') 
+      : (vehicleCategory === 'Pedicab' ? '15.00' : '20.00');
     const primaryFare = `₱${baseFareAmount} Minimum`;
     const targetPlate = cityPlateNo.trim() || (vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
 
-    const sanitizedFareMatrix = fareMatrix.map(row => ({
-      id: row.id,
-      destination: row.destination.trim() || 'Short Distance (Base)',
-      regularFare: cleanFare(row.regularFare, '20.00'),
-      studentFare: cleanFare(row.studentFare, '15.00'),
-      seniorPwdFare: cleanFare(row.seniorPwdFare, '16.00'),
-      discountedFare: cleanFare(row.seniorPwdFare, '16.00'),
-    }));
+    const sanitizedFareMatrix = fareMatrix.map(row => {
+      const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
+      const reg = cleanFare(row.regularFare, fallback);
+      const regNum = parseFloat(reg);
+      const defaultDiscount = (regNum * 0.8).toFixed(2);
+      const stu = cleanFare(row.studentFare, defaultDiscount);
+      const snr = cleanFare(row.seniorPwdFare, defaultDiscount);
+      return {
+        id: row.id,
+        destination: row.destination.trim() || (vehicleCategory === 'Pedicab' ? 'Poblacion to Market' : 'Short Distance (Base)'),
+        regularFare: reg,
+        studentFare: stu,
+        seniorPwdFare: snr,
+        discountedFare: snr,
+      };
+    });
 
-    const newId = addFranchise({
+    const newId = await addFranchise({
       applicationNo: applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
       cityPlateNumber: targetPlate,
       mtopNumber: targetPlate,
@@ -172,7 +206,7 @@ export const RegisterFranchiseModal: React.FC = () => {
       operatorFirstName,
       operatorMiddleName,
       operatorName: operatorFullName,
-      operatorContact: '0917-882-1920',
+      operatorContact: operatorContact.trim() || '0917-882-1920',
       operatorAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       residentialAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       driverLastName,
@@ -180,7 +214,7 @@ export const RegisterFranchiseModal: React.FC = () => {
       driverMiddleName,
       driverName: driverFullName,
       driverAddress: driverAddress || residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
-      driverLicenseNo: 'N02-18-994820',
+      driverLicenseNo: 'Verified',
       licenseExpiry: '2028-11-20',
       registrationDate: new Date().toISOString().split('T')[0],
       expirationDate: expirationDate || '2027-01-15',
@@ -335,7 +369,7 @@ export const RegisterFranchiseModal: React.FC = () => {
               {/* Form Title & Subtitle */}
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                  Tricycle Registration Form
+                  {vehicleCategory} Registration Form
                 </h3>
                 <p className="text-xs text-slate-400 font-medium italic mt-0.5">
                   Enter franchise details for registration
@@ -380,18 +414,35 @@ export const RegisterFranchiseModal: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Residential Address */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Residential Address
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={residentialAddress}
-                      onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
-                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
+                  {/* Residential Address & Contact / Telephone Number */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                        Residential Address
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={residentialAddress}
+                        onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
+                        placeholder="Zone 4, Poblacion"
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                        Contact / Telephone No.
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={operatorContact}
+                        onChange={(e) => setOperatorContact(e.target.value)}
+                        placeholder="0917-882-1920"
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
                   </div>
 
                   {/* Expiration Date & Driver Availability */}
@@ -457,12 +508,13 @@ export const RegisterFranchiseModal: React.FC = () => {
                   {/* Driver Address */}
                   <div>
                     <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Address
+                      Driver Address
                     </label>
                     <input
                       type="text"
                       value={driverAddress}
                       onChange={(e) => setDriverAddress(formatTitleCase(e.target.value))}
+                      placeholder="Zone 4, Poblacion"
                       className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
@@ -487,15 +539,20 @@ export const RegisterFranchiseModal: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Vehicle Type
+                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                        <span>Vehicle Type</span>
+                        <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                          Auto-Selected
+                        </span>
                       </label>
-                      <input
-                        type="text"
-                        readOnly
-                        value={vehicleCategory}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none cursor-default text-center select-none"
-                      />
+                      <div className={`w-full flex items-center justify-center space-x-2 rounded-lg px-3 py-2 text-xs font-black shadow-sm border-2 transition-all select-none ${
+                        vehicleCategory === 'Pedicab'
+                          ? 'bg-amber-100/90 border-amber-500 text-amber-950 ring-2 ring-amber-400/30'
+                          : 'bg-emerald-100/90 border-emerald-600 text-emerald-950 ring-2 ring-emerald-500/30'
+                      }`}>
+                        <span className="text-base">{vehicleCategory === 'Pedicab' ? '🚲' : '🛺'}</span>
+                        <span className="text-[13px] tracking-wide uppercase font-black">{vehicleCategory}</span>
+                      </div>
                     </div>
                   </div>
 

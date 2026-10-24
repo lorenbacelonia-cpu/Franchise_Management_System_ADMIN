@@ -8,6 +8,7 @@ export const DashboardMetrics: React.FC = () => {
   const filteredFranchises = franchises.filter(f => f.vehicleCategory === vehicleCategory);
   const totalCount = filteredFranchises.length;
   const activeCount = filteredFranchises.filter(f => f.status === 'Active').length;
+  const expiredCount = filteredFranchises.filter(f => f.status === 'Expired').length;
   const pendingCount = pendingReviews.filter(r => r.vehicleCategory === vehicleCategory).length;
 
   return (
@@ -43,13 +44,18 @@ export const DashboardMetrics: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-800">
               Active Franchise
             </h3>
-            <div className="mt-4">
+            <div className="mt-4 flex items-baseline space-x-2">
               <span className="text-4xl font-extrabold text-slate-900">
                 {activeCount}
               </span>
+              {expiredCount > 0 && (
+                <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                  {expiredCount} Expired
+                </span>
+              )}
             </div>
             <p className="mt-4 text-xs text-slate-400 italic">
-              Currently operational
+              Currently operational {expiredCount > 0 ? `(${expiredCount} require renewal)` : ''}
             </p>
           </div>
 
