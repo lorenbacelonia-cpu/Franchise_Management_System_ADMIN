@@ -11,10 +11,20 @@ import {
   Lock, 
   Sparkles,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ExternalLink,
+  Globe,
+  Settings
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { cleanFare, formatExpDate, getDefaultFareMatrix, buildPermanentQrPayload } from '../../utils/fareUtils';
+import { 
+  cleanFare, 
+  formatExpDate, 
+  getDefaultFareMatrix, 
+  buildPermanentQrPayload, 
+  getMobileVerifierBaseUrl, 
+  setMobileVerifierBaseUrl 
+} from '../../utils/fareUtils';
 
 export const QRScannerModal: React.FC = () => {
   const { 
@@ -31,6 +41,8 @@ export const QRScannerModal: React.FC = () => {
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [verifierBaseUrl, setVerifierBaseUrl] = useState(getMobileVerifierBaseUrl());
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
 
   // Sync selected franchise from context ONLY when the module first opens — not on every context change.
   // This prevents auto-switching away from the unit the admin is currently viewing.
@@ -446,12 +458,12 @@ export const QRScannerModal: React.FC = () => {
                           {currentFranchise.status === 'Expired' ? (
                             <>
                               <AlertTriangle className="h-3 w-3 text-rose-600" />
-                              <span>PERMANENT DRIVER QR CODE (STATUS: EXPIRED)</span>
+                              <span>OFFICIAL QR LINK (STATUS: EXPIRED)</span>
                             </>
                           ) : (
                             <>
-                              <Lock className="h-3 w-3 text-emerald-600" />
-                              <span>PERMANENT DRIVER QR CODE</span>
+                              <Globe className="h-3 w-3 text-emerald-600" />
+                              <span>UNIVERSAL QR LINK • GOOGLE LENS & CAMERA SCAN</span>
                             </>
                           )}
                         </div>
@@ -473,21 +485,90 @@ export const QRScannerModal: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* Scanned Plain Text Output Preview */}
-                        <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-left space-y-1 mt-2">
+                        {/* Scanned Web URL & Google Lens Action Preview */}
+                        <div className="w-full bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-left space-y-2 mt-2">
                           <div className="flex items-center justify-between text-[10px] font-bold text-slate-600">
-                            <span>Phone Camera Decoded Output:</span>
+                            <span className="flex items-center space-x-1">
+                              <Globe className="h-3 w-3 text-emerald-600" />
+                              <span>Google Lens & Built-in Camera Target URL:</span>
+                            </span>
                             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
                               currentFranchise.status === 'Expired'
                                 ? 'bg-rose-100 text-rose-800'
                                 : 'bg-emerald-100 text-emerald-800'
                             }`}>
-                              {currentFranchise.status === 'Expired' ? 'Scanned Status: EXPIRED' : 'Scannable Plain Text'}
+                              {currentFranchise.status === 'Expired' ? 'Status: EXPIRED' : 'Status: ACTIVE'}
                             </span>
                           </div>
-                          <pre className="text-[10px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto bg-white p-2 rounded-lg border border-slate-200/60 shadow-inner">
-                            {permanentQrPayload}
-                          </pre>
+
+                          {/* Clickable URL Banner with 1-click Test */}
+                          <div className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-slate-200 shadow-inner">
+                            <input
+                              type="text"
+                              readOnly
+                              value={permanentQrPayload}
+                              className="text-[10px] font-mono text-slate-700 bg-transparent flex-1 outline-none select-all overflow-ellipsis"
+                              title="Scannable URL payload"
+                            />
+                            <a
+                              href={permanentQrPayload}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm transition-colors shrink-0 cursor-pointer"
+                              title="Open and test verified unit page in browser"
+                            >
+                              <span>Test Link</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          </div>
+
+                          {/* Mobile Verifier Domain Configuration Toggle */}
+                          <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                            <span className="text-slate-500 font-medium truncate max-w-[220px]">
+                              Verifier App: <span className="font-semibold text-slate-700">{verifierBaseUrl}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingUrl(!isEditingUrl)}
+                              className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer inline-flex items-center space-x-0.5"
+                            >
+                              <Settings className="h-2.5 w-2.5" />
+                              <span>{isEditingUrl ? 'Close' : 'Change Domain'}</span>
+                            </button>
+                          </div>
+
+                          {isEditingUrl && (
+                            <div className="bg-slate-100 p-2 rounded-lg space-y-1.5 border border-slate-200">
+                              <label className="text-[9px] font-bold text-slate-600 block">
+                                Published Mobile Web Verifier Base URL:
+                              </label>
+                              <div className="flex items-center space-x-1.5">
+                                <input
+                                  type="url"
+                                  value={verifierBaseUrl}
+                                  onChange={(e) => setVerifierBaseUrl(e.target.value)}
+                                  placeholder="https://..."
+                                  className="text-[10px] px-2 py-1 bg-white border border-slate-300 rounded flex-1 outline-none font-mono"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMobileVerifierBaseUrl(verifierBaseUrl);
+                                    setIsEditingUrl(false);
+                                    setNotification(`Updated Verifier URL to ${verifierBaseUrl}`);
+                                    setTimeout(() => setNotification(null), 3000);
+                                  }}
+                                  className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-900 cursor-pointer"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-[9px] text-slate-500 italic leading-snug">
+                            💡 Scanning this QR code using <strong>Google Lens</strong> or your phone's <strong>built-in camera</strong> will automatically launch the mobile web browser directly to this driver's official <strong>Pedicab/Tricycle Verified Unit</strong> record.
+                          </p>
                         </div>
                       </>
                     ) : (

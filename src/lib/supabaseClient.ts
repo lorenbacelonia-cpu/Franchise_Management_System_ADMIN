@@ -1,4 +1,4 @@
-import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview } from '../types';
+import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount } from '../types';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, isRecordExpired, resolveFranchiseStatus } from '../utils/fareUtils';
 
 // Supabase configuration from environment variables
@@ -1118,3 +1118,144 @@ export async function fetchMobileAccountsFromSupabase() {
   }
   return result;
 }
+
+/** 14. Fetch registered administrator accounts across browsers from Supabase */
+export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> {
+  const accounts: AdminAccount[] = [];
+
+  // 1. Try fetching from dedicated admin_accounts table
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_accounts?select=*`, { headers: getHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        for (const row of data) {
+          accounts.push({
+            adminId: row.admin_id || row.adminId,
+            name: row.name || row.fullname,
+            email: row.email || `${(row.admin_id || 'admin').toLowerCase()}@tabaco.gov.ph`,
+            role: row.role || 'Administrator',
+            department: row.department || 'Transportation Regulation Division',
+            password: row.password,
+            createdAt: row.created_at || new Date().toISOString()
+          });
+        }
+        return accounts;
+      }
+    }
+  } catch {}
+
+  // 2. Also check account_enforcer_mobile where enforcer/admin accounts are stored in Supabase
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?select=*`, { headers: getHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        for (const row of data) {
+          const uname = String(row.username || '').trim();
+          const rawName = String(row.fullname || uname).trim();
+          let parsedName = rawName;
+          let parsedEmail = `${uname.toLowerCase()}@tabaco.gov.ph`;
+          const emailMatch = rawName.match(/\[(.*?)\]/);
+          if (emailMatch && emailMatch[1]) {
+            parsedEmail = emailMatch[1].trim().toLowerCase();
+            parsedName = rawName.replace(/\[(.*?)\]/, '').trim();
+          }
+
+          accounts.push({
+            adminId: uname.toUpperCase(),
+            name: parsedName || uname,
+            email: parsedEmail,
+            role: 'Traffic Enforcer / Administrator',
+            department: 'Transportation Regulation Division',
+            password: row.password,
+            createdAt: row.created_at || new Date().toISOString()
+          });
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Also check account_passenger_mobile so any registered user can be recognized
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_passenger_mobile?select=*`, { headers: getHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        for (const row of data) {
+          const uname = String(row.username || '').trim();
+          const rawName = String(row.fullname || uname).trim();
+          let parsedName = rawName;
+          let parsedEmail = `${uname.toLowerCase()}@passenger.tabaco.gov.ph`;
+          const emailMatch = rawName.match(/\[(.*?)\]/);
+          if (emailMatch && emailMatch[1]) {
+            parsedEmail = emailMatch[1].trim().toLowerCase();
+            parsedName = rawName.replace(/\[(.*?)\]/, '').trim();
+          }
+
+          accounts.push({
+            adminId: uname.toUpperCase(),
+            name: parsedName || uname,
+            email: parsedEmail,
+            role: 'Registered User',
+            department: 'Citizen & Commuter Portal',
+            password: row.password,
+            createdAt: row.created_at || new Date().toISOString()
+          });
+        }
+      }
+    }
+  } catch {}
+
+  return accounts;
+}
+
+/** 15. Save registered administrator account into Supabase for global multi-browser access */
+export async function saveAdminAccountInSupabase(account: AdminAccount): Promise<boolean> {
+  const cleanId = account.adminId.trim().toUpperCase();
+  const cleanName = account.name.trim();
+  const cleanEmail = account.email ? account.email.trim().toLowerCase() : '';
+  const storedFullname = cleanEmail ? `${cleanName} [${cleanEmail}]` : cleanName;
+
+  // 1. Try saving to admin_accounts table
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_accounts`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({
+        admin_id: cleanId,
+        name: cleanName,
+        email: cleanEmail,
+        role: account.role || 'Administrator',
+        department: account.department || 'Transportation Regulation Division',
+        password: account.password
+      })
+    });
+    if (res.ok) return true;
+  } catch {}
+
+  // 2. Also save to account_enforcer_mobile so it is immediately accessible from ANY browser or device!
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({
+        username: cleanId,
+        fullname: storedFullname,
+        password: account.password
+      })
+    });
+    if (res.ok) return true;
+  } catch (err) {
+    console.warn('Failed to save admin to account_enforcer_mobile:', err);
+  }
+
+  return false;
+}
+

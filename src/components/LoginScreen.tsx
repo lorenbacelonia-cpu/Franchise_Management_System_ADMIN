@@ -58,7 +58,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   // Handle Login submission
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -74,17 +74,20 @@ export const LoginScreen: React.FC = () => {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      const result = loginAdmin(identifier, password, rememberMe);
+    try {
+      const result = await loginAdmin(identifier, password, rememberMe);
       setIsLoading(false);
       if (!result.success) {
         setError(result.error || 'Authentication failed. Please verify your credentials.');
       }
-    }, 300);
+    } catch (err: any) {
+      setIsLoading(false);
+      setError(err?.message || 'Authentication error. Please check your network connection.');
+    }
   };
 
   // Handle Sign Up submission
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -110,7 +113,7 @@ export const LoginScreen: React.FC = () => {
     }
 
     // Validate TRD Staff Authorization Passcode (confidential verification)
-    const validStaffPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'admin', 'admin123', 'trdadmin', '123456'];
+    const validStaffPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'admin', 'admin123', 'trdadmin', '123456', '2004'];
     const cleanPasscode = signupPasscode.trim().toUpperCase();
     if (!validStaffPasscodes.map(p => p.toUpperCase()).includes(cleanPasscode)) {
       setError('Invalid TRD Authorization Passcode. Confidential authorization is required for administrative registration.');
@@ -118,8 +121,8 @@ export const LoginScreen: React.FC = () => {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const res = registerAdmin({
+    try {
+      const res = await registerAdmin({
         adminId: signupAdminId.trim(),
         name: signupName.trim(),
         email: signupEmail.trim(),
@@ -135,7 +138,10 @@ export const LoginScreen: React.FC = () => {
       } else {
         setSuccess(`Administrator account ${signupAdminId} registered successfully! Redirecting to Dashboard...`);
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setError(err?.message || 'Could not register administrator account.');
+    }
   };
 
   return (

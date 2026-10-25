@@ -128,12 +128,69 @@ export function formatFareMatrixPayload(matrix?: FareMatrixItem[], category: Veh
   }).join('\n');
 }
 
+export const DEFAULT_MOBILE_VERIFIER_URL = 'https://franchise-management-system-mobile.vercel.app';
+
+export function getMobileVerifierBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('tabaco_trd_mobile_verifier_url');
+    if (custom && custom.trim()) return custom.trim();
+  }
+  return (import.meta as any).env?.VITE_MOBILE_VERIFIER_URL || DEFAULT_MOBILE_VERIFIER_URL;
+}
+
+export function setMobileVerifierBaseUrl(url: string): void {
+  if (typeof window !== 'undefined') {
+    if (url && url.trim()) {
+      localStorage.setItem('tabaco_trd_mobile_verifier_url', url.trim());
+    } else {
+      localStorage.removeItem('tabaco_trd_mobile_verifier_url');
+    }
+  }
+}
+
 /**
- * Builds the comprehensive, permanent QR code payload exactly matching Tabaco City TRD Portal specifications
- * Designed to be read with 100% accuracy by smartphone camera scanners and mobile web passenger apps.
- * If the driver's record expiration date has passed, the Status line automatically reflects "Expired".
+ * Builds the permanent QR code payload as a direct HTTPS Web URL.
+ * When scanned by Google Lens, Samsung Camera, iPhone Camera, or any built-in mobile camera scanner,
+ * the mobile phone instantly detects a valid web link, prompts "Open in browser",
+ * and automatically displays the verified franchise record page (Pedicab / Tricycle Verified Unit).
  */
 export function buildPermanentQrPayload(f: FranchiseRecord): string {
+  const plate = f.cityPlateNumber || f.mtopNumber || 'T-102';
+  const category = f.vehicleCategory || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle');
+  const matrix = f.fareMatrix && f.fareMatrix.length > 0 ? f.fareMatrix : getDefaultFareMatrix(category);
+  const expDateStr = f.expirationDate || '2027-01-15';
+  const resolvedStatus = resolveFranchiseStatus(f.status, expDateStr);
+
+  const defaultBaseFare = category === 'Pedicab' ? '15.00' : '20.00';
+  const firstRouteFare = matrix[0]?.regularFare ? cleanFare(matrix[0].regularFare, defaultBaseFare) : defaultBaseFare;
+  const standardFareText = f.standardFare && !f.standardFare.includes('50.00 Minimum')
+    ? f.standardFare 
+    : `₱${firstRouteFare} Minimum`;
+
+  try {
+    const baseUrl = getMobileVerifierBaseUrl().replace(/\/+$/, '');
+    const url = new URL(baseUrl);
+    url.searchParams.set('plate', plate);
+    url.searchParams.set('type', category);
+    url.searchParams.set('driver', f.driverName || '');
+    url.searchParams.set('operator', f.operatorName || '');
+    url.searchParams.set('route', f.routeParada || 'Sua-Igot 24 Tabaco');
+    url.searchParams.set('exp', expDateStr);
+    url.searchParams.set('status', resolvedStatus);
+    url.searchParams.set('tg', f.touristGuide || 'Yes');
+    url.searchParams.set('avail', f.availability || 'Available');
+    url.searchParams.set('fare', standardFareText);
+    return url.toString();
+  } catch (err) {
+    console.warn('Failed to build QR URL, falling back to clean URL string:', err);
+    return `${DEFAULT_MOBILE_VERIFIER_URL}/?plate=${encodeURIComponent(plate)}&type=${encodeURIComponent(category)}`;
+  }
+}
+
+/**
+ * Builds legacy plain-text payload for reference or plain-text badge printing
+ */
+export function buildLegacyTextQrPayload(f: FranchiseRecord): string {
   const plate = f.cityPlateNumber || f.mtopNumber || 'T-102';
   const category = f.vehicleCategory || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle');
   const matrix = f.fareMatrix && f.fareMatrix.length > 0 ? f.fareMatrix : getDefaultFareMatrix(category);
