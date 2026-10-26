@@ -108,7 +108,7 @@ const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
     adminId: 'ADM-2026-001',
     name: 'TRD Chief Administrator',
     email: 'admin@franchise.gov.ph',
-    role: 'Chief Administrator',
+    role: 'Head Administrator',
     department: 'Transportation Regulation Division',
     password: 'admin',
     createdAt: '2026-01-01T00:00:00.000Z'
@@ -117,7 +117,7 @@ const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
     adminId: 'ADM-2026-002',
     name: 'Maria Santos',
     email: 'licensing@tabaco.gov.ph',
-    role: 'Franchise & Licensing Officer',
+    role: 'Staff',
     department: 'Franchise & Permits Section',
     password: 'admin',
     createdAt: '2026-01-01T00:00:00.000Z'
@@ -250,7 +250,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     adminId: 'ADM-2026-001',
     name: 'TRD Chief Administrator',
     email: 'admin@franchise.gov.ph',
-    role: 'System Administrator',
+    role: 'Head Administrator',
   };
 
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser>(() => {
@@ -388,7 +388,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         adminId: cleanId.toUpperCase(),
         name: cleanId === 'ren' ? 'Loren Bacelonia' : (cleanId.includes('@') ? cleanId.split('@')[0] : 'TRD Administrator'),
         email: cleanId.includes('@') ? cleanId : `${cleanId.toLowerCase()}@franchise.gov.ph`,
-        role: 'Chief Administrator',
+        role: 'Head Administrator',
         department: 'Transportation Regulation Division',
       };
       setCurrentAdmin(fallbackAdmin);

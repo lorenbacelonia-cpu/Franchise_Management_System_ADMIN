@@ -37,7 +37,7 @@ export const LoginScreen: React.FC = () => {
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupAdminId, setSignupAdminId] = useState(`ADM-2026-${Math.floor(100 + Math.random() * 900)}`);
-  const [signupRole, setSignupRole] = useState('Franchise & Licensing Officer');
+  const [signupRole, setSignupRole] = useState('Staff');
   const [signupDepartment, setSignupDepartment] = useState('Transportation Regulation Division');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
@@ -463,11 +463,8 @@ export const LoginScreen: React.FC = () => {
                         onChange={(e) => setSignupRole(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       >
-                        <option value="Chief Administrator">Chief Administrator</option>
-                        <option value="Franchise & Licensing Officer">Franchise & Licensing Officer</option>
-                        <option value="Transportation Regulation Inspector">Regulation Inspector</option>
-                        <option value="Enforcement Division Head">Enforcement Head</option>
-                        <option value="Records & Audit Specialist">Records Specialist</option>
+                        <option value="Staff">Staff</option>
+                        <option value="Head Administrator">Head Administrator</option>
                       </select>
                     </div>
                   </div>
