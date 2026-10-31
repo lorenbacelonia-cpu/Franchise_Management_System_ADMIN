@@ -552,12 +552,12 @@ export const LoginScreen: React.FC = () => {
                         required
                         value={signupPasscode}
                         onChange={(e) => setSignupPasscode(e.target.value)}
-                        placeholder="Enter authorized personnel passcode"
+                        placeholder="Authorized passcode (e.g., 01012005 or admin)"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
-                      Authorized TRD personnel authorization passcode is required to create an administrative profile.
+                      Authorized TRD personnel passcode is required (<span className="font-mono font-bold text-emerald-700">01012005</span> or <span className="font-mono font-bold text-emerald-700">admin</span>) to create an administrative profile.
                     </p>
                   </div>
 

@@ -82,7 +82,7 @@ interface FranchiseContextType {
   deleteFranchise: (id: string, customReason?: string) => Promise<void>;
   generatePermanentQr: (id: string) => Promise<void>;
   generateAllPermanentQr: () => Promise<void>;
-  renewFranchise: (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => Promise<void>;
+  renewFranchise: (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => Promise<void>;
   deactivateFranchise: (id: string, reason?: string) => Promise<void>;
   addViolation: (newViol: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => Promise<void>;
   updateViolationStatus: (id: string, status: 'Pending' | 'Settled' | 'Under Investigation', remarks?: string) => Promise<void>;
@@ -90,7 +90,20 @@ interface FranchiseContextType {
   updateComplaintStatus: (id: string, status: 'Under Investigation' | 'Resolved' | 'Escalated', adminRemarks?: string) => Promise<void>;
   deleteComplaint: (id: string, customReason?: string) => Promise<void>;
   addComplaintReply: (complaintId: string, message: string) => Promise<void>;
-  updateDriver: (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => Promise<void>;
+  updateDriver: (
+    mtopNumber: string,
+    driverData: {
+      operatorName?: string;
+      operatorContact?: string;
+      operatorAddress?: string;
+      driverName: string;
+      driverAddress?: string;
+      licenseNo?: string;
+      contact?: string;
+      address?: string;
+      availability?: string;
+    }
+  ) => Promise<void>;
   approveReview: (reviewId: string) => Promise<void>;
   rejectReview: (reviewId: string, notes: string) => Promise<void>;
 }
@@ -713,19 +726,23 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const renewFranchise = async (id: string, renewalData?: { newExpiry?: string; orNumber?: string; amountPaid?: number }) => {
+  const renewFranchise = async (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => {
     const target = franchises.find(f => f.id === id);
     const newExpiry = renewalData?.newExpiry || '2027-01-15';
+    const newAppNo = renewalData?.applicationNo?.trim() || target?.applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`;
+    const resolvedStatus = resolveFranchiseStatus('Active', newExpiry);
+
     if (target) {
       await saveFranchiseRenewalInSupabase({
         mtop_number: target.mtopNumber,
         city_plate_number: target.cityPlateNumber || target.mtopNumber,
+        application_no: newAppNo,
         operator_name: target.operatorName,
         driver_name: target.driverName,
         previous_expiry: target.expirationDate,
         new_expiry: newExpiry,
         amount_paid: renewalData?.amountPaid,
-        or_number: renewalData?.orNumber
+        or_number: renewalData?.orNumber || newAppNo
       }, target.vehicleCategory);
     }
 
@@ -733,7 +750,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (item.id === id) {
         const updated = {
           ...item,
-          status: 'Active' as const,
+          applicationNo: newAppNo,
+          status: resolvedStatus,
           expirationDate: newExpiry,
         };
         return {
@@ -807,26 +825,86 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setViolations(prev => prev.map(v => v.id === id ? { ...v, status, remarks: remarks || v.remarks } : v));
   };
 
-  const updateDriver = async (mtopNumber: string, driverData: { driverName: string; licenseNo?: string; contact?: string; address?: string; availability?: string }) => {
-    const target = franchises.find(f => f.mtopNumber === mtopNumber);
+  const updateDriver = async (
+    mtopNumber: string,
+    driverData: {
+      operatorName?: string;
+      operatorContact?: string;
+      operatorAddress?: string;
+      driverName: string;
+      driverAddress?: string;
+      licenseNo?: string;
+      contact?: string;
+      address?: string;
+      availability?: string;
+    }
+  ) => {
+    const target = franchises.find(f => f.mtopNumber === mtopNumber || f.cityPlateNumber === mtopNumber);
     const cat = target?.vehicleCategory || vehicleCategory;
+
+    const newOperatorName = driverData.operatorName?.trim() || target?.operatorName || '';
+    const newDriverName = driverData.driverName?.trim() || target?.driverName || '';
+    const newOperatorContact = driverData.operatorContact ?? driverData.contact ?? target?.operatorContact;
+    const newOperatorAddress = driverData.operatorAddress ?? driverData.address ?? target?.operatorAddress;
+    const newDriverAddress = driverData.driverAddress ?? target?.driverAddress;
+
+    const updatedQrPayload = target
+      ? buildPermanentQrPayload({
+          ...target,
+          operatorName: newOperatorName,
+          driverName: newDriverName,
+        })
+      : undefined;
+
     await saveDriverRegistryUpdateInSupabase({
       mtop_number: mtopNumber,
-      driver_name: driverData.driverName,
+      city_plate_number: target?.cityPlateNumber || mtopNumber,
+      operator_name: newOperatorName,
+      operator_contact: newOperatorContact,
+      operator_address: newOperatorAddress,
+      driver_name: newDriverName,
+      driver_address: newDriverAddress,
       license_no: driverData.licenseNo,
-      contact_number: driverData.contact,
-      residential_address: driverData.address,
-      availability: driverData.availability
+      contact_number: newOperatorContact,
+      residential_address: newOperatorAddress,
+      availability: driverData.availability,
+      qr_payload: updatedQrPayload,
     }, cat);
 
     setFranchises(prev => prev.map(item => {
-      if (item.mtopNumber === mtopNumber) {
-        return {
+      if (item.mtopNumber === mtopNumber || item.cityPlateNumber === mtopNumber) {
+        const nameChanged =
+          (newOperatorName && newOperatorName !== item.operatorName) ||
+          (newDriverName && newDriverName !== item.driverName);
+
+        const newHistoryEntry = nameChanged
+          ? {
+              id: `nc-${Date.now()}`,
+              previousOperatorName: item.operatorName || '—',
+              newOperatorName: newOperatorName || item.operatorName || '—',
+              previousDriverName: item.driverName || '—',
+              newDriverName: newDriverName || item.driverName || '—',
+              changedAt: new Date().toISOString(),
+              changedBy: currentAdmin?.name || 'TRD Admin',
+            }
+          : null;
+
+        const updatedItem: FranchiseRecord = {
           ...item,
-          driverName: driverData.driverName || item.driverName,
+          operatorName: newOperatorName || item.operatorName,
+          operatorContact: newOperatorContact ?? item.operatorContact,
+          operatorAddress: newOperatorAddress ?? item.operatorAddress,
+          driverName: newDriverName || item.driverName,
+          driverAddress: newDriverAddress ?? item.driverAddress,
           driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
-          operatorContact: driverData.contact || item.operatorContact,
-          availability: driverData.availability || item.availability
+          availability: driverData.availability || item.availability,
+          nameChangeHistory: newHistoryEntry
+            ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
+            : item.nameChangeHistory,
+        };
+        return {
+          ...updatedItem,
+          qrCodeData: buildPermanentQrPayload(updatedItem),
         };
       }
       return item;

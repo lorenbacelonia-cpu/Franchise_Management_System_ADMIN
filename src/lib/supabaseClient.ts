@@ -305,10 +305,11 @@ export async function updateFranchiseQrInSupabase(mtopNumber: string, qrDate: st
   return null;
 }
 
-/** 5. Save a renewal in franchise_renewals_${role}_admin and update master record expiry */
+/** 5. Save a renewal in franchise_renewals_${role}_admin and update master record expiry & application_no */
 export async function saveFranchiseRenewalInSupabase(data: {
   mtop_number: string;
   city_plate_number?: string;
+  application_no?: string;
   operator_name: string;
   driver_name: string;
   previous_expiry: string;
@@ -321,33 +322,44 @@ export async function saveFranchiseRenewalInSupabase(data: {
   
   // 1. Insert into role renewals table
   const renewalPayload = {
-    ...data,
-    city_plate_number: plate,
     mtop_number: plate,
+    city_plate_number: plate,
+    operator_name: data.operator_name,
+    driver_name: data.driver_name,
+    previous_expiry: data.previous_expiry,
+    new_expiry: data.new_expiry,
     amount_paid: data.amount_paid || (category === 'Pedicab' ? 250.00 : 450.00),
-    or_number: data.or_number || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`
+    or_number: data.or_number || data.application_no || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`
   };
   await postToTable(renewals, renewalPayload);
 
-  // 2. Update expiration date & status in master records table
+  const resolvedStatus = resolveFranchiseStatus('Active', data.new_expiry);
+
+  // 2. Update expiration date, application_no & status in master records table
   try {
+    const updateBody: Record<string, any> = {
+      expiration_date: data.new_expiry,
+      status: resolvedStatus,
+      updated_at: new Date().toISOString()
+    };
+    if (data.application_no) {
+      updateBody.application_no = data.application_no;
+    }
+
     await fetch(`${SUPABASE_URL}/rest/v1/${records}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
       method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({
-        expiration_date: data.new_expiry,
-        status: 'Active',
-        updated_at: new Date().toISOString()
-      })
+      body: JSON.stringify(updateBody)
     });
   } catch (e) {
     console.warn('Error patching renewal expiry in records:', e);
   }
 
-  // 3. Update the permanent QR code payload & image in system_qr_codes to reflect Active status & new expiry
+  // 3. Update the permanent QR code payload & image in system_qr_codes to reflect updated status & new expiry
   try {
     const { qrCodes } = getTableNames(category);
     const renewedQrPayload = buildPermanentQrPayload({
+      applicationNo: data.application_no,
       cityPlateNumber: plate,
       mtopNumber: plate,
       plateNumber: `${plate}-${category === 'Pedicab' ? 'PED' : 'TR'}`,
@@ -355,7 +367,7 @@ export async function saveFranchiseRenewalInSupabase(data: {
       operatorName: data.operator_name,
       driverName: data.driver_name,
       expirationDate: data.new_expiry,
-      status: 'Active',
+      status: resolvedStatus,
       qrCodeData: '',
       violationsCount: 0,
       hasPermanentQr: true
@@ -783,43 +795,71 @@ export async function deleteFranchiseRecordInSupabase(
   return false;
 }
 
-/** 8. Update driver info directly on the master franchise record */
+/** 8. Update operator & driver info directly on the master franchise record and synced QR code */
 export async function saveDriverRegistryUpdateInSupabase(data: {
   mtop_number: string;
   city_plate_number?: string;
+  operator_name?: string;
+  operator_contact?: string;
+  operator_address?: string;
   driver_name: string;
+  driver_address?: string;
   license_no?: string;
   contact_number?: string;
   residential_address?: string;
   availability?: string;
+  qr_payload?: string;
 }, category: VehicleCategory = 'Tricycle') {
-  const { records } = getTableNames(category);
+  const { records, qrCodes } = getTableNames(category);
   const plate = data.city_plate_number || data.mtop_number;
+
+  const updateBody: Record<string, any> = {
+    driver_name: data.driver_name,
+    updated_at: new Date().toISOString()
+  };
+
+  if (data.operator_name !== undefined) updateBody.operator_name = data.operator_name;
+  if (data.operator_contact !== undefined || data.contact_number !== undefined) {
+    updateBody.operator_contact = data.operator_contact ?? data.contact_number;
+  }
+  if (data.operator_address !== undefined || data.residential_address !== undefined) {
+    updateBody.operator_address = data.operator_address ?? data.residential_address;
+    updateBody.residential_address = data.operator_address ?? data.residential_address;
+  }
+  if (data.driver_address !== undefined) updateBody.driver_address = data.driver_address;
+  if (data.license_no !== undefined) updateBody.driver_license_no = data.license_no;
+  if (data.availability !== undefined) updateBody.availability = data.availability;
+
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${records}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
       method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({
-        driver_name: data.driver_name,
-        driver_license_no: data.license_no,
-        operator_contact: data.contact_number,
-        availability: data.availability
-      })
+      body: JSON.stringify(updateBody)
     });
     if (!res.ok) {
       await fetch(`${SUPABASE_URL}/rest/v1/${records}?mtop_number=eq.${encodeURIComponent(plate)}`, {
         method: 'PATCH',
         headers: getHeaders(),
+        body: JSON.stringify(updateBody)
+      });
+    }
+
+    // Also update QR code record if present
+    if (data.qr_payload) {
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data.qr_payload)}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
         body: JSON.stringify({
           driver_name: data.driver_name,
-          driver_license_no: data.license_no,
-          operator_contact: data.contact_number,
-          availability: data.availability
+          qr_payload: data.qr_payload,
+          qr_code_image_url: qrImageUrl,
+          generated_at: new Date().toISOString()
         })
       });
     }
   } catch (e) {
-    console.warn('Could not update driver in master franchise records:', e);
+    console.warn('Could not update operator/driver in master franchise records:', e);
   }
 }
 

@@ -58,6 +58,17 @@ export interface FranchiseRecord {
   documentsVerified?: boolean;
   hasPermanentQr?: boolean;
   qrGeneratedDate?: string;
+
+  // History of operator & driver name changes for review
+  nameChangeHistory?: Array<{
+    id: string;
+    previousOperatorName: string;
+    newOperatorName: string;
+    previousDriverName: string;
+    newDriverName: string;
+    changedAt: string;
+    changedBy?: string;
+  }>;
 }
 
 export interface ViolationRecord {
