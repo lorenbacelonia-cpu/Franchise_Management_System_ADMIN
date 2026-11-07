@@ -14,17 +14,16 @@ import {
   RefreshCw,
   ExternalLink,
   Globe,
-  Settings
+  FileDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
   cleanFare, 
   formatExpDate, 
   getDefaultFareMatrix, 
-  buildPermanentQrPayload, 
-  getMobileVerifierBaseUrl, 
-  setMobileVerifierBaseUrl 
+  buildPermanentQrPayload
 } from '../../utils/fareUtils';
+import { downloadFranchiseDocx } from '../../utils/docxExport';
 
 export const QRScannerModal: React.FC = () => {
   const { 
@@ -41,8 +40,7 @@ export const QRScannerModal: React.FC = () => {
   const [selectedFranchiseId, setSelectedFranchiseId] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [verifierBaseUrl, setVerifierBaseUrl] = useState(getMobileVerifierBaseUrl());
-  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
 
   // Sync selected franchise from context ONLY when the module first opens — not on every context change.
   // This prevents auto-switching away from the unit the admin is currently viewing.
@@ -100,11 +98,27 @@ export const QRScannerModal: React.FC = () => {
   };
 
   const handleDownloadAndPrint = () => {
-    setNotification('Preparing official permanent QR Code document for print...');
+    setNotification('Preparing 1-page printable official badge (Select Destination: Save as PDF or Printer)...');
     setTimeout(() => {
       window.print();
       setNotification(null);
-    }, 600);
+    }, 400);
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!currentFranchise) return;
+    setIsExportingDocx(true);
+    setNotification(`Generating editable Word (.docx) document for Unit ${currentFranchise.mtopNumber}...`);
+    try {
+      await downloadFranchiseDocx(currentFranchise, qrDataUrl);
+      setNotification(`Success! Downloaded Word (.docx) for Unit ${currentFranchise.mtopNumber}. You can now edit all pages and details in Microsoft Word.`);
+      setTimeout(() => setNotification(null), 5000);
+    } catch (err: any) {
+      setNotification(`Could not generate Word document: ${err?.message || 'Unknown error'}`);
+      setTimeout(() => setNotification(null), 4000);
+    } finally {
+      setIsExportingDocx(false);
+    }
   };
 
   // Generate the permanent QR code payload using standard Tabaco TRD format with complete fare matrix
@@ -522,51 +536,7 @@ export const QRScannerModal: React.FC = () => {
                             </a>
                           </div>
 
-                          {/* Mobile Verifier Domain Configuration Toggle */}
-                          <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
-                            <span className="text-slate-500 font-medium truncate max-w-[220px]">
-                              Verifier App: <span className="font-semibold text-slate-700">{verifierBaseUrl}</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingUrl(!isEditingUrl)}
-                              className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer inline-flex items-center space-x-0.5"
-                            >
-                              <Settings className="h-2.5 w-2.5" />
-                              <span>{isEditingUrl ? 'Close' : 'Change Domain'}</span>
-                            </button>
-                          </div>
-
-                          {isEditingUrl && (
-                            <div className="bg-slate-100 p-2 rounded-lg space-y-1.5 border border-slate-200">
-                              <label className="text-[9px] font-bold text-slate-600 block">
-                                Published Mobile Web Verifier Base URL:
-                              </label>
-                              <div className="flex items-center space-x-1.5">
-                                <input
-                                  type="url"
-                                  value={verifierBaseUrl}
-                                  onChange={(e) => setVerifierBaseUrl(e.target.value)}
-                                  placeholder="https://..."
-                                  className="text-[10px] px-2 py-1 bg-white border border-slate-300 rounded flex-1 outline-none font-mono"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setMobileVerifierBaseUrl(verifierBaseUrl);
-                                    setIsEditingUrl(false);
-                                    setNotification(`Updated Verifier URL to ${verifierBaseUrl}`);
-                                    setTimeout(() => setNotification(null), 3000);
-                                  }}
-                                  className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded hover:bg-slate-900 cursor-pointer"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          <p className="text-[9px] text-slate-500 italic leading-snug">
+                          <p className="text-[9px] text-slate-500 italic leading-snug pt-0.5">
                             💡 Scanning this QR code using <strong>Google Lens</strong> or your phone's <strong>built-in camera</strong> will automatically launch the mobile web browser directly to this driver's official <strong>Pedicab/Tricycle Verified Unit</strong> record.
                           </p>
                         </div>
@@ -599,20 +569,46 @@ export const QRScannerModal: React.FC = () => {
                   )}
                 </div>
 
-                {/* DOWNLOAD & PRINT Button */}
-                <button
-                  type="button"
-                  disabled={!isPermanentActive}
-                  onClick={handleDownloadAndPrint}
-                  className={`w-full font-bold text-xs sm:text-sm py-3 px-6 rounded-full shadow-md transition-all flex items-center justify-center space-x-2 uppercase tracking-wider ${
-                    isPermanentActive 
-                      ? 'bg-[#05b875] hover:bg-[#049d63] text-white cursor-pointer' 
-                      : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-                  }`}
-                >
-                  <Printer className="h-4 w-4" />
-                  <span>DOWNLOAD & PRINT</span>
-                </button>
+                {/* Download Word (.docx) & 1-Page Print Action Buttons */}
+                <div className="space-y-2 pt-1 no-print">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* 1. Download Word (.docx) */}
+                    <button
+                      type="button"
+                      disabled={!isPermanentActive || isExportingDocx}
+                      onClick={handleDownloadDocx}
+                      className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${
+                        isPermanentActive && !isExportingDocx
+                          ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white cursor-pointer shadow-blue-600/20'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                      }`}
+                      title="Download as editable Microsoft Word (.docx) document so you can edit names, route, or notes in Word"
+                    >
+                      <FileDown className="h-4 w-4 shrink-0" />
+                      <span>{isExportingDocx ? 'Generating Word...' : 'Download Word (.docx)'}</span>
+                    </button>
+
+                    {/* 2. Print / Save as PDF (1 Page) */}
+                    <button
+                      type="button"
+                      disabled={!isPermanentActive}
+                      onClick={handleDownloadAndPrint}
+                      className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${
+                        isPermanentActive
+                          ? 'bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white cursor-pointer shadow-slate-900/20'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                      }`}
+                      title="Print or Save as PDF (Formatted for clean 1-page fit)"
+                    >
+                      <Printer className="h-4 w-4 shrink-0" />
+                      <span>Print / Save PDF (1-Page)</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 text-center font-medium leading-relaxed">
+                    💡 <strong>Download Word (.docx)</strong> lets you edit names, routes, and text in Microsoft Word before printing. <strong>Print / Save PDF</strong> generates an exact <strong>1-page</strong> official badge.
+                  </p>
+                </div>
 
               </div>
             </div>
@@ -622,6 +618,89 @@ export const QRScannerModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* ================================================================= */}
+      {/* OFFICIAL SINGLE-PAGE PRINTABLE QR CERTIFICATE & BADGE             */}
+      {/* Isolated to exactly ONE page via @media print styles              */}
+      {/* ================================================================= */}
+      {currentFranchise && (
+        <div id="printable-qr-certificate" className="hidden print:flex flex-col items-center justify-between font-sans text-slate-900 bg-white min-h-[92vh] p-6 border-4 border-slate-900 rounded-2xl">
+          {/* Official Municipal Seal Header */}
+          <div className="w-full text-center pb-3 border-b-2 border-slate-900">
+            <p className="text-[11px] uppercase font-bold tracking-widest text-slate-600">
+              Republic of the Philippines
+            </p>
+            <p className="text-sm uppercase font-extrabold tracking-wider text-slate-800">
+              Province of Albay • City of Tabaco
+            </p>
+            <h1 className="text-base uppercase font-black tracking-tight text-emerald-800 mt-0.5">
+              Office of the Transportation Regulation Division (TRD)
+            </h1>
+            <div className="inline-block bg-slate-900 text-white font-black text-xs uppercase tracking-wider px-5 py-1 rounded-md mt-1.5 shadow-sm">
+              Official {vehicleCategory.toUpperCase()} System QR Badge
+            </div>
+          </div>
+
+          {/* Prominent Unit Identification Bar */}
+          <div className="w-full bg-slate-100 border-2 border-slate-900 rounded-xl py-3 px-6 my-4 flex items-center justify-between text-center">
+            <div className="text-left">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">City Plate Number</span>
+              <span className="text-3xl font-black font-mono text-slate-950 tracking-wider">
+                {currentFranchise.cityPlateNumber || currentFranchise.mtopNumber}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Permit Status</span>
+              <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
+                currentFranchise.status === 'Active'
+                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                  : 'bg-rose-100 text-rose-900 border-rose-400'
+              }`}>
+                {currentFranchise.status}
+              </span>
+            </div>
+          </div>
+
+          {/* Big High-Resolution QR Code */}
+          <div className="flex flex-col items-center justify-center my-3 text-center">
+            <div className="p-4 bg-white border-4 border-slate-900 rounded-3xl shadow-sm">
+              <img
+                src={qrDataUrl}
+                alt="Official System QR Code"
+                className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
+              />
+            </div>
+            <p className="text-xs font-bold text-slate-700 mt-2.5 max-w-sm">
+              Scan via Google Lens or mobile camera for real-time cloud franchise credentials &amp; official fare matrix
+            </p>
+          </div>
+
+          {/* Core Vehicle & Driver Information Cards */}
+          <div className="w-full grid grid-cols-2 gap-3 text-xs my-2">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Authorized Driver</span>
+              <span className="font-black text-slate-900 text-sm">{currentFranchise.driverName || '—'}</span>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Franchise Operator</span>
+              <span className="font-bold text-slate-900 text-sm">{currentFranchise.operatorName || '—'}</span>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
+              <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
+              <span className="font-mono font-bold text-slate-900">{formatExpDate(currentFranchise.expirationDate)}</span>
+            </div>
+          </div>
+
+          {/* Bottom Official Note */}
+          <div className="w-full text-center pt-3 border-t border-slate-300 text-[10px] text-slate-500 italic">
+            Official Municipal Conveyance Permit • City Government of Tabaco • Scannable by citizens, enforcers, and passengers
+          </div>
+        </div>
+      )}
     </div>
   );
 };

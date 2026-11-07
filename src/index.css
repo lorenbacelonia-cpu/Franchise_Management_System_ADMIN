@@ -96,3 +96,57 @@
   animation: fadeIn 0.2s ease both;
 }
 
+/* ===================================================================== */
+/* Single-Page Official QR Certificate Print Styles                      */
+/* ===================================================================== */
+@media print {
+  @page {
+    size: portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything on the page except the printable certificate */
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-qr-certificate,
+  #printable-qr-certificate * {
+    visibility: visible !important;
+  }
+
+  #printable-qr-certificate {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 14px 18px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 2px solid #0f172a !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    page-break-before: avoid !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
