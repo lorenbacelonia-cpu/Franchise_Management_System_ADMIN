@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS franchise_records_tricycle_admin (
     city_plate_number VARCHAR(50) NOT NULL UNIQUE,
     mtop_number VARCHAR(50) NOT NULL,
     vehicle_category VARCHAR(20) DEFAULT 'Tricycle',
+    owner_last_name VARCHAR(100),
+    owner_first_name VARCHAR(100),
+    owner_middle_name VARCHAR(100),
+    owner_name VARCHAR(150),
     operator_last_name VARCHAR(100),
     operator_first_name VARCHAR(100),
     operator_middle_name VARCHAR(100),
@@ -16,6 +20,11 @@ CREATE TABLE IF NOT EXISTS franchise_records_tricycle_admin (
     operator_contact VARCHAR(30),
     operator_address TEXT NOT NULL,
     residential_address TEXT NOT NULL,
+    age VARCHAR(10),
+    beneficiary_name VARCHAR(150),
+    beneficiary_address TEXT,
+    color VARCHAR(50),
+    make_model VARCHAR(100),
     driver_last_name VARCHAR(100),
     driver_first_name VARCHAR(100),
     driver_middle_name VARCHAR(100),
@@ -41,6 +50,10 @@ CREATE TABLE IF NOT EXISTS franchise_records_pedicab_admin (
     city_plate_number VARCHAR(50) NOT NULL UNIQUE,
     mtop_number VARCHAR(50) NOT NULL,
     vehicle_category VARCHAR(20) DEFAULT 'Pedicab',
+    owner_last_name VARCHAR(100),
+    owner_first_name VARCHAR(100),
+    owner_middle_name VARCHAR(100),
+    owner_name VARCHAR(150),
     operator_last_name VARCHAR(100),
     operator_first_name VARCHAR(100),
     operator_middle_name VARCHAR(100),
@@ -48,6 +61,11 @@ CREATE TABLE IF NOT EXISTS franchise_records_pedicab_admin (
     operator_contact VARCHAR(30),
     operator_address TEXT NOT NULL,
     residential_address TEXT NOT NULL,
+    age VARCHAR(10),
+    beneficiary_name VARCHAR(150),
+    beneficiary_address TEXT,
+    color VARCHAR(50),
+    make_model VARCHAR(100),
     driver_last_name VARCHAR(100),
     driver_first_name VARCHAR(100),
     driver_middle_name VARCHAR(100),
@@ -66,3 +84,24 @@ CREATE TABLE IF NOT EXISTS franchise_records_pedicab_admin (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migration commands for existing tables
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS owner_last_name VARCHAR(100);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS owner_first_name VARCHAR(100);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS owner_middle_name VARCHAR(100);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS owner_name VARCHAR(150);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS age VARCHAR(10);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS beneficiary_name VARCHAR(150);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS beneficiary_address TEXT;
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS color VARCHAR(50);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS make_model VARCHAR(100);
+
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS owner_last_name VARCHAR(100);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS owner_first_name VARCHAR(100);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS owner_middle_name VARCHAR(100);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS owner_name VARCHAR(150);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS age VARCHAR(10);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS beneficiary_name VARCHAR(150);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS beneficiary_address TEXT;
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS color VARCHAR(50);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS make_model VARCHAR(100);

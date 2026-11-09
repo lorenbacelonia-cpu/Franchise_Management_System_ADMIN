@@ -56,7 +56,8 @@ export const FranchiseRecordsModal: React.FC = () => {
     const matchesSearch = !search || 
       f.mtopNumber.toLowerCase().includes(search.toLowerCase()) ||
       (f.applicationNo || '').toLowerCase().includes(search.toLowerCase()) ||
-      f.operatorName.toLowerCase().includes(search.toLowerCase()) ||
+      (f.ownerName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (f.operatorName || '').toLowerCase().includes(search.toLowerCase()) ||
       f.driverName.toLowerCase().includes(search.toLowerCase()) ||
       (f.status || '').toLowerCase().includes(search.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -218,7 +219,7 @@ export const FranchiseRecordsModal: React.FC = () => {
               <thead className="bg-slate-900 text-white font-bold border-b border-slate-900 sticky top-0 z-10">
                 <tr className="whitespace-nowrap">
                   <th className="px-4 py-3">City Plate No.</th>
-                  <th className="px-4 py-3">Operator Name</th>
+                  <th className="px-4 py-3">Owner / Operator</th>
                   <th className="px-4 py-3">Driver Name</th>
                   <th className="px-4 py-3">Route/Parada</th>
                   <th className="px-4 py-3">Permit Status</th>
@@ -248,7 +249,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3.5 font-semibold text-slate-800">{item.operatorName}</td>
+                    <td className="px-4 py-3.5 font-semibold text-slate-800">{item.ownerName || item.operatorName}</td>
                     <td className="px-4 py-3.5 text-slate-700">{item.driverName}</td>
                     <td className="px-4 py-3.5 text-slate-600 font-medium">{item.routeParada || 'Sua-Igot 24 Tabaco'}</td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
@@ -367,8 +368,8 @@ export const FranchiseRecordsModal: React.FC = () => {
                   <span className="font-bold text-slate-900">{franchiseToRenew.mtopNumber}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">Operator:</span>
-                  <span className="font-semibold text-slate-800">{franchiseToRenew.operatorName}</span>
+                  <span className="text-slate-500 font-medium">Owner:</span>
+                  <span className="font-semibold text-slate-800">{franchiseToRenew.ownerName || franchiseToRenew.operatorName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Driver:</span>

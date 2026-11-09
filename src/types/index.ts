@@ -19,7 +19,18 @@ export interface FranchiseRecord {
   plateNumber: string;
   vehicleCategory: VehicleCategory;
   
-  // Operator fields from form
+  // Owner fields from form
+  ownerLastName?: string;
+  ownerFirstName?: string;
+  ownerMiddleName?: string;
+  ownerName?: string;
+  ownerContact?: string;
+  ownerAddress?: string;
+  age?: string;
+  beneficiaryName?: string;
+  beneficiaryAddress?: string;
+
+  // Operator fields (synced with owner for backward-compatibility)
   operatorLastName?: string;
   operatorFirstName?: string;
   operatorMiddleName?: string;
@@ -37,8 +48,10 @@ export interface FranchiseRecord {
   driverLicenseNo?: string;
   licenseExpiry?: string;
 
-  // Legacy vehicle unit fields (optional)
+  // Vehicle unit fields
   makeModel?: string;
+  modelMake?: string;
+  color?: string;
   engineNumber?: string;
   chassisNumber?: string;
 

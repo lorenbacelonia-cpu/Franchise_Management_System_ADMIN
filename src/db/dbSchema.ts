@@ -7,9 +7,14 @@ export interface DBFranchiseRegistration {
   id: string; // Primary Key (e.g. REG-2026-001)
   mtop_number: string; // Unique MTOP City Plate No.
   vehicle_category: 'Tricycle' | 'Pedicab';
+  owner_name?: string;
   operator_name: string;
   operator_contact: string;
   operator_address: string;
+  age?: string;
+  beneficiary_name?: string;
+  beneficiary_address?: string;
+  color?: string;
   driver_name: string;
   driver_license_no: string;
   license_expiry: string; // YYYY-MM-DD
@@ -29,8 +34,13 @@ export interface DBFranchiseRecord {
   vehicle_category: 'Tricycle' | 'Pedicab';
   plate_number: string;
   make_model: string;
+  color?: string;
+  age?: string;
+  beneficiary_name?: string;
+  beneficiary_address?: string;
   engine_number: string;
   chassis_number: string;
+  owner_name?: string;
   operator_name: string;
   operator_contact: string;
   operator_address: string;

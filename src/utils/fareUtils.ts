@@ -178,7 +178,6 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     url.searchParams.set('exp', expDateStr);
     url.searchParams.set('status', resolvedStatus);
     url.searchParams.set('tg', f.touristGuide || 'Yes');
-    url.searchParams.set('avail', f.availability || 'Available');
     url.searchParams.set('fare', standardFareText);
     return url.toString();
   } catch (err) {
@@ -218,7 +217,6 @@ export function buildLegacyTextQrPayload(f: FranchiseRecord): string {
     `Standard Fare: ${standardFareText}`,
     `Base Fare: ₱${firstRouteFare}`,
     `Tourist Guide: ${f.touristGuide || 'Yes'}`,
-    `Availability: ${f.availability || 'Available / On-Duty'}`,
     `Status: ${resolvedStatus}`,
     `Expiry Date: ${expDateStr}`,
     `Expiration Date: ${expDateStr}`,

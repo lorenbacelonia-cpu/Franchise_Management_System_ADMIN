@@ -84,8 +84,8 @@ export async function downloadFranchiseDocx(
             children: [
               new Paragraph({
                 children: [
-                  new TextRun({ text: 'FRANCHISE OPERATOR\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
-                  new TextRun({ text: franchise.operatorName || '—', bold: true, size: 22, color: '0F172A', font: 'Arial' }),
+                  new TextRun({ text: 'FRANCHISE OWNER / OPERATOR\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ text: franchise.ownerName || franchise.operatorName || '—', bold: true, size: 22, color: '0F172A', font: 'Arial' }),
                 ],
               }),
             ],
@@ -128,40 +128,40 @@ export async function downloadFranchiseDocx(
     // Header
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { after: 20 },
       children: [
-        new TextRun({ text: 'REPUBLIC OF THE PHILIPPINES', size: 18, bold: true, color: '475569', font: 'Arial' }),
+        new TextRun({ text: 'REPUBLIC OF THE PHILIPPINES', size: 16, bold: true, color: '475569', font: 'Arial' }),
       ]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
+      spacing: { after: 20 },
       children: [
-        new TextRun({ text: 'PROVINCE OF ALBAY • CITY OF TABACO', size: 20, bold: true, color: '1E293B', font: 'Arial' }),
+        new TextRun({ text: 'PROVINCE OF ALBAY • CITY OF TABACO', size: 18, bold: true, color: '1E293B', font: 'Arial' }),
       ]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 140 },
+      spacing: { after: 50 },
       children: [
-        new TextRun({ text: 'OFFICE OF THE TRANSPORTATION REGULATION DIVISION (TRD)', size: 22, bold: true, color: '059669', font: 'Arial' }),
+        new TextRun({ text: 'OFFICE OF THE TRANSPORTATION REGULATION DIVISION (TRD)', size: 20, bold: true, color: '059669', font: 'Arial' }),
       ]
     }),
 
     // Document Title Banner
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 80, after: 120 },
+      spacing: { before: 30, after: 30 },
       children: [
-        new TextRun({ text: `OFFICIAL ${category.toUpperCase()} SYSTEM QR BADGE`, size: 26, bold: true, color: '0F172A', font: 'Arial' }),
+        new TextRun({ text: `OFFICIAL ${category.toUpperCase()} SYSTEM QR BADGE`, size: 24, bold: true, color: '0F172A', font: 'Arial' }),
       ]
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 160 },
+      spacing: { after: 50 },
       children: [
-        new TextRun({ text: `CITY PLATE NUMBER: ${plate}`, size: 24, bold: true, color: '059669', font: 'Arial' }),
-        new TextRun({ text: `   •   PERMIT STATUS: ${franchise.status.toUpperCase()}`, size: 18, bold: true, color: franchise.status === 'Active' ? '059669' : 'DC2626', font: 'Arial' }),
+        new TextRun({ text: `CITY PLATE NUMBER: ${plate}`, size: 22, bold: true, color: '059669', font: 'Arial' }),
+        new TextRun({ text: `   •   PERMIT STATUS: ${franchise.status.toUpperCase()}`, size: 16, bold: true, color: franchise.status === 'Active' ? '059669' : 'DC2626', font: 'Arial' }),
       ]
     }),
   ];
@@ -171,14 +171,14 @@ export async function downloadFranchiseDocx(
     docElements.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 80, after: 60 },
+        spacing: { before: 30, after: 20 },
         children: [
           new ImageRun({
             data: qrBytes,
             type: 'png',
             transformation: {
-              width: 220,
-              height: 220,
+              width: 175,
+              height: 175,
             },
           }),
         ],
@@ -189,12 +189,12 @@ export async function downloadFranchiseDocx(
   docElements.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 180 },
+      spacing: { after: 60 },
       children: [
         new TextRun({
           text: 'Scan with Google Lens or any smartphone camera to verify live official franchise credentials & fare matrix.',
           italics: true,
-          size: 16,
+          size: 15,
           color: '64748B',
           font: 'Arial',
         }),
@@ -206,13 +206,13 @@ export async function downloadFranchiseDocx(
 
     // Official Verification Notice
     new Paragraph({
-      spacing: { before: 240, after: 80 },
+      spacing: { before: 60, after: 20 },
       alignment: AlignmentType.CENTER,
       children: [
         new TextRun({
           text: 'Official Municipal Conveyance Permit • City Government of Tabaco • Scannable by citizens, enforcers, and passengers.',
           italics: true,
-          size: 15,
+          size: 14,
           color: '64748B',
           font: 'Arial',
         }),
@@ -226,10 +226,10 @@ export async function downloadFranchiseDocx(
         properties: {
           page: {
             margin: {
-              top: 720,    // 0.5 inch
-              right: 720,
-              bottom: 720,
-              left: 720,
+              top: 480,    // ~0.33 inch tight margin for clean 1-sheet fit
+              right: 540,
+              bottom: 480,
+              left: 540,
             },
           },
         },

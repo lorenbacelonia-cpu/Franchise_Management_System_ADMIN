@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
 import { 
   ArrowLeft, 
@@ -390,11 +391,6 @@ export const QRScannerModal: React.FC = () => {
                       </div>
 
                       <div className="flex justify-between items-center pt-2">
-                        <span className="font-medium text-slate-700">• Availability:</span>
-                        <span className="font-bold text-slate-900">{currentFranchise.availability || 'Available / On-Duty'}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2">
                         <span className="font-medium text-slate-700">• Status:</span>
                         <span className={`font-bold text-[11px] px-2.5 py-0.5 rounded-full border ${
                           currentFranchise.status === 'Expired'
@@ -621,37 +617,40 @@ export const QRScannerModal: React.FC = () => {
 
       {/* ================================================================= */}
       {/* OFFICIAL SINGLE-PAGE PRINTABLE QR CERTIFICATE & BADGE             */}
-      {/* Isolated to exactly ONE page via @media print styles              */}
+      {/* Isolated to exactly ONE page via @media print & React Portal      */}
       {/* ================================================================= */}
-      {currentFranchise && (
-        <div id="printable-qr-certificate" className="hidden print:flex flex-col items-center justify-between font-sans text-slate-900 bg-white min-h-[92vh] p-6 border-4 border-slate-900 rounded-2xl">
+      {currentFranchise && typeof document !== 'undefined' && createPortal(
+        <div 
+          id="printable-qr-certificate" 
+          className="hidden print:flex flex-col items-center justify-between font-sans text-slate-900 bg-white h-full max-h-[96vh] p-4 sm:p-5 border-2 border-slate-900 rounded-xl box-border overflow-hidden"
+        >
           {/* Official Municipal Seal Header */}
-          <div className="w-full text-center pb-3 border-b-2 border-slate-900">
-            <p className="text-[11px] uppercase font-bold tracking-widest text-slate-600">
+          <div className="w-full text-center pb-2 border-b-2 border-slate-900">
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-600">
               Republic of the Philippines
             </p>
-            <p className="text-sm uppercase font-extrabold tracking-wider text-slate-800">
+            <p className="text-xs uppercase font-extrabold tracking-wider text-slate-800">
               Province of Albay • City of Tabaco
             </p>
-            <h1 className="text-base uppercase font-black tracking-tight text-emerald-800 mt-0.5">
+            <h1 className="text-sm uppercase font-black tracking-tight text-emerald-800 mt-0.5">
               Office of the Transportation Regulation Division (TRD)
             </h1>
-            <div className="inline-block bg-slate-900 text-white font-black text-xs uppercase tracking-wider px-5 py-1 rounded-md mt-1.5 shadow-sm">
+            <div className="inline-block bg-slate-900 text-white font-black text-[11px] uppercase tracking-wider px-4 py-0.5 rounded-md mt-1 shadow-sm">
               Official {vehicleCategory.toUpperCase()} System QR Badge
             </div>
           </div>
 
           {/* Prominent Unit Identification Bar */}
-          <div className="w-full bg-slate-100 border-2 border-slate-900 rounded-xl py-3 px-6 my-4 flex items-center justify-between text-center">
+          <div className="w-full bg-slate-100 border border-slate-900 rounded-lg py-2 px-5 my-2 flex items-center justify-between text-center">
             <div className="text-left">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">City Plate Number</span>
-              <span className="text-3xl font-black font-mono text-slate-950 tracking-wider">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">City Plate Number</span>
+              <span className="text-2xl font-black font-mono text-slate-950 tracking-wider">
                 {currentFranchise.cityPlateNumber || currentFranchise.mtopNumber}
               </span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Permit Status</span>
-              <span className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Status</span>
+              <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                 currentFranchise.status === 'Active'
                   ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
                   : 'bg-rose-100 text-rose-900 border-rose-400'
@@ -662,44 +661,45 @@ export const QRScannerModal: React.FC = () => {
           </div>
 
           {/* Big High-Resolution QR Code */}
-          <div className="flex flex-col items-center justify-center my-3 text-center">
-            <div className="p-4 bg-white border-4 border-slate-900 rounded-3xl shadow-sm">
+          <div className="flex flex-col items-center justify-center my-1 text-center">
+            <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-xs">
               <img
                 src={qrDataUrl}
                 alt="Official System QR Code"
-                className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
+                className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
               />
             </div>
-            <p className="text-xs font-bold text-slate-700 mt-2.5 max-w-sm">
+            <p className="text-[10px] font-bold text-slate-700 mt-1 max-w-sm">
               Scan via Google Lens or mobile camera for real-time cloud franchise credentials &amp; official fare matrix
             </p>
           </div>
 
           {/* Core Vehicle & Driver Information Cards */}
-          <div className="w-full grid grid-cols-2 gap-3 text-xs my-2">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Authorized Driver</span>
-              <span className="font-black text-slate-900 text-sm">{currentFranchise.driverName || '—'}</span>
+          <div className="w-full grid grid-cols-2 gap-2 text-xs my-1">
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Driver</span>
+              <span className="font-black text-slate-900 text-xs truncate block">{currentFranchise.driverName || '—'}</span>
             </div>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Franchise Operator</span>
-              <span className="font-bold text-slate-900 text-sm">{currentFranchise.operatorName || '—'}</span>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Owner / Operator</span>
+              <span className="font-bold text-slate-900 text-xs truncate block">{currentFranchise.ownerName || currentFranchise.operatorName || '—'}</span>
             </div>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
-              <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
+              <span className="font-bold text-slate-900 text-[11px] truncate block">{currentFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
             </div>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
-              <span className="font-mono font-bold text-slate-900">{formatExpDate(currentFranchise.expirationDate)}</span>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
+              <span className="font-mono font-bold text-slate-900 text-[11px] block">{formatExpDate(currentFranchise.expirationDate)}</span>
             </div>
           </div>
 
           {/* Bottom Official Note */}
-          <div className="w-full text-center pt-3 border-t border-slate-300 text-[10px] text-slate-500 italic">
+          <div className="w-full text-center pt-2 border-t border-slate-300 text-[9px] text-slate-500 italic">
             Official Municipal Conveyance Permit • City Government of Tabaco • Scannable by citizens, enforcers, and passengers
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

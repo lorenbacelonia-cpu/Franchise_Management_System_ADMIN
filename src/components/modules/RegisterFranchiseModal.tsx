@@ -35,14 +35,15 @@ export const RegisterFranchiseModal: React.FC = () => {
     generatePermanentQr
   } = useFranchise();
 
-  // Left Column - Operator Details
-  const [operatorLastName, setOperatorLastName] = useState('');
-  const [operatorFirstName, setOperatorFirstName] = useState('');
-  const [operatorMiddleName, setOperatorMiddleName] = useState('');
-  const [operatorContact, setOperatorContact] = useState('0917-882-1920');
+  // Left Column - Owner Details
+  const [ownerLastName, setOwnerLastName] = useState('');
+  const [ownerFirstName, setOwnerFirstName] = useState('');
+  const [ownerMiddleName, setOwnerMiddleName] = useState('');
+  const [age, setAge] = useState('');
+  const [ownerContact, setOwnerContact] = useState('0917-882-1920');
   const [residentialAddress, setResidentialAddress] = useState('');
-  const [expirationDate, setExpirationDate] = useState('2027-01-15');
-  const [driverAvailability, setDriverAvailability] = useState('Available / On-Duty');
+  const [beneficiaryName, setBeneficiaryName] = useState('');
+  const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
 
   // Left Column - Driver Details
   const [driverLastName, setDriverLastName] = useState('');
@@ -52,10 +53,13 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   // Right Column - Franchise & Unit Details
   const [applicationNo, setApplicationNo] = useState(`APP-2026-${Math.floor(100 + Math.random() * 900)}`);
+  const [modelMake, setModelMake] = useState('');
+  const [color, setColor] = useState('');
   const [touristGuide, setTouristGuide] = useState<'Yes' | 'No'>('Yes');
   const [status, setStatus] = useState<FranchiseStatus>('Active');
   const [paradaRoute, setParadaRoute] = useState('Sua-Igot 24 Tabaco');
   const [cityPlateNo, setCityPlateNo] = useState(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
+  const [expirationDate, setExpirationDate] = useState('2027-01-15');
 
   // Fare Adjustment Matrix (per Destination / Route) - Separate Student & Senior 20%
   const [fareMatrix, setFareMatrix] = useState<FareRow[]>([
@@ -148,22 +152,27 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   const handleReset = () => {
     setCreatedId(null);
-    setOperatorLastName('');
-    setOperatorFirstName('');
-    setOperatorMiddleName('');
-    setOperatorContact('0917-882-1920');
+    setOwnerLastName('');
+    setOwnerFirstName('');
+    setOwnerMiddleName('');
+    setAge('');
+    setOwnerContact('0917-882-1920');
     setResidentialAddress('');
+    setBeneficiaryName('');
+    setBeneficiaryAddress('');
     setDriverLastName('');
     setDriverFirstName('');
     setDriverMiddleName('');
     setDriverAddress('');
+    setModelMake('');
+    setColor('');
     setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const operatorFullName = [operatorFirstName, operatorMiddleName, operatorLastName]
+    const ownerFullName = [ownerFirstName, ownerMiddleName, ownerLastName]
       .map(s => s.trim())
       .filter(Boolean)
       .join(' ') || 'Andrie B. Barosana';
@@ -171,7 +180,7 @@ export const RegisterFranchiseModal: React.FC = () => {
     const driverFullName = [driverFirstName, driverMiddleName, driverLastName]
       .map(s => s.trim())
       .filter(Boolean)
-      .join(' ') || operatorFullName;
+      .join(' ') || ownerFullName;
 
     const baseFareAmount = fareMatrix[0] 
       ? cleanFare(fareMatrix[0].regularFare, vehicleCategory === 'Pedicab' ? '15.00' : '20.00') 
@@ -202,13 +211,28 @@ export const RegisterFranchiseModal: React.FC = () => {
       mtopNumber: targetPlate,
       plateNumber: vehicleCategory === 'Tricycle' ? `${targetPlate}-TR` : `${targetPlate}-PED`,
       vehicleCategory: vehicleCategory,
-      operatorLastName,
-      operatorFirstName,
-      operatorMiddleName,
-      operatorName: operatorFullName,
-      operatorContact: operatorContact.trim() || '0917-882-1920',
+      
+      // Owner fields
+      ownerLastName,
+      ownerFirstName,
+      ownerMiddleName,
+      ownerName: ownerFullName,
+      ownerContact: ownerContact.trim() || '0917-882-1920',
+      ownerAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
+      age: age.trim(),
+      beneficiaryName: beneficiaryName.trim(),
+      beneficiaryAddress: beneficiaryAddress.trim(),
+
+      // Synced operator fields for system compatibility
+      operatorLastName: ownerLastName,
+      operatorFirstName: ownerFirstName,
+      operatorMiddleName: ownerMiddleName,
+      operatorName: ownerFullName,
+      operatorContact: ownerContact.trim() || '0917-882-1920',
       operatorAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       residentialAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
+
+      // Driver fields
       driverLastName,
       driverFirstName,
       driverMiddleName,
@@ -216,13 +240,19 @@ export const RegisterFranchiseModal: React.FC = () => {
       driverAddress: driverAddress || residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       driverLicenseNo: 'Verified',
       licenseExpiry: '2028-11-20',
+
+      // Vehicle & Model
+      makeModel: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
+      modelMake: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
+      color: color.trim() || 'Blue / Silver',
+
       registrationDate: new Date().toISOString().split('T')[0],
       expirationDate: expirationDate || '2027-01-15',
       routeParada: paradaRoute || 'Sua-Igot 24 Tabaco',
       standardFare: primaryFare,
       fareMatrix: sanitizedFareMatrix,
       touristGuide: touristGuide,
-      availability: driverAvailability,
+      availability: 'Available / On-Duty',
     });
 
     setCreatedId(newId);
@@ -382,50 +412,51 @@ export const RegisterFranchiseModal: React.FC = () => {
                 {/* ================= LEFT COLUMN ================= */}
                 <div className="space-y-4">
                   
-                  {/* Operator: Last Name, First Name, Middlename */}
+                  {/* Owner: Last Name, First Name, Middlename */}
                   <div>
                     <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Operator
+                      Owner
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       <input
                         type="text"
                         required
-                        value={operatorLastName}
-                        onChange={(e) => setOperatorLastName(formatTitleCase(e.target.value))}
+                        value={ownerLastName}
+                        onChange={(e) => setOwnerLastName(formatTitleCase(e.target.value))}
                         placeholder="{Last Name}"
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                       <input
                         type="text"
                         required
-                        value={operatorFirstName}
-                        onChange={(e) => setOperatorFirstName(formatTitleCase(e.target.value))}
+                        value={ownerFirstName}
+                        onChange={(e) => setOwnerFirstName(formatTitleCase(e.target.value))}
                         placeholder="{First Name}"
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                       <input
                         type="text"
-                        value={operatorMiddleName}
-                        onChange={(e) => setOperatorMiddleName(formatTitleCase(e.target.value))}
+                        value={ownerMiddleName}
+                        onChange={(e) => setOwnerMiddleName(formatTitleCase(e.target.value))}
                         placeholder="{Middlename}"
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
                   </div>
 
-                  {/* Residential Address & Contact / Telephone Number */}
+                  {/* Age & Contact / Telephone Number */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Residential Address
+                        Age
                       </label>
                       <input
-                        type="text"
-                        required
-                        value={residentialAddress}
-                        onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
-                        placeholder="Zone 4, Poblacion"
+                        type="number"
+                        min="18"
+                        max="120"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        placeholder="e.g. 42"
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
@@ -437,41 +468,55 @@ export const RegisterFranchiseModal: React.FC = () => {
                       <input
                         type="text"
                         required
-                        value={operatorContact}
-                        onChange={(e) => setOperatorContact(e.target.value)}
+                        value={ownerContact}
+                        onChange={(e) => setOwnerContact(e.target.value)}
                         placeholder="0917-882-1920"
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
                   </div>
 
-                  {/* Expiration Date & Driver Availability */}
+                  {/* Residential Address */}
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                      Residential Address
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={residentialAddress}
+                      onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
+                      placeholder="Zone 4, Poblacion, Tabaco City"
+                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+
+                  {/* Beneficiary Details: Beneficiary Name & Beneficiary Address */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Expiration Date
+                        Beneficiary Name
                       </label>
                       <input
-                        type="date"
-                        value={expirationDate}
-                        onChange={(e) => setExpirationDate(e.target.value)}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+                        type="text"
+                        value={beneficiaryName}
+                        onChange={(e) => setBeneficiaryName(formatTitleCase(e.target.value))}
+                        placeholder="Full name of beneficiary"
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Driver Availability
+                        Beneficiary Address
                       </label>
-                      <select
-                        value={driverAvailability}
-                        onChange={(e) => setDriverAvailability(e.target.value)}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
-                      >
-                        <option value="Available / On-Duty">Available / On-Duty</option>
-                        <option value="Off-Duty">Off-Duty</option>
-                        <option value="On Leave">On Leave</option>
-                      </select>
+                      <input
+                        type="text"
+                        value={beneficiaryAddress}
+                        onChange={(e) => setBeneficiaryAddress(formatTitleCase(e.target.value))}
+                        placeholder="Address of beneficiary"
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
                     </div>
                   </div>
 
@@ -514,7 +559,7 @@ export const RegisterFranchiseModal: React.FC = () => {
                       type="text"
                       value={driverAddress}
                       onChange={(e) => setDriverAddress(formatTitleCase(e.target.value))}
-                      placeholder="Zone 4, Poblacion"
+                      placeholder="Zone 4, Poblacion, Tabaco City"
                       className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
@@ -553,6 +598,35 @@ export const RegisterFranchiseModal: React.FC = () => {
                         <span className="text-base">{vehicleCategory === 'Pedicab' ? '🚲' : '🛺'}</span>
                         <span className="text-[13px] tracking-wide uppercase font-black">{vehicleCategory}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Model / Make & Color */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                        Model / Make
+                      </label>
+                      <input
+                        type="text"
+                        value={modelMake}
+                        onChange={(e) => setModelMake(formatTitleCase(e.target.value))}
+                        placeholder={vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Passenger Pedicab'}
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                        Color
+                      </label>
+                      <input
+                        type="text"
+                        value={color}
+                        onChange={(e) => setColor(formatTitleCase(e.target.value))}
+                        placeholder="e.g. Blue / Silver"
+                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
                     </div>
                   </div>
 
@@ -616,6 +690,19 @@ export const RegisterFranchiseModal: React.FC = () => {
                         className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       />
                     </div>
+                  </div>
+
+                  {/* Expiration Date */}
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                      Expiration Date
+                    </label>
+                    <input
+                      type="date"
+                      value={expirationDate}
+                      onChange={(e) => setExpirationDate(e.target.value)}
+                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+                    />
                   </div>
 
                   {/* Fare Adjustment Matrix (per Destination / Distance) */}

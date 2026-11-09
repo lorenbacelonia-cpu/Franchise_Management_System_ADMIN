@@ -74,13 +74,25 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     mtopNumber: plate,
     plateNumber: row.plate_number || `${plate}-TR`,
     vehicleCategory: category,
-    operatorLastName: row.operator_last_name || '',
-    operatorFirstName: row.operator_first_name || '',
-    operatorMiddleName: row.operator_middle_name || '',
-    operatorName: row.operator_name || `${row.operator_first_name || ''} ${row.operator_last_name || ''}`.trim(),
-    operatorContact: row.operator_contact || '0917-882-1920',
-    operatorAddress: row.operator_address || row.residential_address || '',
-    residentialAddress: row.residential_address || row.operator_address || '',
+    ownerLastName: row.owner_last_name || row.operator_last_name || '',
+    ownerFirstName: row.owner_first_name || row.operator_first_name || '',
+    ownerMiddleName: row.owner_middle_name || row.operator_middle_name || '',
+    ownerName: row.owner_name || row.operator_name || `${row.operator_first_name || ''} ${row.operator_last_name || ''}`.trim(),
+    ownerContact: row.owner_contact || row.operator_contact || '0917-882-1920',
+    ownerAddress: row.owner_address || row.operator_address || row.residential_address || '',
+    age: row.age ? String(row.age) : '',
+    beneficiaryName: row.beneficiary_name || '',
+    beneficiaryAddress: row.beneficiary_address || '',
+    color: row.color || '',
+    makeModel: row.make_model || row.model_make || (category === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
+    modelMake: row.make_model || row.model_make || (category === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
+    operatorLastName: row.operator_last_name || row.owner_last_name || '',
+    operatorFirstName: row.operator_first_name || row.owner_first_name || '',
+    operatorMiddleName: row.operator_middle_name || row.owner_middle_name || '',
+    operatorName: row.operator_name || row.owner_name || `${row.operator_first_name || ''} ${row.operator_last_name || ''}`.trim(),
+    operatorContact: row.operator_contact || row.owner_contact || '0917-882-1920',
+    operatorAddress: row.operator_address || row.owner_address || row.residential_address || '',
+    residentialAddress: row.residential_address || row.operator_address || row.owner_address || '',
     driverLastName: row.driver_last_name || '',
     driverFirstName: row.driver_first_name || '',
     driverMiddleName: row.driver_middle_name || '',
@@ -117,13 +129,13 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     mtop_number: plate,
     vehicle_category: f.vehicleCategory,
     plate_number: f.plateNumber || (f.vehicleCategory === 'Pedicab' ? `${plate}-PED` : `${plate}-TR`),
-    operator_last_name: f.operatorLastName || '',
-    operator_first_name: f.operatorFirstName || '',
-    operator_middle_name: f.operatorMiddleName || '',
-    operator_name: f.operatorName,
-    operator_contact: f.operatorContact || '0917-882-1920',
-    operator_address: f.operatorAddress || f.residentialAddress || '',
-    residential_address: f.residentialAddress || f.operatorAddress || '',
+    operator_last_name: f.operatorLastName || f.ownerLastName || '',
+    operator_first_name: f.operatorFirstName || f.ownerFirstName || '',
+    operator_middle_name: f.operatorMiddleName || f.ownerMiddleName || '',
+    operator_name: f.operatorName || f.ownerName || '',
+    operator_contact: f.operatorContact || f.ownerContact || '0917-882-1920',
+    operator_address: f.operatorAddress || f.ownerAddress || f.residentialAddress || '',
+    residential_address: f.residentialAddress || f.operatorAddress || f.ownerAddress || '',
     driver_last_name: f.driverLastName || '',
     driver_first_name: f.driverFirstName || '',
     driver_middle_name: f.driverMiddleName || '',
@@ -143,6 +155,12 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     documents_verified: f.documentsVerified ?? true,
     has_permanent_qr: f.hasPermanentQr ?? false,
     qr_generated_date: f.qrGeneratedDate || null,
+    // Extended fields
+    age: f.age || '',
+    beneficiary_name: f.beneficiaryName || '',
+    beneficiary_address: f.beneficiaryAddress || '',
+    color: f.color || '',
+    make_model: f.makeModel || f.modelMake || '',
   };
   if (isValidUuid) {
     payload.id = f.id;
@@ -171,6 +189,26 @@ async function postToTable(tableName: string, payload: any, onConflictColumn?: s
     }
     const errText = await res.text();
     console.error(`[Supabase ERROR] Failed to save to ${tableName} (${res.status}):`, errText);
+    // If error is column not found or schema mismatch, retry cleanly without optional extended fields
+    if (errText.includes('column') || errText.includes('PGRST') || res.status === 400) {
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.age;
+      delete fallbackPayload.beneficiary_name;
+      delete fallbackPayload.beneficiary_address;
+      delete fallbackPayload.color;
+      delete fallbackPayload.make_model;
+      const retryRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...getHeaders(),
+          'Prefer': 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify(fallbackPayload)
+      });
+      if (retryRes.ok) {
+        return await retryRes.json();
+      }
+    }
   } catch (err) {
     console.error(`[Supabase NETWORK ERROR] Posting to ${tableName}:`, err);
   }
