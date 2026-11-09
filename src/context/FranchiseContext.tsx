@@ -64,6 +64,7 @@ interface FranchiseContextType {
   registeredAdmins: AdminAccount[];
   registerAdmin: (account: Omit<AdminAccount, 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
   loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
+  loginWithEmailVerification: (emailOrId: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   logoutAdmin: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -331,88 +332,104 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, error: 'Please enter both Admin ID / Email and Password.' };
     }
 
-    const masterPasscodes = ['01012005', 'trdadmin', 'admin123', 'admin', '2004', 'trd2026', 'admin2026', '123456'];
-    let allAdmins = [...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
-
-    const matchAdmin = (a: AdminAccount) => {
-      const aId = a.adminId.toLowerCase();
-      const aEmail = a.email.toLowerCase();
-      const aName = a.name.toLowerCase();
-      const cleanAlpha = cleanId.replace(/[^a-z0-9]/g, '');
-      const idAlpha = aId.replace(/[^a-z0-9]/g, '');
-      return (
-        aId === cleanId ||
-        aEmail === cleanId ||
-        aName === cleanId ||
-        (cleanAlpha.length >= 3 && idAlpha === cleanAlpha) ||
-        (cleanId.includes('@') && aEmail.startsWith(cleanId.split('@')[0]))
-      );
-    };
-
-    let matched = allAdmins.find(matchAdmin);
-
-    // If account not found in current browser cache, query Supabase in real-time across devices
-    if (!matched) {
-      try {
-        const liveDbAdmins = await fetchAdminAccountsFromSupabase();
-        if (Array.isArray(liveDbAdmins) && liveDbAdmins.length > 0) {
-          setRegisteredAdmins(prev => {
-            const merged = [...liveDbAdmins];
-            for (const p of prev) {
-              if (!merged.some(m => m.adminId.toLowerCase() === p.adminId.toLowerCase() || m.email.toLowerCase() === p.email.toLowerCase())) {
-                merged.push(p);
-              }
+    // 1. Fetch live admin accounts from the Supabase database
+    let dbAdmins: AdminAccount[] = [];
+    try {
+      dbAdmins = await fetchAdminAccountsFromSupabase();
+      if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
+        setRegisteredAdmins(prev => {
+          const merged = [...dbAdmins];
+          for (const p of prev) {
+            if (!merged.some(m => m.adminId.toLowerCase() === p.adminId.toLowerCase() || (m.email && p.email && m.email.toLowerCase() === p.email.toLowerCase()))) {
+              merged.push(p);
             }
-            try {
-              localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-
-          matched = liveDbAdmins.find(matchAdmin);
-        }
-      } catch (err) {
-        console.warn('Real-time admin account lookup notice:', err);
+          }
+          try {
+            localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
+    } catch (err) {
+      console.warn('Real-time database admin lookup notice:', err);
     }
 
-    if (matched) {
-      const isPasswordValid = matched.password === cleanPass || masterPasscodes.includes(cleanPass.toLowerCase());
-      if (!isPasswordValid) {
-        return { success: false, error: 'Invalid password. Please check your credentials or reset passcode.' };
-      }
+    const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
 
-      const adminUser: AdminUser = {
-        adminId: matched.adminId,
-        name: matched.name,
-        email: matched.email,
-        role: matched.role,
-        department: matched.department || 'Transportation Regulation Division',
+    // 2. Strict exact match on Admin ID or Email against database
+    const matched = allAdmins.find(a => 
+      a.adminId.trim().toLowerCase() === cleanId || 
+      (a.email && a.email.trim().toLowerCase() === cleanId)
+    );
+
+    if (!matched) {
+      return { 
+        success: false, 
+        error: 'Incorrect email or Admin ID. No registered account found with these credentials.' 
       };
-
-      setCurrentAdmin(adminUser);
-      setIsAuthenticated(true, rememberMe);
-      return { success: true, admin: adminUser };
     }
 
-    // Master passcode bypass fallback for authorized administrator setup
-    if (masterPasscodes.includes(cleanPass.toLowerCase())) {
-      const fallbackAdmin: AdminUser = {
-        adminId: cleanId.toUpperCase(),
-        name: cleanId === 'ren' ? 'Loren Bacelonia' : (cleanId.includes('@') ? cleanId.split('@')[0] : 'TRD Administrator'),
-        email: cleanId.includes('@') ? cleanId : `${cleanId.toLowerCase()}@franchise.gov.ph`,
-        role: 'Head Administrator',
-        department: 'Transportation Regulation Division',
+    // 3. Strict password match against the database
+    if (matched.password !== cleanPass) {
+      return { 
+        success: false, 
+        error: 'Incorrect password for this administrator account. Please check your password.' 
       };
-      setCurrentAdmin(fallbackAdmin);
-      setIsAuthenticated(true, rememberMe);
-      return { success: true, admin: fallbackAdmin };
     }
 
-    return { 
-      success: false, 
-      error: 'No administrator account found with those credentials. Please check details or click "Register here" to create an admin account.' 
+    // 4. Genuine authenticated admin
+    const adminUser: AdminUser = {
+      adminId: matched.adminId,
+      name: matched.name,
+      email: matched.email || `${matched.adminId.toLowerCase()}@franchise.gov.ph`,
+      role: matched.role || 'Staff',
+      department: matched.department || 'Transportation Regulation Division',
     };
+
+    setCurrentAdmin(adminUser);
+    setIsAuthenticated(true, rememberMe);
+    return { success: true, admin: adminUser };
+  }, [registeredAdmins, setIsAuthenticated]);
+
+  const loginWithEmailVerification = useCallback(async (emailOrId: string, rememberMe: boolean = true) => {
+    const clean = emailOrId.trim().toLowerCase();
+    if (!clean) {
+      return { success: false, error: 'Please enter an Admin ID or Email.' };
+    }
+
+    let dbAdmins: AdminAccount[] = [];
+    try {
+      dbAdmins = await fetchAdminAccountsFromSupabase();
+    } catch (err) {
+      console.warn('Real-time database lookup notice:', err);
+    }
+
+    const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+
+    // Strict exact match against the database
+    const matched = allAdmins.find(a => 
+      a.adminId.trim().toLowerCase() === clean || 
+      (a.email && a.email.trim().toLowerCase() === clean)
+    );
+
+    if (!matched) {
+      return {
+        success: false,
+        error: 'No registered administrator account found matching this email. Access denied.'
+      };
+    }
+
+    const adminUser: AdminUser = {
+      adminId: matched.adminId,
+      name: matched.name,
+      email: matched.email || `${matched.adminId.toLowerCase()}@franchise.gov.ph`,
+      role: matched.role || 'Staff',
+      department: matched.department || 'Transportation Regulation Division',
+    };
+
+    setCurrentAdmin(adminUser);
+    setIsAuthenticated(true, rememberMe);
+    return { success: true, admin: adminUser };
   }, [registeredAdmins, setIsAuthenticated]);
 
   const registerAdmin = useCallback(async (accountData: Omit<AdminAccount, 'createdAt'>) => {
@@ -1088,6 +1105,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         registeredAdmins,
         registerAdmin,
         loginAdmin,
+        loginWithEmailVerification,
         logoutAdmin,
         searchQuery,
         setSearchQuery,

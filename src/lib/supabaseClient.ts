@@ -1233,7 +1233,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
           const uname = String(row.username || '').trim();
           const rawName = String(row.fullname || uname).trim();
           let parsedName = rawName;
-          let parsedEmail = `${uname.toLowerCase()}@tabaco.gov.ph`;
+          let parsedEmail = uname.includes('@') ? uname.toLowerCase() : '';
           const emailMatch = rawName.match(/\[(.*?)\]/);
           if (emailMatch && emailMatch[1]) {
             parsedEmail = emailMatch[1].trim().toLowerCase();
