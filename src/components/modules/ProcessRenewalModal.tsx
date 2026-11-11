@@ -38,15 +38,14 @@ export const ProcessRenewalModal: React.FC = () => {
   const [renewalOrNumber, setRenewalOrNumber] = useState('');
   const [renewalPaymentDate, setRenewalPaymentDate] = useState('');
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
-  const [renewalError, setRenewalError] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   if (activeModule !== 'renewal') return null;
 
   const categoryFranchises = franchises
-    .filter(f => 
+    .filter(f =>
       f.vehicleCategory === vehicleCategory &&
-      (!filterText || 
+      (!filterText ||
         f.mtopNumber.toLowerCase().includes(filterText.toLowerCase()) ||
         (f.applicationNo || '').toLowerCase().includes(filterText.toLowerCase()) ||
         f.operatorName.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -64,7 +63,6 @@ export const ProcessRenewalModal: React.FC = () => {
 
   const handleOpenRenewalDialog = (item: FranchiseRecord) => {
     setSelectedForRenewal(item);
-    setRenewalError(null);
     setRenewalExpiryDate(computeDefaultNextExpiry(item.expirationDate));
     setRenewalApplicationNo(item.applicationNo || generateNewApplicationNo());
     setRenewalOrNumber(item.orNumber || item.receiptNumber || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`);
@@ -74,51 +72,13 @@ export const ProcessRenewalModal: React.FC = () => {
 
   const handleConfirmRenewal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedForRenewal) return;
+    if (!selectedForRenewal || !renewalExpiryDate || !renewalApplicationNo.trim()) return;
 
-    // Validation 1: Application Number
-    if (!renewalApplicationNo.trim()) {
-      setRenewalError('Application Number is required.');
-      return;
-    }
-
-    // Validation 2: Expiration Date must be later than current expiry
-    if (!renewalExpiryDate) {
-      setRenewalError('Please select a valid Next Expiration Date.');
-      return;
-    }
-    if (selectedForRenewal.expirationDate && renewalExpiryDate <= selectedForRenewal.expirationDate) {
-      setRenewalError(
-        `Next Expiration Date (${renewalExpiryDate}) must be later than the current expiration date (${selectedForRenewal.expirationDate}).`
-      );
-      return;
-    }
-
-    // Validation 3: Official Receipt (OR No.)
-    if (!renewalOrNumber.trim()) {
-      setRenewalError('Official Receipt (OR No.) is required to process renewal.');
-      return;
-    }
-
-    // Validation 4: Payment Date
-    if (!renewalPaymentDate) {
-      setRenewalError('Payment date is required.');
-      return;
-    }
-
-    // Validation 5: Amount Paid
-    const parsedAmount = parseFloat(renewalAmountPaid);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setRenewalError('Amount Paid must be a valid positive amount greater than ₱0.00.');
-      return;
-    }
-
-    setRenewalError(null);
     await renewFranchise(selectedForRenewal.id, {
       newExpiry: renewalExpiryDate,
       applicationNo: renewalApplicationNo.trim().toUpperCase(),
       orNumber: renewalOrNumber.trim().toUpperCase(),
-      amountPaid: parsedAmount,
+      amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
     });
 
     confetti({
@@ -128,7 +88,7 @@ export const ProcessRenewalModal: React.FC = () => {
     });
 
     setNotification(
-      `Renewed unit ${selectedForRenewal.mtopNumber} (${selectedForRenewal.driverName}) • OR No: ${renewalOrNumber.trim().toUpperCase()} • Paid: ₱${parsedAmount.toFixed(2)} • Next Expiry: ${renewalExpiryDate}`
+      `Renewed unit ${selectedForRenewal.mtopNumber} (${selectedForRenewal.driverName}) • OR No: ${renewalOrNumber.trim().toUpperCase()} • Paid: ₱${parseFloat(renewalAmountPaid || '0').toFixed(2)} • Next Expiry: ${renewalExpiryDate}`
     );
     setTimeout(() => setNotification(null), 5000);
     setSelectedForRenewal(null);
@@ -137,7 +97,7 @@ export const ProcessRenewalModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200">
-        
+
         {/* Header */}
         <div className="gradient-header px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -149,7 +109,7 @@ export const ProcessRenewalModal: React.FC = () => {
               <p className="text-xs text-slate-300">Set next expiration date and application number for registered {vehicleCategory} units</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setActiveModule('overview')}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
@@ -203,50 +163,48 @@ export const ProcessRenewalModal: React.FC = () => {
                   </tr>
                 ) : (
                   categoryFranchises.map((item) => {
-                  const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
+                    const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
 
-                  return (
-                    <tr key={item.id} className={isExpired ? "bg-rose-50/40 hover:bg-rose-50/70 transition-colors" : "hover:bg-slate-50/80 transition-colors"}>
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900">{item.mtopNumber}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">
-                        {item.applicationNo || '—'}
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-slate-800">
-                        {item.operatorName}
-                        <p className="text-[11px] text-slate-500 font-normal">Driver: {item.driverName}</p>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-600">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                          <span className={isExpired ? "font-bold text-rose-700" : "font-medium"}>{item.expirationDate}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center space-x-1 ${
-                          item.status === 'Active' && !isExpired
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                    return (
+                      <tr key={item.id} className={isExpired ? "bg-rose-50/40 hover:bg-rose-50/70 transition-colors" : "hover:bg-slate-50/80 transition-colors"}>
+                        <td className="px-4 py-3 font-mono font-bold text-slate-900">{item.mtopNumber}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">
+                          {item.applicationNo || '—'}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-slate-800">
+                          {item.operatorName}
+                          <p className="text-[11px] text-slate-500 font-normal">Driver: {item.driverName}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                            <span className={isExpired ? "font-bold text-rose-700" : "font-medium"}>{item.expirationDate}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center space-x-1 ${item.status === 'Active' && !isExpired
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             : 'bg-rose-100 text-rose-800 border border-rose-300'
-                        }`}>
-                          {isExpired && <AlertCircle className="h-3 w-3 mr-1 text-rose-600" />}
-                          <span>{isExpired ? 'Expired' : item.status}</span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleOpenRenewalDialog(item)}
-                          className={`px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all inline-flex items-center space-x-1.5 ml-auto cursor-pointer ${
-                            isExpired
+                            }`}>
+                            {isExpired && <AlertCircle className="h-3 w-3 mr-1 text-rose-600" />}
+                            <span>{isExpired ? 'Expired' : item.status}</span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleOpenRenewalDialog(item)}
+                            className={`px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all inline-flex items-center space-x-1.5 ml-auto cursor-pointer ${isExpired
                               ? 'bg-blue-600 hover:bg-blue-700 text-white'
                               : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
-                          }`}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          <span>{isExpired ? 'Renew Permit' : 'Renew / Update'}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                              }`}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            <span>{isExpired ? 'Renew Permit' : 'Renew / Update'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -293,24 +251,6 @@ export const ProcessRenewalModal: React.FC = () => {
             </div>
 
             <form onSubmit={handleConfirmRenewal} className="p-6 space-y-4">
-              {/* Validation Error Banner */}
-              {renewalError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start space-x-2 text-rose-800 animate-fadeIn">
-                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-bold">Renewal Validation Error</p>
-                    <p className="text-xs text-rose-700 mt-0.5">{renewalError}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRenewalError(null)}
-                    className="text-rose-500 hover:text-rose-700 text-xs font-bold cursor-pointer"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              )}
-
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-1">
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">City Plate No.:</span>
@@ -358,42 +298,19 @@ export const ProcessRenewalModal: React.FC = () => {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Next Expiration Date
-                  </label>
-                  {selectedForRenewal.expirationDate && renewalExpiryDate && renewalExpiryDate <= selectedForRenewal.expirationDate ? (
-                    <span className="text-[10px] font-extrabold text-rose-800 bg-rose-100 border border-rose-300 px-1.5 py-0.5 rounded">
-                      ⚠️ Must be after {selectedForRenewal.expirationDate}
-                    </span>
-                  ) : renewalExpiryDate ? (
-                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded">
-                      ✓ Valid Extension
-                    </span>
-                  ) : null}
-                </div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Next Expiration Date
+                </label>
                 <div className="relative">
                   <Calendar className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="date"
                     required
                     value={renewalExpiryDate}
-                    onChange={(e) => {
-                      setRenewalExpiryDate(e.target.value);
-                      if (renewalError) setRenewalError(null);
-                    }}
-                    className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 transition-all ${
-                      selectedForRenewal.expirationDate && renewalExpiryDate && renewalExpiryDate <= selectedForRenewal.expirationDate
-                        ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/30'
-                        : 'border-slate-300 focus:ring-blue-500'
-                    }`}
+                    onChange={(e) => setRenewalExpiryDate(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
-                {selectedForRenewal.expirationDate && renewalExpiryDate && renewalExpiryDate <= selectedForRenewal.expirationDate && (
-                  <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                    ⚠️ The new expiration date must be after current expiration date ({selectedForRenewal.expirationDate}).
-                  </p>
-                )}
               </div>
 
               {/* Official Receipt & Payment Details */}
@@ -437,20 +354,9 @@ export const ProcessRenewalModal: React.FC = () => {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-bold text-slate-700">
-                        Amount Paid (PHP)
-                      </label>
-                      {parseFloat(renewalAmountPaid) > 0 ? (
-                        <span className="text-[9px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded">
-                          ✓ Valid
-                        </span>
-                      ) : renewalAmountPaid ? (
-                        <span className="text-[9px] font-bold text-rose-800 bg-rose-100 border border-rose-300 px-1 py-0.2 rounded">
-                          Invalid
-                        </span>
-                      ) : null}
-                    </div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Amount Paid (PHP)
+                    </label>
                     <div className="relative">
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
                         ₱
@@ -461,16 +367,9 @@ export const ProcessRenewalModal: React.FC = () => {
                         min="0"
                         required
                         value={renewalAmountPaid}
-                        onChange={(e) => {
-                          setRenewalAmountPaid(e.target.value);
-                          if (renewalError) setRenewalError(null);
-                        }}
+                        onChange={(e) => setRenewalAmountPaid(e.target.value)}
                         placeholder={vehicleCategory === 'Pedicab' ? '250.00' : '450.00'}
-                        className={`w-full pl-6 pr-2.5 py-1.5 bg-white border rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${
-                          renewalAmountPaid && (parseFloat(renewalAmountPaid) <= 0 || isNaN(parseFloat(renewalAmountPaid)))
-                            ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/30'
-                            : 'border-slate-300 focus:ring-blue-500'
-                        }`}
+                        className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
                   </div>

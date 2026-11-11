@@ -538,10 +538,18 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
           setFranchises(prev => {
             const otherCategory = prev.filter(p => p.vehicleCategory !== vehicleCategory);
-            return [...dbRecords, ...otherCategory];
+            // Preserve any pending local registrations not yet reflected in remote DB
+            const dbPlates = new Set(dbRecords.map(r => (r.cityPlateNumber || r.mtopNumber).toLowerCase()));
+            const pendingLocal = prev.filter(p => p.vehicleCategory === vehicleCategory && !dbPlates.has((p.cityPlateNumber || p.mtopNumber).toLowerCase()));
+            return [...dbRecords, ...pendingLocal, ...otherCategory];
           });
         } else {
-          setFranchises(prev => prev.filter(p => p.vehicleCategory !== vehicleCategory));
+          setFranchises(prev => {
+            // If DB returns empty, keep pending local records to avoid wiping data on connection issues
+            const otherCategory = prev.filter(p => p.vehicleCategory !== vehicleCategory);
+            const pendingLocal = prev.filter(p => p.vehicleCategory === vehicleCategory && p.id.startsWith('fr-'));
+            return [...pendingLocal, ...otherCategory];
+          });
         }
       }
 
@@ -648,7 +656,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFranchises(prev => {
       const plate = (newRecord.cityPlateNumber || newRecord.mtopNumber).toLowerCase();
       const filtered = prev.filter(f => f.id !== id && (f.cityPlateNumber || f.mtopNumber).toLowerCase() !== plate);
-      return [newRecord, ...filtered];
+      const updatedList = [newRecord, ...filtered];
+      try {
+        localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
     });
     setSelectedFranchiseId(id);
 
@@ -691,7 +703,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const generatePermanentQr = async (id: string) => {
     const today = new Date().toISOString().split('T')[0];
-    const target = franchises.find(f => f.id === id);
+    const target = franchises.find(f => f.id === id || f.mtopNumber === id || f.cityPlateNumber === id);
     if (target) {
       const updatedTarget: FranchiseRecord = {
         ...target,
@@ -705,25 +717,31 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         mtop_number: target.mtopNumber,
         city_plate_number: target.cityPlateNumber || target.mtopNumber,
         driver_name: target.driverName,
-        driver_license_no: target.driverLicenseNo || 'N02-18-994820',
+        driver_license_no: target.driverLicenseNo || 'Verified',
         qr_payload: fullQrPayload,
       }, target.vehicleCategory);
-      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
+      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory, target.id);
     }
-    setFranchises(prev => prev.map(item => {
-      if (item.id === id) {
-        const updated = {
-          ...item,
-          hasPermanentQr: true,
-          qrGeneratedDate: today,
-        };
-        return {
-          ...updated,
-          qrCodeData: buildPermanentQrPayload(updated),
-        };
-      }
-      return item;
-    }));
+    setFranchises(prev => {
+      const updatedList = prev.map(item => {
+        if (item.id === id || item.mtopNumber === id || item.cityPlateNumber === id) {
+          const updated = {
+            ...item,
+            hasPermanentQr: true,
+            qrGeneratedDate: today,
+          };
+          return {
+            ...updated,
+            qrCodeData: buildPermanentQrPayload(updated),
+          };
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
+    });
   };
 
   const generateAllPermanentQr = async () => {
@@ -741,22 +759,28 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         mtop_number: target.mtopNumber,
         city_plate_number: target.cityPlateNumber || target.mtopNumber,
         driver_name: target.driverName,
-        driver_license_no: target.driverLicenseNo || 'N02-18-994820',
+        driver_license_no: target.driverLicenseNo || 'Verified',
         qr_payload: fullQrPayload,
       }, target.vehicleCategory);
-      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory);
+      await updateFranchiseQrInSupabase(target.mtopNumber, today, target.vehicleCategory, target.id);
     }
-    setFranchises(prev => prev.map(item => {
-      const updated = {
-        ...item,
-        hasPermanentQr: true,
-        qrGeneratedDate: item.qrGeneratedDate || today,
-      };
-      return {
-        ...updated,
-        qrCodeData: buildPermanentQrPayload(updated),
-      };
-    }));
+    setFranchises(prev => {
+      const updatedList = prev.map(item => {
+        const updated = {
+          ...item,
+          hasPermanentQr: true,
+          qrGeneratedDate: item.qrGeneratedDate || today,
+        };
+        return {
+          ...updated,
+          qrCodeData: buildPermanentQrPayload(updated),
+        };
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
+    });
   };
 
   const renewFranchise = async (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => {

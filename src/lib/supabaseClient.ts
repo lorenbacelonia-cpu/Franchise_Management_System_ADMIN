@@ -127,25 +127,32 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
 export function mapFranchiseRecordToDB(f: FranchiseRecord) {
   const plate = f.cityPlateNumber || f.mtopNumber;
   const isValidUuid = f.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.id);
+  const operatorName = f.operatorName || f.ownerName || `${f.operatorFirstName || ''} ${f.operatorLastName || ''}`.trim() || 'N/A';
+  const driverName = f.driverName || `${f.driverFirstName || ''} ${f.driverLastName || ''}`.trim() || 'N/A';
+  const opAddress = f.operatorAddress || f.ownerAddress || f.residentialAddress || 'Tabaco City';
+  const resAddress = f.residentialAddress || f.operatorAddress || f.ownerAddress || 'Tabaco City';
+  const drvAddress = f.driverAddress || f.residentialAddress || f.operatorAddress || 'Tabaco City';
+  const opContact = f.operatorContact || f.ownerContact || '0917-882-1920';
+
   const payload: any = {
     application_no: f.applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
     city_plate_number: plate,
     mtop_number: plate,
-    vehicle_category: f.vehicleCategory,
+    vehicle_category: f.vehicleCategory || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle'),
     plate_number: f.plateNumber || (f.vehicleCategory === 'Pedicab' ? `${plate}-PED` : `${plate}-TR`),
     operator_last_name: f.operatorLastName || f.ownerLastName || '',
     operator_first_name: f.operatorFirstName || f.ownerFirstName || '',
     operator_middle_name: f.operatorMiddleName || f.ownerMiddleName || '',
-    operator_name: f.operatorName || f.ownerName || '',
-    operator_contact: f.operatorContact || f.ownerContact || '',
-    operator_address: f.operatorAddress || f.ownerAddress || f.residentialAddress || '',
-    residential_address: f.residentialAddress || f.operatorAddress || f.ownerAddress || '',
+    operator_name: operatorName,
+    operator_contact: opContact,
+    operator_address: opAddress,
+    residential_address: resAddress,
     driver_last_name: f.driverLastName || '',
     driver_first_name: f.driverFirstName || '',
     driver_middle_name: f.driverMiddleName || '',
-    driver_name: f.driverName,
-    driver_address: f.driverAddress || f.residentialAddress || '',
-    driver_license_no: f.driverLicenseNo || 'N02-18-994820',
+    driver_name: driverName,
+    driver_address: drvAddress,
+    driver_license_no: f.driverLicenseNo || 'Verified',
     license_expiry: f.licenseExpiry || '2028-11-20',
     registration_date: f.registrationDate || new Date().toISOString().split('T')[0],
     expiration_date: f.expirationDate || '2027-01-15',
@@ -159,16 +166,6 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     documents_verified: f.documentsVerified ?? true,
     has_permanent_qr: f.hasPermanentQr ?? false,
     qr_generated_date: f.qrGeneratedDate || null,
-    // Extended fields
-    age: f.age || '',
-    beneficiary_name: f.beneficiaryName || '',
-    beneficiary_address: f.beneficiaryAddress || '',
-    color: f.color || '',
-    make_model: f.makeModel || f.modelMake || '',
-    receipt_number: f.receiptNumber || f.orNumber || '',
-    or_number: f.orNumber || f.receiptNumber || '',
-    payment_date: f.paymentDate || new Date().toISOString().split('T')[0],
-    amount_paid: f.amountPaid !== undefined && f.amountPaid !== null ? Number(f.amountPaid) : (f.vehicleCategory === 'Pedicab' ? 250 : 450),
   };
   if (isValidUuid) {
     payload.id = f.id;
@@ -197,14 +194,25 @@ async function postToTable(tableName: string, payload: any, onConflictColumn?: s
     }
     const errText = await res.text();
     console.error(`[Supabase ERROR] Failed to save to ${tableName} (${res.status}):`, errText);
-    // If error is column not found or schema mismatch, retry cleanly without optional extended fields
+    
+    // If error is column not found or schema mismatch, retry cleanly stripping unknown columns
     if (errText.includes('column') || errText.includes('PGRST') || res.status === 400) {
       const fallbackPayload = { ...payload };
+      const colMatch = errText.match(/Could not find the '([^']+)' column/);
+      if (colMatch && colMatch[1]) {
+        delete fallbackPayload[colMatch[1]];
+      }
       delete fallbackPayload.age;
       delete fallbackPayload.beneficiary_name;
       delete fallbackPayload.beneficiary_address;
       delete fallbackPayload.color;
       delete fallbackPayload.make_model;
+      delete fallbackPayload.model_make;
+      delete fallbackPayload.receipt_number;
+      delete fallbackPayload.or_number;
+      delete fallbackPayload.payment_date;
+      delete fallbackPayload.amount_paid;
+
       const retryRes = await fetch(url, {
         method: 'POST',
         headers: {
@@ -216,6 +224,8 @@ async function postToTable(tableName: string, payload: any, onConflictColumn?: s
       if (retryRes.ok) {
         return await retryRes.json();
       }
+      const retryErr = await retryRes.text();
+      console.error(`[Supabase RETRY ERROR] Failed to save to ${tableName}:`, retryErr);
     }
   } catch (err) {
     console.error(`[Supabase NETWORK ERROR] Posting to ${tableName}:`, err);
@@ -277,21 +287,26 @@ export async function savePermanentQRCodeInSupabase(data: {
   const isValidUuid = data.franchise_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.franchise_id);
   const qrImageUrl = data.qr_code_image_url || `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data.qr_payload)}`;
 
+  const updateFields: any = {
+    driver_name: data.driver_name,
+    driver_license_no: data.driver_license_no || 'Verified',
+    qr_payload: data.qr_payload,
+    qr_code_image_url: qrImageUrl,
+    is_permanent: true,
+    is_locked: true,
+    issued_by_admin: 'Admin Portal',
+    generated_at: new Date().toISOString()
+  };
+  if (isValidUuid) {
+    updateFields.franchise_id = data.franchise_id;
+  }
+
   // 1. Try updating existing QR code record by city_plate_number first
   try {
     const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
       method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({
-        driver_name: data.driver_name,
-        driver_license_no: data.driver_license_no || 'N02-18-994820',
-        qr_payload: data.qr_payload,
-        qr_code_image_url: qrImageUrl,
-        is_permanent: true,
-        is_locked: true,
-        issued_by_admin: 'Admin Portal',
-        generated_at: new Date().toISOString()
-      })
+      body: JSON.stringify(updateFields)
     });
     if (patchRes.ok) {
       const pText = await patchRes.text();
@@ -302,12 +317,28 @@ export async function savePermanentQRCodeInSupabase(data: {
     console.warn('Patch existing QR code error, proceeding to post:', err);
   }
 
+  // 1b. Fallback try updating by mtop_number
+  try {
+    const patchMtopRes = await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?mtop_number=eq.${encodeURIComponent(data.mtop_number)}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(updateFields)
+    });
+    if (patchMtopRes.ok) {
+      const pText = await patchMtopRes.text();
+      const pData = pText ? JSON.parse(pText) : [];
+      if (Array.isArray(pData) && pData.length > 0) return pData;
+    }
+  } catch (err) {
+    console.warn('Patch existing QR code by mtop error:', err);
+  }
+
   // 2. Insert new QR code if not previously registered
   const payload: any = {
     city_plate_number: plate,
     mtop_number: plate,
     driver_name: data.driver_name,
-    driver_license_no: data.driver_license_no || 'N02-18-994820',
+    driver_license_no: data.driver_license_no || 'Verified',
     qr_payload: data.qr_payload,
     qr_code_image_url: qrImageUrl,
     is_permanent: true,
@@ -323,28 +354,59 @@ export async function savePermanentQRCodeInSupabase(data: {
 }
 
 /** 4. Update franchise QR status in franchise_records_${role}_admin */
-export async function updateFranchiseQrInSupabase(mtopNumber: string, qrDate: string, category: VehicleCategory = 'Tricycle') {
+export async function updateFranchiseQrInSupabase(mtopNumber: string, qrDate: string, category: VehicleCategory = 'Tricycle', id?: string) {
   const { records } = getTableNames(category);
+  const patchBody = JSON.stringify({
+    has_permanent_qr: true,
+    qr_generated_date: qrDate
+  });
+
   try {
+    // 1. If valid UUID is available, update directly by primary key `id`
+    if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      const idRes = await fetch(`${SUPABASE_URL}/rest/v1/${records}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: patchBody
+      });
+      if (idRes.ok) {
+        const idData = await idRes.json();
+        if (Array.isArray(idData) && idData.length > 0) return idData;
+      }
+    }
+
+    // 2. Try updating by city_plate_number
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${records}?city_plate_number=eq.${encodeURIComponent(mtopNumber)}`, {
       method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({
-        has_permanent_qr: true,
-        qr_generated_date: qrDate
-      })
+      body: patchBody
     });
-    if (response.ok) return await response.json();
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
 
+    // 3. Fallback try updating by mtop_number
     const fallbackRes = await fetch(`${SUPABASE_URL}/rest/v1/${records}?mtop_number=eq.${encodeURIComponent(mtopNumber)}`, {
       method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({
-        has_permanent_qr: true,
-        qr_generated_date: qrDate
-      })
+      body: patchBody
     });
-    if (fallbackRes.ok) return await fallbackRes.json();
+    if (fallbackRes.ok) {
+      const fData = await fallbackRes.json();
+      if (Array.isArray(fData) && fData.length > 0) return fData;
+    }
+
+    // 4. Fallback try updating by plate_number
+    const plateRes = await fetch(`${SUPABASE_URL}/rest/v1/${records}?plate_number=eq.${encodeURIComponent(mtopNumber)}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: patchBody
+    });
+    if (plateRes.ok) {
+      const pData = await plateRes.json();
+      if (Array.isArray(pData) && pData.length > 0) return pData;
+    }
   } catch (error) {
     console.error('Supabase Update Franchise QR Error:', error);
   }

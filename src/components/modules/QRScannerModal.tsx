@@ -83,19 +83,24 @@ export const QRScannerModal: React.FC = () => {
     setSearchQuery('');
   };
 
-  const handleGeneratePermanentQrCode = () => {
+  const handleGeneratePermanentQrCode = async () => {
     if (!currentFranchise) return;
-    generatePermanentQr(currentFranchise.id);
-    
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#05b875', '#10b981', '#049d63']
-    });
+    try {
+      await generatePermanentQr(currentFranchise.id);
+      
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#05b875', '#10b981', '#049d63']
+      });
 
-    setNotification(`Success! Unique Permanent QR Code generated & locked for driver ${currentFranchise.driverName} (${currentFranchise.mtopNumber}).`);
-    setTimeout(() => setNotification(null), 5000);
+      setNotification(`Success! Unique Permanent QR Code generated & locked for driver ${currentFranchise.driverName} (${currentFranchise.mtopNumber}).`);
+    } catch (err: any) {
+      setNotification(`Error generating QR code: ${err?.message || 'Please retry.'}`);
+    } finally {
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
   const handleDownloadAndPrint = () => {

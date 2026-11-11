@@ -66,28 +66,38 @@ export const FranchiseRecordsModal: React.FC = () => {
   const pendingQrCount = franchises.filter(f => !f.hasPermanentQr).length;
   const allGenerated = pendingQrCount === 0;
 
-  const handleGenerateAllQrCodes = () => {
-    generateAllPermanentQr();
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#05b875', '#10b981', '#049d63']
-    });
-    setNotification('Success! Unique Permanent QR Codes have been generated and locked for all registered franchises.');
-    setTimeout(() => setNotification(null), 5000);
+  const handleGenerateAllQrCodes = async () => {
+    try {
+      await generateAllPermanentQr();
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#05b875', '#10b981', '#049d63']
+      });
+      setNotification('Success! Unique Permanent QR Codes have been generated and locked for all registered franchises.');
+    } catch (err: any) {
+      setNotification(`Error generating QR codes: ${err?.message || 'Please retry.'}`);
+    } finally {
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
-  const handleGenerateSingleQr = (franchiseId: string, mtopNumber: string) => {
-    generatePermanentQr(franchiseId);
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#05b875', '#10b981', '#049d63']
-    });
-    setNotification(`Success! Unique Permanent QR Code generated & locked for unit ${mtopNumber}.`);
-    setTimeout(() => setNotification(null), 4000);
+  const handleGenerateSingleQr = async (franchiseId: string, mtopNumber: string) => {
+    try {
+      await generatePermanentQr(franchiseId);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#05b875', '#10b981', '#049d63']
+      });
+      setNotification(`Success! Unique Permanent QR Code generated & locked for unit ${mtopNumber}.`);
+    } catch (err: any) {
+      setNotification(`Error generating QR code for unit ${mtopNumber}: ${err?.message || 'Please retry.'}`);
+    } finally {
+      setTimeout(() => setNotification(null), 4000);
+    }
   };
 
   const handleOpenQrGenerator = (franchiseId: string) => {
