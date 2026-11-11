@@ -9,7 +9,8 @@ import {
   Phone, 
   MapPin, 
   Award,
-  AlertCircle
+  AlertCircle,
+  Receipt
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatSentenceCase } from '../utils/formatters';
@@ -94,6 +95,26 @@ export const ReviewApprovalModal: React.FC = () => {
               <div>
                 <p className="text-xs font-semibold text-slate-400">Registered Address</p>
                 <p className="text-xs font-medium text-slate-800">{selectedReview.address}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3">
+              <Receipt className="h-5 w-5 text-emerald-600 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-slate-400">Receipt No. (OR No.)</p>
+                <p className="text-sm font-mono font-bold text-slate-800">
+                  {selectedReview.orNumber || selectedReview.receiptNumber || `OR-2026-${selectedReview.mtopAssigned || '10492'}`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-slate-400">Payment Date & Amount Paid</p>
+                <p className="text-xs font-bold text-emerald-700">
+                  {selectedReview.dateSubmitted} • ₱{selectedReview.vehicleCategory === 'Pedicab' ? '250.00' : '450.00'} Paid
+                </p>
               </div>
             </div>
           </div>

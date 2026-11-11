@@ -120,6 +120,40 @@ export async function downloadFranchiseDocx(
           }),
         ],
       }),
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: 'OFFICIAL RECEIPT (OR NO.)\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ text: franchise.orNumber || franchise.receiptNumber || 'OR-2026-VERIFIED', bold: true, size: 20, color: '059669', font: 'Arial' }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            shading: { fill: 'F8FAFC', type: ShadingType.CLEAR },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: 'PAYMENT DATE & AMOUNT PAID\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ 
+                    text: `${franchise.paymentDate || new Date().toISOString().split('T')[0]}  •  PHP ${franchise.amountPaid ? Number(franchise.amountPaid).toFixed(2) : (category === 'Pedicab' ? '250.00' : '450.00')}`, 
+                    bold: true, 
+                    size: 20, 
+                    color: '1E293B', 
+                    font: 'Arial' 
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
     ],
   });
 

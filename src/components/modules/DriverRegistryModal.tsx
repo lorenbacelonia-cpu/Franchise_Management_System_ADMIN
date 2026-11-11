@@ -19,6 +19,17 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatTitleCase } from '../../utils/formatters';
+import {
+  validateContactNumber,
+  validateName,
+  validateAddress,
+  preventNonDigits,
+  preventSpecialCharsForName,
+  preventSpecialCharsForAddress,
+  cleanDigitsOnly,
+  cleanName,
+  cleanAddress
+} from '../../utils/validation';
 
 export const DriverRegistryModal: React.FC = () => {
   const { activeModule, setActiveModule, franchises = [], vehicleCategory, updateDriver } = useFranchise();
@@ -60,11 +71,11 @@ export const DriverRegistryModal: React.FC = () => {
   const handleOpenEditModal = (item: FranchiseRecord) => {
     setEditingUnit(item);
     setStep('edit');
-    setNewOperatorName(item.operatorName || '');
-    setNewOperatorContact(item.operatorContact || '');
-    setNewOperatorAddress(item.operatorAddress || item.residentialAddress || '');
-    setNewDriverName(item.driverName || '');
-    setNewDriverAddress(item.driverAddress || '');
+    setNewOperatorName(cleanName(item.operatorName || ''));
+    setNewOperatorContact(cleanDigitsOnly(item.operatorContact || '', 11));
+    setNewOperatorAddress(cleanAddress(item.operatorAddress || item.residentialAddress || ''));
+    setNewDriverName(cleanName(item.driverName || ''));
+    setNewDriverAddress(cleanAddress(item.driverAddress || ''));
     setIsConfirmedChecked(false);
     setFormError(null);
   };
@@ -80,12 +91,43 @@ export const DriverRegistryModal: React.FC = () => {
     e.preventDefault();
     if (!editingUnit) return;
 
-    const cleanOp = newOperatorName.trim();
-    const cleanDrv = newDriverName.trim();
-
-    if (!cleanOp || !cleanDrv) {
-      setFormError('Both Operator Name and Driver Name are required.');
+    // Validate Operator Name: Required, letters only, no numbers or special characters
+    const opRes = validateName(newOperatorName, 'Operator Name', true);
+    if (!opRes.isValid) {
+      setFormError(opRes.error!);
       return;
+    }
+
+    // Validate Contact: Numbers only, no letters, no special characters, 11 digits starting with 09
+    const contactRes = validateContactNumber(newOperatorContact, false);
+    if (!contactRes.isValid) {
+      setFormError(contactRes.error!);
+      return;
+    }
+
+    // Validate Operator Address: No special characters
+    if (newOperatorAddress.trim()) {
+      const addrRes = validateAddress(newOperatorAddress, 'Operator Address', false);
+      if (!addrRes.isValid) {
+        setFormError(addrRes.error!);
+        return;
+      }
+    }
+
+    // Validate Driver Name: Required, letters only, no numbers or special characters
+    const drvRes = validateName(newDriverName, 'Driver Name', true);
+    if (!drvRes.isValid) {
+      setFormError(drvRes.error!);
+      return;
+    }
+
+    // Validate Driver Address: No special characters
+    if (newDriverAddress.trim()) {
+      const drvAddrRes = validateAddress(newDriverAddress, 'Driver Address', false);
+      if (!drvAddrRes.isValid) {
+        setFormError(drvAddrRes.error!);
+        return;
+      }
     }
 
     setFormError(null);
@@ -100,6 +142,24 @@ export const DriverRegistryModal: React.FC = () => {
       return;
     }
 
+    const opRes = validateName(newOperatorName, 'Operator Name', true);
+    if (!opRes.isValid) {
+      setFormError(opRes.error!);
+      return;
+    }
+
+    const contactRes = validateContactNumber(newOperatorContact, false);
+    if (!contactRes.isValid) {
+      setFormError(contactRes.error!);
+      return;
+    }
+
+    const drvRes = validateName(newDriverName, 'Driver Name', true);
+    if (!drvRes.isValid) {
+      setFormError(drvRes.error!);
+      return;
+    }
+
     const plate = editingUnit.cityPlateNumber || editingUnit.mtopNumber;
     const finalOperator = newOperatorName.trim();
     const finalDriver = newDriverName.trim();
@@ -107,7 +167,7 @@ export const DriverRegistryModal: React.FC = () => {
     await updateDriver(plate, {
       operatorName: finalOperator,
       driverName: finalDriver,
-      contact: newOperatorContact.trim() || editingUnit.operatorContact,
+      contact: cleanDigitsOnly(newOperatorContact, 11),
       operatorAddress: newOperatorAddress.trim(),
       driverAddress: newDriverAddress.trim(),
     });
@@ -418,14 +478,19 @@ export const DriverRegistryModal: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Operator Full Name *
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Operator Full Name *</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Letters &amp; spaces only</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={newOperatorName}
-                      onChange={(e) => setNewOperatorName(formatTitleCase(e.target.value))}
+                      onKeyDown={preventSpecialCharsForName}
+                      onChange={(e) => {
+                        setNewOperatorName(cleanName(formatTitleCase(e.target.value)));
+                        if (formError) setFormError(null);
+                      }}
                       placeholder="Enter Operator Full Name"
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     />
@@ -433,25 +498,57 @@ export const DriverRegistryModal: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Contact Number
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-600">
+                          Mobile Number
+                        </label>
+                        {newOperatorContact.length === 11 && validateContactNumber(newOperatorContact, false).isValid ? (
+                          <span className="text-[9px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded">
+                            ✓ Valid (09...)
+                          </span>
+                        ) : newOperatorContact.length !== 0 ? (
+                          <span className="text-[9px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1 py-0.2 rounded">
+                            {newOperatorContact.length}/11
+                          </span>
+                        ) : null}
+                      </div>
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={11}
                         value={newOperatorContact}
-                        onChange={(e) => setNewOperatorContact(e.target.value)}
-                        placeholder="e.g. 0917-882-1920"
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        onKeyDown={preventNonDigits}
+                        onChange={(e) => {
+                          setNewOperatorContact(cleanDigitsOnly(e.target.value, 11));
+                          if (formError) setFormError(null);
+                        }}
+                        placeholder="e.g. 09178821920"
+                        className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 transition-all ${
+                          newOperatorContact.length !== 0 && !validateContactNumber(newOperatorContact, false).isValid
+                            ? 'border-amber-400 focus:ring-amber-500'
+                            : 'border-slate-200 focus:ring-indigo-500'
+                        }`}
                       />
+                      {newOperatorContact.length !== 0 && !validateContactNumber(newOperatorContact, false).isValid && (
+                        <p className="text-[10px] text-amber-600 font-medium mt-1">
+                          Must be 11 digits starting with 09 (numbers only)
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Operator Address
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
+                        <span>Operator Address</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">No special chars</span>
                       </label>
                       <input
                         type="text"
                         value={newOperatorAddress}
-                        onChange={(e) => setNewOperatorAddress(formatTitleCase(e.target.value))}
+                        onKeyDown={preventSpecialCharsForAddress}
+                        onChange={(e) => {
+                          setNewOperatorAddress(cleanAddress(formatTitleCase(e.target.value)));
+                          if (formError) setFormError(null);
+                        }}
                         placeholder="Barangay / Street, Tabaco City"
                         className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       />
@@ -472,27 +569,37 @@ export const DriverRegistryModal: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Driver Full Name *
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Driver Full Name *</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Letters &amp; spaces only</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={newDriverName}
-                      onChange={(e) => setNewDriverName(formatTitleCase(e.target.value))}
+                      onKeyDown={preventSpecialCharsForName}
+                      onChange={(e) => {
+                        setNewDriverName(cleanName(formatTitleCase(e.target.value)));
+                        if (formError) setFormError(null);
+                      }}
                       placeholder="Enter Authorized Driver Full Name"
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Driver Address
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center justify-between">
+                      <span>Driver Address</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">No special chars</span>
                     </label>
                     <input
                       type="text"
                       value={newDriverAddress}
-                      onChange={(e) => setNewDriverAddress(formatTitleCase(e.target.value))}
+                      onKeyDown={preventSpecialCharsForAddress}
+                      onChange={(e) => {
+                        setNewDriverAddress(cleanAddress(formatTitleCase(e.target.value)));
+                        if (formError) setFormError(null);
+                      }}
                       placeholder="Barangay / Street, Tabaco City"
                       className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />

@@ -24,6 +24,10 @@ export interface DBFranchiseRegistration {
   chassis_number?: string;
   registration_status: 'Pending' | 'Approved' | 'Rejected';
   registration_date: string; // ISO Timestamp
+  receipt_number?: string;
+  or_number?: string;
+  payment_date?: string;
+  amount_paid?: number;
 }
 
 // 2. Database Table: franchise_records (Franchise Records)
@@ -56,6 +60,10 @@ export interface DBFranchiseRecord {
   status: 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review';
   violations_count: number;
   documents_verified: boolean;
+  receipt_number?: string;
+  or_number?: string;
+  payment_date?: string;
+  amount_paid?: number;
   created_at: string;
   updated_at: string;
 }

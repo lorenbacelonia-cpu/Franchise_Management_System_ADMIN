@@ -24,6 +24,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { AdminPasscodeModal } from './AdminPasscodeModal';
+import { isDateMatchingFilter, getFilterDisplayLabel } from '../utils/dateFilter';
 
 /* ─── Complaint Chat Panel ─────────────────────────────────── */
 const ComplaintChatPanel: React.FC<{
@@ -348,6 +349,8 @@ export const PendingReviewsTable: React.FC = () => {
     setVehicleCategory,
     setSelectedReview,
     deleteComplaint,
+    dateFilter,
+    resetDateFilter,
   } = useFranchise();
 
   const [activeTab, setActiveTab] = useState<'reviews' | 'complaints' | 'logs'>('reviews');
@@ -358,18 +361,21 @@ export const PendingReviewsTable: React.FC = () => {
   // Filter reviews
   const filteredReviews = pendingReviews.filter(r => {
     if (filterOption !== 'All' && r.vehicleCategory !== filterOption) return false;
+    if (!isDateMatchingFilter(r.dateSubmitted, dateFilter)) return false;
     return true;
   });
 
   // Filter complaints
   const filteredComplaints = complaints.filter(c => {
     if (filterOption !== 'All' && c.vehicleCategory !== filterOption) return false;
+    if (!isDateMatchingFilter(c.incidentDate, dateFilter)) return false;
     return true;
   });
 
   // Filter logs
   const filteredLogs = deletionLogs.filter(l => {
     if (filterOption !== 'All' && l.vehicleCategory !== filterOption) return false;
+    if (!isDateMatchingFilter(l.deletedAt, dateFilter)) return false;
     return true;
   });
 
@@ -449,7 +455,7 @@ export const PendingReviewsTable: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 mb-10">
+      <div id="pending-reviews-section" className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 mb-10 scroll-mt-6">
 
         {/* Top Controls Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
@@ -554,6 +560,25 @@ export const PendingReviewsTable: React.FC = () => {
 
         </div>
 
+        {/* Date Filter Indicator Banner */}
+        {dateFilter.preset !== 'all' && (
+          <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-2xl flex items-center justify-between gap-3 text-xs animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CalendarDays className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                Filtered by Day / Date: <strong>{getFilterDisplayLabel(dateFilter)}</strong>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={resetDateFilter}
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer shrink-0"
+            >
+              Show All Records
+            </button>
+          </div>
+        )}
+
         {/* Subtitle */}
         <p className="text-xs text-slate-400 mb-6">
           {activeTab === 'reviews'
@@ -581,8 +606,21 @@ export const PendingReviewsTable: React.FC = () => {
                 <tbody className="space-y-2">
                   {filteredReviews.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-400 italic">
-                        No pending reviews available.
+                      <td colSpan={5} className="text-center py-8 text-slate-500">
+                        <p className="italic">
+                          {dateFilter.preset !== 'all'
+                            ? `No pending reviews found for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                            : 'No pending reviews available.'}
+                        </p>
+                        {dateFilter.preset !== 'all' && (
+                          <button
+                            type="button"
+                            onClick={resetDateFilter}
+                            className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                          >
+                            Show All Dates
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -622,8 +660,21 @@ export const PendingReviewsTable: React.FC = () => {
           ) : activeTab === 'complaints' ? (
             <div className="space-y-2">
               {filteredComplaints.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 italic text-xs">
-                  No passenger complaints recorded.
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  <p className="italic">
+                    {dateFilter.preset !== 'all'
+                      ? `No passenger complaints recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                      : 'No passenger complaints recorded.'}
+                  </p>
+                  {dateFilter.preset !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={resetDateFilter}
+                      className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                    >
+                      Show All Dates
+                    </button>
+                  )}
                 </div>
               ) : (
                 filteredComplaints.map((c) => {

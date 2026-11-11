@@ -78,7 +78,7 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     ownerFirstName: row.owner_first_name || row.operator_first_name || '',
     ownerMiddleName: row.owner_middle_name || row.operator_middle_name || '',
     ownerName: row.owner_name || row.operator_name || `${row.operator_first_name || ''} ${row.operator_last_name || ''}`.trim(),
-    ownerContact: row.owner_contact || row.operator_contact || '0917-882-1920',
+    ownerContact: row.owner_contact || row.operator_contact || '',
     ownerAddress: row.owner_address || row.operator_address || row.residential_address || '',
     age: row.age ? String(row.age) : '',
     beneficiaryName: row.beneficiary_name || '',
@@ -90,7 +90,7 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     operatorFirstName: row.operator_first_name || row.owner_first_name || '',
     operatorMiddleName: row.operator_middle_name || row.owner_middle_name || '',
     operatorName: row.operator_name || row.owner_name || `${row.operator_first_name || ''} ${row.operator_last_name || ''}`.trim(),
-    operatorContact: row.operator_contact || row.owner_contact || '0917-882-1920',
+    operatorContact: row.operator_contact || row.owner_contact || '',
     operatorAddress: row.operator_address || row.owner_address || row.residential_address || '',
     residentialAddress: row.residential_address || row.operator_address || row.owner_address || '',
     driverLastName: row.driver_last_name || '',
@@ -100,7 +100,7 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     driverAddress: row.driver_address || row.residential_address || '',
     driverLicenseNo: row.driver_license_no || 'N02-18-994820',
     licenseExpiry: row.license_expiry || '2028-11-20',
-    registrationDate: row.registration_date,
+    registrationDate: row.registration_date || (row.created_at ? row.created_at.split('T')[0] : ''),
     expirationDate: row.expiration_date || '2026-12-31',
     status: resolveFranchiseStatus(row.status, row.expiration_date),
     qrCodeData: '',
@@ -113,6 +113,10 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     availability: row.availability || 'Available / On-Duty',
     hasPermanentQr: row.has_permanent_qr ?? false,
     qrGeneratedDate: row.qr_generated_date,
+    receiptNumber: row.receipt_number || row.or_number || '',
+    orNumber: row.or_number || row.receipt_number || '',
+    paymentDate: row.payment_date || (row.created_at ? row.created_at.split('T')[0] : ''),
+    amountPaid: row.amount_paid !== undefined && row.amount_paid !== null ? Number(row.amount_paid) : (category === 'Pedicab' ? 250 : 450),
   };
 
   record.qrCodeData = buildPermanentQrPayload(record);
@@ -133,7 +137,7 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     operator_first_name: f.operatorFirstName || f.ownerFirstName || '',
     operator_middle_name: f.operatorMiddleName || f.ownerMiddleName || '',
     operator_name: f.operatorName || f.ownerName || '',
-    operator_contact: f.operatorContact || f.ownerContact || '0917-882-1920',
+    operator_contact: f.operatorContact || f.ownerContact || '',
     operator_address: f.operatorAddress || f.ownerAddress || f.residentialAddress || '',
     residential_address: f.residentialAddress || f.operatorAddress || f.ownerAddress || '',
     driver_last_name: f.driverLastName || '',
@@ -161,6 +165,10 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     beneficiary_address: f.beneficiaryAddress || '',
     color: f.color || '',
     make_model: f.makeModel || f.modelMake || '',
+    receipt_number: f.receiptNumber || f.orNumber || '',
+    or_number: f.orNumber || f.receiptNumber || '',
+    payment_date: f.paymentDate || new Date().toISOString().split('T')[0],
+    amount_paid: f.amountPaid !== undefined && f.amountPaid !== null ? Number(f.amountPaid) : (f.vehicleCategory === 'Pedicab' ? 250 : 450),
   };
   if (isValidUuid) {
     payload.id = f.id;

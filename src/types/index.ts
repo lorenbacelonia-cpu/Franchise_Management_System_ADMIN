@@ -72,6 +72,12 @@ export interface FranchiseRecord {
   hasPermanentQr?: boolean;
   qrGeneratedDate?: string;
 
+  // Official Receipt & Payment Details
+  receiptNumber?: string;
+  orNumber?: string;
+  paymentDate?: string;
+  amountPaid?: string | number;
+
   // History of operator & driver name changes for review
   nameChangeHistory?: Array<{
     id: string;
@@ -119,6 +125,9 @@ export interface PendingReview {
   address: string;
   cityPlateAssigned: string;
   mtopAssigned: string;
+  receiptNumber?: string;
+  orNumber?: string;
+  amountPaid?: string | number;
   documents: DocumentItem[];
   status: 'Pending Document Review' | 'Approved' | 'Rejected';
   reviewNotes?: string;

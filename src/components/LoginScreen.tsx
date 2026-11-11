@@ -22,6 +22,14 @@ import {
   ShieldAlert,
   Send
 } from 'lucide-react';
+import {
+  validateName,
+  validateCode,
+  preventSpecialCharsForName,
+  preventSpecialCharsForCode,
+  cleanName,
+  cleanCode
+} from '../utils/validation';
 
 export const LoginScreen: React.FC = () => {
   const { loginAdmin, loginWithEmailVerification, registerAdmin, registeredAdmins } = useFranchise();
@@ -294,9 +302,15 @@ export const LoginScreen: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    // Validate name & email
-    if (!signupName.trim()) {
-      setError('Please provide the Administrator’s Full Name.');
+    // Validate name & email (no special characters or numbers in names)
+    const nameCheck = validateName(signupName, 'Full Name', true);
+    if (!nameCheck.isValid) {
+      setError(nameCheck.error!);
+      return;
+    }
+    const adminIdCheck = validateCode(signupAdminId, 'Admin ID', true);
+    if (!adminIdCheck.isValid) {
+      setError(adminIdCheck.error!);
       return;
     }
     if (!signupEmail.trim() || !signupEmail.includes('@')) {
@@ -661,7 +675,8 @@ export const LoginScreen: React.FC = () => {
                         type="text"
                         required
                         value={signupName}
-                        onChange={(e) => setSignupName(e.target.value)}
+                        onKeyDown={preventSpecialCharsForName}
+                        onChange={(e) => setSignupName(cleanName(e.target.value))}
                         placeholder="e.g. Maria Santos or Juan Dela Cruz"
                         className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
@@ -702,7 +717,8 @@ export const LoginScreen: React.FC = () => {
                           type="text"
                           required
                           value={signupAdminId}
-                          onChange={(e) => setSignupAdminId(e.target.value)}
+                          onKeyDown={preventSpecialCharsForCode}
+                          onChange={(e) => setSignupAdminId(cleanCode(e.target.value))}
                           className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                         />
                       </div>

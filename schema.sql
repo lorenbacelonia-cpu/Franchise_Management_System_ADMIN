@@ -105,3 +105,14 @@ ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS beneficiary
 ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS beneficiary_address TEXT;
 ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS color VARCHAR(50);
 ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS make_model VARCHAR(100);
+
+-- Payment & Official Receipt Fields
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS or_number VARCHAR(50);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(50);
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS payment_date DATE;
+ALTER TABLE franchise_records_tricycle_admin ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10,2);
+
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS or_number VARCHAR(50);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(50);
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS payment_date DATE;
+ALTER TABLE franchise_records_pedicab_admin ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(10,2);

@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import { initialFranchises } from '../data/mockData';
 import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus } from '../utils/fareUtils';
+import type { DateFilterState } from '../utils/dateFilter';
 import { 
   fetchFranchiseRecordsFromSupabase, 
   saveFranchiseRecordInSupabase, 
@@ -72,6 +73,11 @@ interface FranchiseContextType {
   setSelectedReview: (review: PendingReview | null) => void;
   selectedFranchiseId: string | null;
   setSelectedFranchiseId: (id: string | null) => void;
+  
+  // Dashboard Date Filter
+  dateFilter: DateFilterState;
+  setDateFilter: React.Dispatch<React.SetStateAction<DateFilterState>>;
+  resetDateFilter: () => void;
   
   // Real-time Database Sync status & triggers
   isSyncing: boolean;
@@ -143,6 +149,16 @@ const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202
 export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>('Tricycle');
   const [activeModule, setActiveModule] = useState<ActiveModule>('overview');
+
+  // Date Filter State for Dashboard
+  const [dateFilter, setDateFilter] = useState<DateFilterState>({
+    preset: 'all',
+    selectedDate: '',
+  });
+
+  const resetDateFilter = useCallback(() => {
+    setDateFilter({ preset: 'all', selectedDate: '' });
+  }, []);
 
   // Purge any stale local mock storage from previous versions
   useEffect(() => {
@@ -770,6 +786,10 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           applicationNo: newAppNo,
           status: resolvedStatus,
           expirationDate: newExpiry,
+          orNumber: renewalData?.orNumber || item.orNumber,
+          receiptNumber: renewalData?.orNumber || item.receiptNumber,
+          amountPaid: renewalData?.amountPaid ?? item.amountPaid,
+          paymentDate: new Date().toISOString().split('T')[0],
         };
         return {
           ...updated,
@@ -1113,6 +1133,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setSelectedReview,
         selectedFranchiseId,
         setSelectedFranchiseId,
+        dateFilter,
+        setDateFilter,
+        resetDateFilter,
         isSyncing,
         lastSyncedAt,
         syncFromDatabase,

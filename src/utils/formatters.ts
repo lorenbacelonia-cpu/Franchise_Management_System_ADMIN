@@ -67,3 +67,24 @@ export function maskName(fullName?: string): string {
   const maskedLast = last.charAt(0) + '*'.repeat(Math.max(last.length - 2, 3)) + last.slice(-2);
   return `${maskedFirst} ${maskedLast}`;
 }
+
+/**
+ * Strips all non-digit characters to ensure numbers only.
+ * Limits length if specified (defaults to 11 digits for standard Philippine mobile numbers).
+ * Example: "0917-882-1920" -> "09178821920"
+ * Example: "abc0917xyz" -> "0917"
+ */
+export function formatDigitsOnly(str: string, maxLength: number = 11): string {
+  if (!str) return '';
+  return str.replace(/\D/g, '').slice(0, maxLength);
+}
+
+/**
+ * Validates whether a mobile number conforms to the 11-digit Philippine mobile standard starting with 09 (e.g. 09171234567).
+ */
+export function isValidPhilippineMobile(num: string): boolean {
+  if (!num) return false;
+  const digits = num.replace(/\D/g, '');
+  return /^09\d{9}$/.test(digits);
+}
+
