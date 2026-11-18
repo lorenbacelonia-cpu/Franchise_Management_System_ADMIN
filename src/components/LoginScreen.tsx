@@ -436,39 +436,11 @@ export const LoginScreen: React.FC = () => {
         {/* Right Form Panel (Sign In & Sign Up) */}
         <div className="p-8 sm:p-12 flex flex-col justify-between bg-slate-50 overflow-y-auto max-h-[90vh] md:max-h-none">
           <div>
-            {/* Top Bar: Restricted Access Pill + Auth Mode Tabs */}
+            {/* Top Bar: Restricted Access Pill */}
             <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping" />
                 RESTRICTED ADMIN ACCESS
-              </div>
-
-              {/* Mode Toggle Tabs */}
-              <div className="flex items-center bg-slate-200/80 p-1 rounded-xl text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => handleSwitchMode('login')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    mode === 'login'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Log In</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSwitchMode('signup')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    mode === 'signup'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Sign Up</span>
-                </button>
               </div>
             </div>
 
@@ -636,15 +608,8 @@ export const LoginScreen: React.FC = () => {
                   )}
                 </form>
 
-                <p className="mt-6 text-center text-xs text-slate-600">
-                  Need an administrator account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchMode('signup')}
-                    className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
-                  >
-                    Register here
-                  </button>
+                <p className="mt-6 text-center text-xs text-slate-500">
+                  New administrator accounts are provisioned exclusively by an authenticated Administrator inside <span className="font-bold text-slate-700">System &amp; Access</span>.
                 </p>
               </div>
             )}
@@ -822,12 +787,12 @@ export const LoginScreen: React.FC = () => {
                         required
                         value={signupPasscode}
                         onChange={(e) => setSignupPasscode(e.target.value)}
-                        placeholder="Authorized passcode (e.g., 01012005 or admin)"
+                        placeholder="Enter confidential authorization passcode"
                         className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                       />
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-snug">
-                      Authorized TRD personnel passcode is required (<span className="font-mono font-bold text-emerald-700">01012005</span> or <span className="font-mono font-bold text-emerald-700">admin</span>) to create an administrative profile.
+                      Authorized TRD personnel passcode is required to create an administrative profile.
                     </p>
                   </div>
 

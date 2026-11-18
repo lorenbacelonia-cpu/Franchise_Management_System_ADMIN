@@ -1,11 +1,6 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
 import { 
-  CheckCircle2, 
-  Clock, 
-  FileCheck2, 
-  Sparkles,
-  Calendar,
   CalendarDays,
   X
 } from 'lucide-react';
@@ -18,35 +13,22 @@ import {
 
 export const DashboardMetrics: React.FC = () => {
   const { 
-    vehicleCategory, 
     franchises, 
     pendingReviews, 
-    complaints,
     dateFilter,
     setDateFilter,
     resetDateFilter,
     setActiveModule
   } = useFranchise();
 
-  // 1. Vehicle category matching
-  const categoryFranchises = franchises.filter(f => f.vehicleCategory === vehicleCategory);
-  const categoryReviews = pendingReviews.filter(r => r.vehicleCategory === vehicleCategory);
-  const categoryComplaints = complaints.filter(c => c.vehicleCategory === vehicleCategory);
+  // 1. Unified Tricycle & Pedicab records
+  const categoryFranchises = franchises;
+  const categoryReviews = pendingReviews;
 
   const isFiltered = dateFilter.preset !== 'all';
   const filterLabel = getFilterDisplayLabel(dateFilter);
 
-  // 2. All-time baseline counts
-  const allTotalCount = categoryFranchises.length;
-  const allActiveCount = categoryFranchises.filter(f => f.status === 'Active').length;
-  const allExpiredCount = categoryFranchises.filter(f => f.status === 'Expired').length;
-  const allPendingRenewals = categoryFranchises.filter(f => f.status === 'Pending Renewal').length;
-  const allUnderReviewFranchises = categoryFranchises.filter(f => f.status === 'Under Review').length;
-  const allPendingReviewApps = categoryReviews.filter(
-    r => r.status === 'Pending Document Review' || !r.status
-  ).length;
-
-  // 3. Date-filtered subsets
+  // 2. Date-filtered subsets
   const dateFilteredFranchises = categoryFranchises.filter(f => 
     isDateMatchingFilter(f.registrationDate || f.paymentDate, dateFilter)
   );
@@ -55,56 +37,40 @@ export const DashboardMetrics: React.FC = () => {
     isDateMatchingFilter(r.dateSubmitted, dateFilter)
   );
 
-  const dateFilteredComplaints = categoryComplaints.filter(c => 
-    isDateMatchingFilter(c.incidentDate, dateFilter)
-  );
+  const activeFranchisesPool = isFiltered ? dateFilteredFranchises : categoryFranchises;
+  const activeReviewsPool = isFiltered ? dateFilteredReviews : categoryReviews;
 
-  // 4. Metric 1: Total Active
-  // When date filter is active, show active registered on that date, or operational active
-  const activeCount = isFiltered 
-    ? dateFilteredFranchises.filter(f => f.status === 'Active').length
-    : allActiveCount;
+  // 3. Metric 1: TOTAL FRANCHISES (Combined, Tricycle, Pedicab)
+  const totalCount = activeFranchisesPool.length;
+  const totalTricycle = activeFranchisesPool.filter(f => f.vehicleCategory === 'Tricycle').length;
+  const totalPedicab = activeFranchisesPool.filter(f => f.vehicleCategory === 'Pedicab').length;
 
-  // 5. Metric 2: Pending
-  // Includes franchises pending renewal + new pending applications
-  const pendingRenewalsCount = isFiltered
-    ? dateFilteredFranchises.filter(f => f.status === 'Pending Renewal').length
-    : allPendingRenewals;
+  // 4. Metric 2: TOTAL ACTIVE (Combined, Tricycle, Pedicab)
+  const activeCount = activeFranchisesPool.filter(f => f.status === 'Active').length;
+  const activeTricycle = activeFranchisesPool.filter(f => f.status === 'Active' && f.vehicleCategory === 'Tricycle').length;
+  const activePedicab = activeFranchisesPool.filter(f => f.status === 'Active' && f.vehicleCategory === 'Pedicab').length;
 
-  const pendingAppsCount = isFiltered
-    ? dateFilteredReviews.filter(r => r.status === 'Pending Document Review' || !r.status).length
-    : allPendingReviewApps;
+  // 5. Metric 3: TOTAL PENDING (Combined, Tricycle, Pedicab)
+  const pendingRenewalsTricycle = activeFranchisesPool.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Tricycle').length;
+  const pendingRenewalsPedicab = activeFranchisesPool.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Pedicab').length;
+  const pendingAppsTricycle = activeReviewsPool.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Tricycle').length;
+  const pendingAppsPedicab = activeReviewsPool.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Pedicab').length;
 
-  const totalPending = pendingRenewalsCount + pendingAppsCount;
+  const pendingTricycle = pendingRenewalsTricycle + pendingAppsTricycle;
+  const pendingPedicab = pendingRenewalsPedicab + pendingAppsPedicab;
+  const totalPending = pendingTricycle + pendingPedicab;
 
-  // 6. Metric 3: Review
-  // Includes franchises under review + review applications awaiting verification
-  const underReviewFranchisesCount = isFiltered
-    ? dateFilteredFranchises.filter(f => f.status === 'Under Review').length
-    : allUnderReviewFranchises;
-
-  const reviewAppsCount = isFiltered
-    ? dateFilteredReviews.filter(r => r.status === 'Pending Document Review' || !r.status).length
-    : allPendingReviewApps;
-
-  const underInvestigationComplaints = isFiltered
-    ? dateFilteredComplaints.filter(c => c.status === 'Under Investigation').length
-    : categoryComplaints.filter(c => c.status === 'Under Investigation').length;
-
-  const totalReview = underReviewFranchisesCount + reviewAppsCount;
+  const allExpiredCount = activeFranchisesPool.filter(f => f.status === 'Expired').length;
 
   return (
     <div className="space-y-4 mb-8">
-      {/* Date / Day Filter Header specifically for Total Active, Pending, and Review */}
+      {/* Date / Day Filter Header */}
       <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-xs transition-all">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           
           {/* Presets Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-wrap">
             <div className="flex items-center space-x-2 text-slate-800 font-bold text-xs sm:text-sm shrink-0">
-              <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
-                <Calendar className="w-4 h-4" />
-              </div>
               <span className="tracking-tight">Date / Day Filter:</span>
             </div>
 
@@ -124,14 +90,13 @@ export const DashboardMetrics: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDateFilter({ preset: 'today', selectedDate: getTodayYMD() })}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   dateFilter.preset === 'today'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600'
                 }`}
               >
-                <Sparkles className="w-3 h-3" />
-                <span>Today</span>
+                Today
               </button>
 
               <button
@@ -210,207 +175,234 @@ export const DashboardMetrics: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid of 3 Sections: Total Active, Pending, Review */}
+      {/* Grid of 3 Main Metrics Cards: Total, Active, Pending */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* 1. Total Active */}
+        {/* CARD 1: TOTAL FRANCHISES */}
         <div 
           onClick={() => setActiveModule('franchise_records')}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-emerald-200 cursor-pointer group relative overflow-hidden"
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-indigo-300 cursor-pointer group relative overflow-hidden"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-2xl" />
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-bold text-slate-800">
-                  Total Active
-                </h3>
-                {isFiltered ? (
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center space-x-1">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>{filterLabel}</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                    All Time
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-4 flex items-baseline space-x-2.5 flex-wrap">
-                <span className="text-4xl font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                  {activeCount}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-500 rounded-t-3xl" />
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Total Franchises
+              </h3>
+              {isFiltered ? (
+                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                  {filterLabel}
                 </span>
-
-                {isFiltered ? (
-                  <span className="text-xs font-semibold text-slate-500">
-                    of {allActiveCount} total active
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold text-slate-500">
-                    of {allTotalCount} registered
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                {allExpiredCount > 0 && !isFiltered && (
-                  <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                    {allExpiredCount} Expired
-                  </span>
-                )}
-                <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  Operational {vehicleCategory}s
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                  All Time
                 </span>
-              </div>
-
-              <p className="mt-3 text-xs text-slate-400 italic">
-                {isFiltered 
-                  ? `Active records filtered by ${filterLabel}` 
-                  : `Currently active & verified ${vehicleCategory} units`}
-              </p>
+              )}
             </div>
 
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-              <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+            {/* Combined Total */}
+            <div className="mt-3 flex items-baseline space-x-2.5 flex-wrap">
+              <span className="text-4xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
+                {totalCount}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {isFiltered ? `records for ${filterLabel}` : 'total registered units'}
+              </span>
             </div>
+
+            {/* DUAL BREAKDOWN: TRICYCLE & PEDICAB */}
+            <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              {/* Tricycle */}
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-emerald-900">
+                    Tricycle
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded-full">
+                    {totalCount > 0 ? `${Math.round((totalTricycle / totalCount) * 100)}%` : '0%'}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-emerald-800">{totalTricycle}</span>
+                  <span className="text-[10px] text-emerald-600 font-medium">units</span>
+                </div>
+              </div>
+
+              {/* Pedicab */}
+              <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-sky-900">
+                    Pedicab
+                  </span>
+                  <span className="text-[10px] font-semibold text-sky-700 bg-sky-100/80 px-1.5 py-0.2 rounded-full">
+                    {totalCount > 0 ? `${Math.round((totalPedicab / totalCount) * 100)}%` : '0%'}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-sky-800">{totalPedicab}</span>
+                  <span className="text-[10px] text-sky-600 font-medium">units</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-[11px] text-slate-400 italic">
+              {allExpiredCount > 0 && !isFiltered 
+                ? `Includes ${allExpiredCount} expired unit(s) requiring renewal` 
+                : `Complete combined fleet in the Tabaco City registry`}
+            </p>
           </div>
         </div>
 
-        {/* 2. Pending */}
+        {/* CARD 2: TOTAL ACTIVE */}
+        <div 
+          onClick={() => setActiveModule('franchise_records')}
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-emerald-300 cursor-pointer group relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500 rounded-t-3xl" />
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Total Active
+              </h3>
+              {isFiltered ? (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  {filterLabel}
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                  All Time
+                </span>
+              )}
+            </div>
+
+            {/* Combined Active */}
+            <div className="mt-3 flex items-baseline space-x-2.5 flex-wrap">
+              <span className="text-4xl font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                {activeCount}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {isFiltered ? `active in ${filterLabel}` : `of ${totalCount} operational`}
+              </span>
+            </div>
+
+            {/* DUAL BREAKDOWN: TRICYCLE & PEDICAB */}
+            <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              {/* Active Tricycle */}
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-emerald-900">
+                    Tricycle
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded-full">
+                    Active
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-emerald-800">{activeTricycle}</span>
+                  <span className="text-[10px] text-emerald-600 font-medium">of {totalTricycle}</span>
+                </div>
+              </div>
+
+              {/* Active Pedicab */}
+              <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-sky-900">
+                    Pedicab
+                  </span>
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-1.5 py-0.2 rounded-full">
+                    Active
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-sky-800">{activePedicab}</span>
+                  <span className="text-[10px] text-sky-600 font-medium">of {totalPedicab}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-[11px] text-slate-400 italic">
+              Verified, non-expired units permitted on Tabaco City routes
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 3: TOTAL PENDING */}
         <div 
           onClick={() => {
             const el = document.getElementById('pending-reviews-section');
             el?.scrollIntoView({ behavior: 'smooth' });
           }}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-amber-200 cursor-pointer group relative overflow-hidden"
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-amber-300 cursor-pointer group relative overflow-hidden"
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 rounded-t-2xl" />
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-bold text-slate-800">
-                  Pending
-                </h3>
-                {isFiltered ? (
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    {filterLabel}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                    All Time
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-4 flex items-baseline space-x-2.5 flex-wrap">
-                <span className="text-4xl font-extrabold text-slate-900 group-hover:text-amber-700 transition-colors">
-                  {totalPending}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500 rounded-t-3xl" />
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                Total Pending
+              </h3>
+              {isFiltered ? (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  {filterLabel}
                 </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  requiring action
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                  All Time
                 </span>
-              </div>
-
-              <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                {pendingRenewalsCount > 0 && (
-                  <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    {pendingRenewalsCount} Renewal{pendingRenewalsCount > 1 ? 's' : ''}
-                  </span>
-                )}
-                {pendingAppsCount > 0 && (
-                  <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    {pendingAppsCount} Application{pendingAppsCount > 1 ? 's' : ''}
-                  </span>
-                )}
-                {totalPending === 0 && (
-                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                    All caught up
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-3 text-xs text-slate-400 italic">
-                {isFiltered 
-                  ? `Pending renewals & applications for ${filterLabel}` 
-                  : `Awaiting franchise renewal or intake processing`}
-              </p>
+              )}
             </div>
 
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 group-hover:bg-amber-100 transition-colors">
-              <Clock className="w-7 h-7 text-amber-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Review */}
-        <div 
-          onClick={() => {
-            const el = document.getElementById('pending-reviews-section');
-            el?.scrollIntoView({ behavior: 'smooth' });
-          }}
-          className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md hover:border-sky-200 cursor-pointer group relative overflow-hidden"
-        >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-sky-500 rounded-t-2xl" />
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-bold text-slate-800">
-                  Review
-                </h3>
-                {isFiltered ? (
-                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
-                    {filterLabel}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                    All Time
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-4 flex items-baseline space-x-2.5 flex-wrap">
-                <span className="text-4xl font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors">
-                  {totalReview}
-                </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  in review
-                </span>
-              </div>
-
-              <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                {reviewAppsCount > 0 && (
-                  <span className="text-[11px] font-bold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
-                    {reviewAppsCount} Doc Review{reviewAppsCount > 1 ? 's' : ''}
-                  </span>
-                )}
-                {underReviewFranchisesCount > 0 && (
-                  <span className="text-[11px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                    {underReviewFranchisesCount} Franchise{underReviewFranchisesCount > 1 ? 's' : ''}
-                  </span>
-                )}
-                {underInvestigationComplaints > 0 && (
-                  <span className="text-[11px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                    {underInvestigationComplaints} Complaint{underInvestigationComplaints > 1 ? 's' : ''}
-                  </span>
-                )}
-                {totalReview === 0 && (
-                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                    No pending evaluations
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-3 text-xs text-slate-400 italic">
-                {isFiltered 
-                  ? `Evaluations & complaints submitted on ${filterLabel}` 
-                  : `Awaiting document verification & compliance approval`}
-              </p>
+            {/* Combined Pending */}
+            <div className="mt-3 flex items-baseline space-x-2.5 flex-wrap">
+              <span className="text-4xl font-black text-slate-900 group-hover:text-amber-700 transition-colors">
+                {totalPending}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                requiring action
+              </span>
             </div>
 
-            <div className="p-2 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 group-hover:bg-sky-100 transition-colors">
-              <FileCheck2 className="w-7 h-7 text-sky-600" />
+            {/* DUAL BREAKDOWN: TRICYCLE & PEDICAB */}
+            <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              {/* Pending Tricycle */}
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-amber-900">
+                    Tricycle
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-full">
+                    Pending
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-amber-900">{pendingTricycle}</span>
+                  <span className="text-[10px] text-amber-700 font-medium">
+                    ({pendingRenewalsTricycle} ren / {pendingAppsTricycle} app)
+                  </span>
+                </div>
+              </div>
+
+              {/* Pending Pedicab */}
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-2.5 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-amber-900">
+                    Pedicab
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-full">
+                    Pending
+                  </span>
+                </div>
+                <div className="mt-1 flex items-baseline space-x-1">
+                  <span className="text-xl font-black text-amber-900">{pendingPedicab}</span>
+                  <span className="text-[10px] text-amber-700 font-medium">
+                    ({pendingRenewalsPedicab} ren / {pendingAppsPedicab} app)
+                  </span>
+                </div>
+              </div>
             </div>
+
+            <p className="mt-3 text-[11px] text-slate-400 italic">
+              Awaiting renewal processing or new applicant document inspection
+            </p>
           </div>
         </div>
 

@@ -12,7 +12,7 @@ import type {
   DeletionLog
 } from '../types';
 import { initialFranchises } from '../data/mockData';
-import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus } from '../utils/fareUtils';
+import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus, isRecordExpired } from '../utils/fareUtils';
 import type { DateFilterState } from '../utils/dateFilter';
 import { 
   fetchFranchiseRecordsFromSupabase, 
@@ -63,7 +63,7 @@ interface FranchiseContextType {
   isAuthenticated: boolean;
   setIsAuthenticated: (auth: boolean, remember?: boolean) => void;
   registeredAdmins: AdminAccount[];
-  registerAdmin: (account: Omit<AdminAccount, 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
+  registerAdmin: (account: Omit<AdminAccount, 'createdAt'>, options?: { switchSession?: boolean }) => Promise<{ success: boolean; error?: string }>;
   loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   loginWithEmailVerification: (emailOrId: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   logoutAdmin: () => void;
@@ -83,6 +83,18 @@ interface FranchiseContextType {
   isSyncing: boolean;
   lastSyncedAt: Date | null;
   syncFromDatabase: () => Promise<void>;
+
+  // Notification Badges per Module
+  moduleBadges: Record<ActiveModule, number>;
+  moduleNotificationsList: {
+    module: ActiveModule;
+    moduleTitle: string;
+    count: number;
+    description: string;
+    isPersistent: boolean;
+    badgeStyle: string;
+  }[];
+  clearModuleBadge: (mod: ActiveModule) => void;
 
   // Actions
   addFranchise: (newRecord: Omit<FranchiseRecord, 'id' | 'qrCodeData' | 'violationsCount' | 'status' | 'documentsVerified'>) => Promise<string>;
@@ -148,7 +160,70 @@ const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202
 
 export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>('Tricycle');
-  const [activeModule, setActiveModule] = useState<ActiveModule>('overview');
+  const [activeModule, setActiveModuleState] = useState<ActiveModule>('overview');
+
+  // Unseen change counters for view-clears modules (only appear when changes like adding a record or generating QR occur)
+  const [unseenChanges, setUnseenChanges] = useState<Record<ActiveModule, number>>({
+    overview: 0,
+    register: 0,
+    renewal: 0,
+    qr_scanner: 0,
+    driver_registry: 0,
+    franchise_records: 0,
+    reports: 0,
+    violation_entry: 0,
+    deactivation: 0,
+    system_access: 0,
+    account: 0,
+  });
+
+  const [changeReasons, setChangeReasons] = useState<Partial<Record<ActiveModule, string>>>({});
+
+  const clearModuleBadge = useCallback((mod: ActiveModule) => {
+    // Persistent modules (renewal & violation_entry) stay until all tasks are done
+    if (mod === 'renewal' || mod === 'violation_entry') return;
+    setUnseenChanges(prev => (prev[mod] ? { ...prev, [mod]: 0 } : prev));
+    setChangeReasons(prev => {
+      if (!prev[mod]) return prev;
+      const next = { ...prev };
+      delete next[mod];
+      return next;
+    });
+  }, []);
+
+  const setActiveModule = useCallback((mod: ActiveModule) => {
+    setActiveModuleState(mod);
+    if (mod !== 'renewal' && mod !== 'violation_entry') {
+      setUnseenChanges(prev => (prev[mod] ? { ...prev, [mod]: 0 } : prev));
+      setChangeReasons(prev => {
+        if (!prev[mod]) return prev;
+        const next = { ...prev };
+        delete next[mod];
+        return next;
+      });
+    }
+  }, []);
+
+  const triggerModuleChange = useCallback((mods: { mod: ActiveModule; reason: string }[]) => {
+    setUnseenChanges(prev => {
+      const next = { ...prev };
+      for (const { mod } of mods) {
+        if (mod !== activeModule && mod !== 'renewal' && mod !== 'violation_entry') {
+          next[mod] = (next[mod] || 0) + 1;
+        }
+      }
+      return next;
+    });
+    setChangeReasons(prev => {
+      const next = { ...prev };
+      for (const { mod, reason } of mods) {
+        if (mod !== activeModule && mod !== 'renewal' && mod !== 'violation_entry') {
+          next[mod] = reason;
+        }
+      }
+      return next;
+    });
+  }, [activeModule]);
 
   // Date Filter State for Dashboard
   const [dateFilter, setDateFilter] = useState<DateFilterState>({
@@ -448,7 +523,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return { success: true, admin: adminUser };
   }, [registeredAdmins, setIsAuthenticated]);
 
-  const registerAdmin = useCallback(async (accountData: Omit<AdminAccount, 'createdAt'>) => {
+  const registerAdmin = useCallback(async (accountData: Omit<AdminAccount, 'createdAt'>, options?: { switchSession?: boolean }) => {
     const cleanId = accountData.adminId.trim().toUpperCase();
     const cleanEmail = accountData.email.trim().toLowerCase();
     const cleanName = accountData.name.trim();
@@ -489,26 +564,38 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.warn('Could not sync new admin to Supabase:', e);
     }
 
-    const adminUser: AdminUser = {
-      adminId: newAccount.adminId,
-      name: newAccount.name,
-      email: newAccount.email,
-      role: newAccount.role,
-      department: newAccount.department || 'Transportation Regulation Division',
-    };
-    setCurrentAdmin(adminUser);
-    setIsAuthenticated(true, true);
+    if (options?.switchSession) {
+      const adminUser: AdminUser = {
+        adminId: newAccount.adminId,
+        name: newAccount.name,
+        email: newAccount.email,
+        role: newAccount.role,
+        department: newAccount.department || 'Transportation Regulation Division',
+      };
+      setCurrentAdmin(adminUser);
+      setIsAuthenticated(true, true);
+    }
 
     return { success: true };
   }, [registeredAdmins, setIsAuthenticated]);
 
-  // Master Synchronizer with Supabase Database (non-destructive merge)
+  // Master Synchronizer with Supabase Database (non-destructive merge of both Tricycle & Pedicab)
   const syncFromDatabase = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const [dbRecords, dbViolations, dbComplaints, dbReviews, dbAdmins] = await Promise.all([
-        fetchFranchiseRecordsFromSupabase(vehicleCategory),
-        fetchViolationsFromSupabase(vehicleCategory),
+      const [
+        dbTricycles,
+        dbPedicabs,
+        dbViolTricycles,
+        dbViolPedicabs,
+        dbComplaints,
+        dbReviews,
+        dbAdmins
+      ] = await Promise.all([
+        fetchFranchiseRecordsFromSupabase('Tricycle'),
+        fetchFranchiseRecordsFromSupabase('Pedicab'),
+        fetchViolationsFromSupabase('Tricycle'),
+        fetchViolationsFromSupabase('Pedicab'),
         fetchPassengerComplaintsFromSupabase(),
         fetchPendingReviewsFromSupabase(),
         fetchAdminAccountsFromSupabase()
@@ -530,31 +617,36 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
 
-      // Synchronize live database records with state
-      if (Array.isArray(dbRecords)) {
-        if (dbRecords.length > 0) {
-          syncExpiredFranchiseRecordsInSupabase(dbRecords, vehicleCategory).catch(err => {
-            console.warn('Auto-sync expired records notice:', err);
-          });
-          setFranchises(prev => {
-            const otherCategory = prev.filter(p => p.vehicleCategory !== vehicleCategory);
-            // Preserve any pending local registrations not yet reflected in remote DB
-            const dbPlates = new Set(dbRecords.map(r => (r.cityPlateNumber || r.mtopNumber).toLowerCase()));
-            const pendingLocal = prev.filter(p => p.vehicleCategory === vehicleCategory && !dbPlates.has((p.cityPlateNumber || p.mtopNumber).toLowerCase()));
-            return [...dbRecords, ...pendingLocal, ...otherCategory];
-          });
-        } else {
-          setFranchises(prev => {
-            // If DB returns empty, keep pending local records to avoid wiping data on connection issues
-            const otherCategory = prev.filter(p => p.vehicleCategory !== vehicleCategory);
-            const pendingLocal = prev.filter(p => p.vehicleCategory === vehicleCategory && p.id.startsWith('fr-'));
-            return [...pendingLocal, ...otherCategory];
+      // Synchronize live database records with state (unified Tricycle + Pedicab records)
+      const combinedDbRecords = [
+        ...(Array.isArray(dbTricycles) ? dbTricycles : []),
+        ...(Array.isArray(dbPedicabs) ? dbPedicabs : [])
+      ];
+
+      if (combinedDbRecords.length > 0) {
+        if (Array.isArray(dbTricycles) && dbTricycles.length > 0) {
+          syncExpiredFranchiseRecordsInSupabase(dbTricycles, 'Tricycle').catch(err => {
+            console.warn('Auto-sync expired tricycle records notice:', err);
           });
         }
+        if (Array.isArray(dbPedicabs) && dbPedicabs.length > 0) {
+          syncExpiredFranchiseRecordsInSupabase(dbPedicabs, 'Pedicab').catch(err => {
+            console.warn('Auto-sync expired pedicab records notice:', err);
+          });
+        }
+        setFranchises(prev => {
+          const dbPlates = new Set(combinedDbRecords.map(r => (r.cityPlateNumber || r.mtopNumber).toLowerCase()));
+          const pendingLocal = prev.filter(p => !dbPlates.has((p.cityPlateNumber || p.mtopNumber).toLowerCase()));
+          return [...combinedDbRecords, ...pendingLocal];
+        });
       }
 
-      if (Array.isArray(dbViolations)) {
-        setViolations(dbViolations);
+      const combinedDbViolations = [
+        ...(Array.isArray(dbViolTricycles) ? dbViolTricycles : []),
+        ...(Array.isArray(dbViolPedicabs) ? dbViolPedicabs : [])
+      ];
+      if (combinedDbViolations.length > 0 || (Array.isArray(dbViolTricycles) && Array.isArray(dbViolPedicabs))) {
+        setViolations(combinedDbViolations);
       }
       if (Array.isArray(dbReviews)) {
         setPendingReviews(dbReviews);
@@ -664,6 +756,13 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
     setSelectedFranchiseId(id);
 
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: `New franchise record added (${newRecord.cityPlateNumber || newRecord.mtopNumber})` },
+      { mod: 'qr_scanner', reason: `New unit ${newRecord.cityPlateNumber || newRecord.mtopNumber} ready for QR generation` },
+      { mod: 'driver_registry', reason: `New operator & driver enrolled (${newRecord.driverName})` },
+      { mod: 'reports', reason: `New registration added to analytics` },
+    ]);
+
     return id;
   };
 
@@ -742,6 +841,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch {}
       return updatedList;
     });
+
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: `Permanent QR code generated for ${target?.mtopNumber || id}` },
+      { mod: 'qr_scanner', reason: `Permanent QR code generated & locked for ${target?.mtopNumber || id}` },
+    ]);
   };
 
   const generateAllPermanentQr = async () => {
@@ -781,6 +885,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } catch {}
       return updatedList;
     });
+
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: 'Batch permanent QR codes generated for all units' },
+      { mod: 'qr_scanner', reason: 'All unit permanent QR codes generated' },
+    ]);
   };
 
   const renewFranchise = async (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => {
@@ -822,6 +931,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return item;
     }));
+
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: `Franchise permit renewed for ${target?.mtopNumber || id}` },
+      { mod: 'reports', reason: `Permit renewal recorded for ${target?.mtopNumber || id}` },
+    ]);
   };
 
   const deactivateFranchise = async (id: string, reason: string = 'Administrative Deactivation') => {
@@ -844,6 +958,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return item;
     }));
+
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: `Franchise ${target?.mtopNumber || id} deactivated` },
+      { mod: 'reports', reason: `Deactivation logged for ${target?.mtopNumber || id}` },
+    ]);
   };
 
   const addViolation = async (data: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => {
@@ -970,6 +1089,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return item;
     }));
+
+    triggerModuleChange([
+      { mod: 'franchise_records', reason: `Operator/Driver updated for Plate ${mtopNumber}` },
+      { mod: 'driver_registry', reason: `Operator/Driver name updated for Plate ${mtopNumber}` },
+    ]);
   };
 
   const approveReview = async (reviewId: string) => {
@@ -1127,6 +1251,129 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  // Compute live Notification Badges per module across all unified records (Tricycle & Pedicab):
+  // 1. Process Renewal ('renewal'): Persistent badge for drivers with expired franchises until renewed
+  // 2. Violations & Reports ('violation_entry'): Persistent badge until all violations are settled and complaints are resolved
+  // 3. Other modules ('franchise_records', 'qr_scanner', 'driver_registry', 'reports', 'deactivation', 'register'):
+  //    Do NOT show badges once viewed; ONLY show badges when unseen changes (like adding records or generating QR) occur
+  // 4. Dashboard Overview ('overview'): Shows ALL notifications from all notification badges
+  const expiredDriversCount = franchises.filter(
+    f => f.status === 'Expired' || f.status === 'Pending Renewal' || isRecordExpired(f.expirationDate)
+  ).length;
+
+  const unresolvedViolationsCount = violations.filter(v => v.status !== 'Settled').length;
+  const unresolvedComplaintsCount = complaints.filter(c => c.status !== 'Resolved').length;
+  const totalUnfinishedViolationsAndReports = unresolvedViolationsCount + unresolvedComplaintsCount;
+
+  const pendingReviewsCount = pendingReviews.filter(
+    r => r.status === 'Pending Document Review' || !r.status
+  ).length;
+
+  const moduleBadges: Record<ActiveModule, number> = {
+    overview:
+      expiredDriversCount +
+      totalUnfinishedViolationsAndReports +
+      pendingReviewsCount +
+      (unseenChanges.franchise_records || 0) +
+      (unseenChanges.qr_scanner || 0) +
+      (unseenChanges.driver_registry || 0) +
+      (unseenChanges.reports || 0) +
+      (unseenChanges.deactivation || 0) +
+      (unseenChanges.register || 0),
+    register: unseenChanges.register || 0,
+    renewal: expiredDriversCount,
+    qr_scanner: unseenChanges.qr_scanner || 0,
+    driver_registry: unseenChanges.driver_registry || 0,
+    franchise_records: unseenChanges.franchise_records || 0,
+    reports: unseenChanges.reports || 0,
+    violation_entry: totalUnfinishedViolationsAndReports,
+    deactivation: unseenChanges.deactivation || 0,
+    system_access: unseenChanges.system_access || 0,
+    account: 0,
+  };
+
+  const moduleNotificationsList: {
+    module: ActiveModule;
+    moduleTitle: string;
+    count: number;
+    description: string;
+    isPersistent: boolean;
+    badgeStyle: string;
+  }[] = [
+    ...(expiredDriversCount > 0
+      ? [
+          {
+            module: 'renewal' as ActiveModule,
+            moduleTitle: 'Process Renewal',
+            count: expiredDriversCount,
+            description: `${expiredDriversCount} driver franchise${expiredDriversCount > 1 ? 's' : ''} expired or pending renewal (stays until renewed)`,
+            isPersistent: true,
+            badgeStyle: 'bg-blue-600 text-white',
+          },
+        ]
+      : []),
+    ...(totalUnfinishedViolationsAndReports > 0
+      ? [
+          {
+            module: 'violation_entry' as ActiveModule,
+            moduleTitle: 'Violations & Reports',
+            count: totalUnfinishedViolationsAndReports,
+            description: `${unresolvedViolationsCount} unsettled violation${unresolvedViolationsCount !== 1 ? 's' : ''} & ${unresolvedComplaintsCount} unresolved report${unresolvedComplaintsCount !== 1 ? 's' : ''} (stays until completed)`,
+            isPersistent: true,
+            badgeStyle: 'bg-rose-600 text-white',
+          },
+        ]
+      : []),
+    ...(unseenChanges.franchise_records > 0
+      ? [
+          {
+            module: 'franchise_records' as ActiveModule,
+            moduleTitle: 'Franchise Records',
+            count: unseenChanges.franchise_records,
+            description: changeReasons.franchise_records || `${unseenChanges.franchise_records} new record/QR update(s)`,
+            isPersistent: false,
+            badgeStyle: 'bg-emerald-600 text-white',
+          },
+        ]
+      : []),
+    ...(unseenChanges.qr_scanner > 0
+      ? [
+          {
+            module: 'qr_scanner' as ActiveModule,
+            moduleTitle: 'QR Code Scanner',
+            count: unseenChanges.qr_scanner,
+            description: changeReasons.qr_scanner || `${unseenChanges.qr_scanner} QR code update(s)`,
+            isPersistent: false,
+            badgeStyle: 'bg-emerald-600 text-white',
+          },
+        ]
+      : []),
+    ...(unseenChanges.driver_registry > 0
+      ? [
+          {
+            module: 'driver_registry' as ActiveModule,
+            moduleTitle: 'Driver & Operator Registry',
+            count: unseenChanges.driver_registry,
+            description: changeReasons.driver_registry || `${unseenChanges.driver_registry} registry update(s)`,
+            isPersistent: false,
+            badgeStyle: 'bg-indigo-600 text-white',
+          },
+        ]
+      : []),
+    ...(unseenChanges.reports > 0
+      ? [
+          {
+            module: 'reports' as ActiveModule,
+            moduleTitle: 'Reports & Analytics',
+            count: unseenChanges.reports,
+            description: changeReasons.reports || `${unseenChanges.reports} new analytics update(s)`,
+            isPersistent: false,
+            badgeStyle: 'bg-amber-500 text-slate-950',
+          },
+        ]
+      : []),
+  ];
+
   return (
     <FranchiseContext.Provider
       value={{
@@ -1163,6 +1410,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isSyncing,
         lastSyncedAt,
         syncFromDatabase,
+        moduleBadges,
+        moduleNotificationsList,
+        clearModuleBadge,
         addFranchise,
         deleteFranchise,
         generatePermanentQr,

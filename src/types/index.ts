@@ -216,5 +216,7 @@ export type ActiveModule =
   | 'franchise_records'
   | 'reports'
   | 'violation_entry'
-  | 'deactivation';
+  | 'deactivation'
+  | 'system_access'
+  | 'account';
 

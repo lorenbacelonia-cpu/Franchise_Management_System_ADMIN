@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import type { PassengerComplaint } from '../types';
+import type { PassengerComplaint, VehicleCategory, PendingReview, DeletionLog } from '../types';
 import { maskName } from '../utils/formatters';
 import {
   MessageSquare,
@@ -21,7 +21,8 @@ import {
   History,
   UserCheck,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import { AdminPasscodeModal } from './AdminPasscodeModal';
 import { isDateMatchingFilter, getFilterDisplayLabel } from '../utils/dateFilter';
@@ -339,43 +340,135 @@ const ComplaintChatPanel: React.FC<{
 /* ─── Main Table ───────────────────────────────────────────── */
 export const PendingReviewsTable: React.FC = () => {
   const {
-    vehicleCategory,
     pendingReviews,
     complaints,
     deletionLogs,
     lastDeletionNotice,
     clearDeletionNotice,
     clearDeletionLogs,
-    setVehicleCategory,
     setSelectedReview,
     deleteComplaint,
     dateFilter,
     resetDateFilter,
+    franchises,
+    searchQuery: globalSearchQuery,
+    setSearchQuery: setGlobalSearchQuery,
   } = useFranchise();
 
   const [activeTab, setActiveTab] = useState<'reviews' | 'complaints' | 'logs'>('reviews');
-  const [filterOption, setFilterOption] = useState<'All' | 'Tricycle' | 'Pedicab'>(vehicleCategory);
+  const [vehicleCategoryFilter, setVehicleCategoryFilter] = useState<'all' | 'Tricycle' | 'Pedicab'>('all');
+  const [localSearch, setLocalSearch] = useState<string>('');
   const [selectedComplaint, setSelectedComplaint] = useState<PassengerComplaint | null>(null);
   const [deletingComplaint, setDeletingComplaint] = useState<PassengerComplaint | null>(null);
 
+  const searchQuery = localSearch || globalSearchQuery || '';
+  const setSearchQuery = (val: string) => {
+    setLocalSearch(val);
+    setGlobalSearchQuery(val);
+  };
+
+  // Helper to resolve vehicle category for complaints
+  const getComplaintCategory = (c: PassengerComplaint): VehicleCategory => {
+    if (c.vehicleCategory) return c.vehicleCategory;
+    const match = franchises?.find(f =>
+      (c.cityPlateNumber && (f.cityPlateNumber === c.cityPlateNumber || f.mtopNumber === c.cityPlateNumber)) ||
+      (c.mtopNumber && (f.mtopNumber === c.mtopNumber || f.cityPlateNumber === c.mtopNumber))
+    );
+    return match?.vehicleCategory || 'Tricycle';
+  };
+
+  // Base date-filtered lists
+  const dateFilteredReviews = pendingReviews.filter(r => isDateMatchingFilter(r.dateSubmitted, dateFilter));
+  const dateFilteredComplaints = complaints.filter(c => isDateMatchingFilter(c.incidentDate, dateFilter));
+  const dateFilteredLogs = deletionLogs.filter(l => isDateMatchingFilter(l.deletedAt, dateFilter));
+
+  // Search match predicates
+  const reviewMatchesSearch = (r: PendingReview) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (r.applicantName && r.applicantName.toLowerCase().includes(q)) ||
+      (r.cityPlateAssigned && r.cityPlateAssigned.toLowerCase().includes(q)) ||
+      (r.mtopAssigned && r.mtopAssigned.toLowerCase().includes(q)) ||
+      (r.contactNumber && r.contactNumber.toLowerCase().includes(q)) ||
+      (r.address && r.address.toLowerCase().includes(q)) ||
+      (r.receiptNumber && r.receiptNumber.toLowerCase().includes(q)) ||
+      (r.orNumber && r.orNumber.toLowerCase().includes(q)) ||
+      (r.applicationType && r.applicationType.toLowerCase().includes(q))
+    );
+  };
+
+  const complaintMatchesSearch = (c: PassengerComplaint) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (c.complainantName && c.complainantName.toLowerCase().includes(q)) ||
+      (c.cityPlateNumber && c.cityPlateNumber.toLowerCase().includes(q)) ||
+      (c.mtopNumber && c.mtopNumber.toLowerCase().includes(q)) ||
+      (c.contactNumber && c.contactNumber.toLowerCase().includes(q)) ||
+      (c.issueType && c.issueType.toLowerCase().includes(q)) ||
+      (c.description && c.description.toLowerCase().includes(q)) ||
+      (c.adminRemarks && c.adminRemarks.toLowerCase().includes(q))
+    );
+  };
+
+  const logMatchesSearch = (l: DeletionLog) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (l.cityPlateNumber && l.cityPlateNumber.toLowerCase().includes(q)) ||
+      (l.deletedBy && l.deletedBy.toLowerCase().includes(q)) ||
+      (l.itemTitle && l.itemTitle.toLowerCase().includes(q)) ||
+      (l.recordType && l.recordType.toLowerCase().includes(q)) ||
+      (l.issueOrViolationType && l.issueOrViolationType.toLowerCase().includes(q)) ||
+      (l.reason && l.reason.toLowerCase().includes(q))
+    );
+  };
+
+  // Category counts for the active tab (including search filter)
+  const countsForTab = useMemo(() => {
+    if (activeTab === 'reviews') {
+      const searched = dateFilteredReviews.filter(reviewMatchesSearch);
+      return {
+        all: searched.length,
+        tricycle: searched.filter(r => r.vehicleCategory === 'Tricycle').length,
+        pedicab: searched.filter(r => r.vehicleCategory === 'Pedicab').length,
+      };
+    }
+    if (activeTab === 'complaints') {
+      const searched = dateFilteredComplaints.filter(complaintMatchesSearch);
+      return {
+        all: searched.length,
+        tricycle: searched.filter(c => getComplaintCategory(c) === 'Tricycle').length,
+        pedicab: searched.filter(c => getComplaintCategory(c) === 'Pedicab').length,
+      };
+    }
+    const searched = dateFilteredLogs.filter(logMatchesSearch);
+    return {
+      all: searched.length,
+      tricycle: searched.filter(l => l.vehicleCategory === 'Tricycle').length,
+      pedicab: searched.filter(l => l.vehicleCategory === 'Pedicab').length,
+    };
+  }, [activeTab, dateFilteredReviews, dateFilteredComplaints, dateFilteredLogs, searchQuery, franchises]);
+
   // Filter reviews
-  const filteredReviews = pendingReviews.filter(r => {
-    if (filterOption !== 'All' && r.vehicleCategory !== filterOption) return false;
-    if (!isDateMatchingFilter(r.dateSubmitted, dateFilter)) return false;
+  const filteredReviews = dateFilteredReviews.filter(r => {
+    if (vehicleCategoryFilter !== 'all' && r.vehicleCategory !== vehicleCategoryFilter) return false;
+    if (!reviewMatchesSearch(r)) return false;
     return true;
   });
 
   // Filter complaints
-  const filteredComplaints = complaints.filter(c => {
-    if (filterOption !== 'All' && c.vehicleCategory !== filterOption) return false;
-    if (!isDateMatchingFilter(c.incidentDate, dateFilter)) return false;
+  const filteredComplaints = dateFilteredComplaints.filter(c => {
+    if (vehicleCategoryFilter !== 'all' && getComplaintCategory(c) !== vehicleCategoryFilter) return false;
+    if (!complaintMatchesSearch(c)) return false;
     return true;
   });
 
   // Filter logs
-  const filteredLogs = deletionLogs.filter(l => {
-    if (filterOption !== 'All' && l.vehicleCategory !== filterOption) return false;
-    if (!isDateMatchingFilter(l.deletedAt, dateFilter)) return false;
+  const filteredLogs = dateFilteredLogs.filter(l => {
+    if (vehicleCategoryFilter !== 'all' && l.vehicleCategory !== vehicleCategoryFilter) return false;
+    if (!logMatchesSearch(l)) return false;
     return true;
   });
 
@@ -458,7 +551,7 @@ export const PendingReviewsTable: React.FC = () => {
       <div id="pending-reviews-section" className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 mb-10 scroll-mt-6">
 
         {/* Top Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3">
 
           {/* Triple Tab Switcher */}
           <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-y-2">
@@ -515,49 +608,107 @@ export const PendingReviewsTable: React.FC = () => {
             </button>
           </div>
 
-          {/* Filter by Radio Options */}
-          <div className="flex items-center space-x-4 text-xs text-slate-700 font-medium">
-            <span className="text-slate-600">Filter by:</span>
-            <label className="flex items-center space-x-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="filterBy"
-                checked={filterOption === 'All'}
-                onChange={() => setFilterOption('All')}
-                className="accent-emerald-600"
-              />
-              <span>All</span>
-            </label>
+          {/* Right Controls: Search & Category Separation */}
+          <div className="flex items-center flex-wrap sm:flex-nowrap gap-2.5">
+            {/* Search Input Box with Search Button */}
+            <div className="flex items-center w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-56">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Search className="h-3.5 w-3.5" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setLocalSearch(e.target.value);
+                    setGlobalSearchQuery(e.target.value);
+                  }}
+                  placeholder={
+                    activeTab === 'reviews'
+                      ? 'Search applicant, plate...'
+                      : activeTab === 'complaints'
+                      ? 'Search complainant, plate...'
+                      : 'Search plate, remover...'
+                  }
+                  className="w-full pl-8 pr-7 py-1.5 bg-slate-100 border border-slate-200 rounded-l-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalSearch('');
+                      setGlobalSearchQuery('');
+                    }}
+                    className="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-r-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1 shrink-0 shadow-2xs border border-emerald-600"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span>Search</span>
+              </button>
+            </div>
 
-            <label className="flex items-center space-x-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="filterBy"
-                checked={filterOption === 'Tricycle'}
-                onChange={() => {
-                  setFilterOption('Tricycle');
-                  setVehicleCategory('Tricycle');
-                }}
-                className="accent-emerald-600"
-              />
-              <span>Tricycle</span>
-            </label>
+            {/* Vehicle Category Separation Switcher (All / Tricycle / Pedicab) */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold shrink-0">
+              <button
+                type="button"
+                onClick={() => setVehicleCategoryFilter('all')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  vehicleCategoryFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>All</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                  vehicleCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {countsForTab.all}
+                </span>
+              </button>
 
-            <label className="flex items-center space-x-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="filterBy"
-                checked={filterOption === 'Pedicab'}
-                onChange={() => {
-                  setFilterOption('Pedicab');
-                  setVehicleCategory('Pedicab');
-                }}
-                className="accent-emerald-600"
-              />
-              <span>Pedicab</span>
-            </label>
+              <button
+                type="button"
+                onClick={() => setVehicleCategoryFilter('Tricycle')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  vehicleCategoryFilter === 'Tricycle'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Tricycle</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                  vehicleCategoryFilter === 'Tricycle' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {countsForTab.tricycle}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVehicleCategoryFilter('Pedicab')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  vehicleCategoryFilter === 'Pedicab'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Pedicab</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                  vehicleCategoryFilter === 'Pedicab' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {countsForTab.pedicab}
+                </span>
+              </button>
+            </div>
           </div>
-
         </div>
 
         {/* Date Filter Indicator Banner */}
@@ -608,17 +759,25 @@ export const PendingReviewsTable: React.FC = () => {
                     <tr>
                       <td colSpan={5} className="text-center py-8 text-slate-500">
                         <p className="italic">
-                          {dateFilter.preset !== 'all'
+                          {searchQuery.trim()
+                            ? `No pending reviews matching "${searchQuery}".`
+                            : dateFilter.preset !== 'all'
                             ? `No pending reviews found for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                            : vehicleCategoryFilter !== 'all'
+                            ? `No pending reviews found for ${vehicleCategoryFilter} units.`
                             : 'No pending reviews available.'}
                         </p>
-                        {dateFilter.preset !== 'all' && (
+                        {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
                           <button
                             type="button"
-                            onClick={resetDateFilter}
+                            onClick={() => {
+                              resetDateFilter();
+                              setVehicleCategoryFilter('all');
+                              setSearchQuery('');
+                            }}
                             className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
                           >
-                            Show All Dates
+                            Reset Filters &amp; Search
                           </button>
                         )}
                       </td>
@@ -633,7 +792,13 @@ export const PendingReviewsTable: React.FC = () => {
                           {review.applicantName}
                         </td>
                         <td className="px-6 py-3.5 text-slate-700">
-                          {review.vehicleCategory}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            review.vehicleCategory === 'Pedicab'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}>
+                            {review.vehicleCategory}
+                          </span>
                         </td>
                         <td className="px-6 py-3.5 text-slate-800 font-medium">
                           {review.mtopAssigned || '1243'}
@@ -662,17 +827,25 @@ export const PendingReviewsTable: React.FC = () => {
               {filteredComplaints.length === 0 ? (
                 <div className="text-center py-8 text-slate-500 text-xs">
                   <p className="italic">
-                    {dateFilter.preset !== 'all'
+                    {searchQuery.trim()
+                      ? `No passenger complaints matching "${searchQuery}".`
+                      : dateFilter.preset !== 'all'
                       ? `No passenger complaints recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                      : vehicleCategoryFilter !== 'all'
+                      ? `No passenger complaints recorded for ${vehicleCategoryFilter} units.`
                       : 'No passenger complaints recorded.'}
                   </p>
-                  {dateFilter.preset !== 'all' && (
+                  {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
                     <button
                       type="button"
-                      onClick={resetDateFilter}
+                      onClick={() => {
+                        resetDateFilter();
+                        setVehicleCategoryFilter('all');
+                        setSearchQuery('');
+                      }}
                       className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
                     >
-                      Show All Dates
+                      Reset Filters &amp; Search
                     </button>
                   )}
                 </div>
@@ -680,6 +853,7 @@ export const PendingReviewsTable: React.FC = () => {
                 filteredComplaints.map((c) => {
                   const msgCount = c.chatMessages?.length || 0;
                   const hasUnread = c.status === 'Under Investigation' && msgCount > 0;
+                  const category = getComplaintCategory(c);
                   return (
                     <div
                       key={c.id}
@@ -712,13 +886,20 @@ export const PendingReviewsTable: React.FC = () => {
                             </div>
                             <div className="flex items-center space-x-3 mt-0.5">
                               <span className="text-[11px] text-slate-500 font-mono">
-                                <span className="font-bold text-slate-700">{c.cityPlateNumber}</span> · {c.vehicleCategory}
+                                <span className="font-bold text-slate-700">{c.cityPlateNumber}</span> ·{' '}
+                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                                  category === 'Pedicab'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  {category}
+                                </span>
                               </span>
                               <span className="text-[11px] text-rose-600 font-semibold truncate">{c.issueType}</span>
                             </div>
                             {msgCount > 0 && (
                               <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-xs">
-                                💬 {msgCount} message{msgCount !== 1 ? 's' : ''} · {c.chatMessages![msgCount - 1].senderName}: "{c.chatMessages![msgCount - 1].message.substring(0, 50)}{c.chatMessages![msgCount - 1].message.length > 50 ? '…' : ''}"
+                                {msgCount} message{msgCount !== 1 ? 's' : ''} · {c.chatMessages![msgCount - 1].senderName}: "{c.chatMessages![msgCount - 1].message.substring(0, 50)}{c.chatMessages![msgCount - 1].message.length > 50 ? '…' : ''}"
                               </p>
                             )}
                           </div>
@@ -783,10 +964,25 @@ export const PendingReviewsTable: React.FC = () => {
               {filteredLogs.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 text-center space-y-2 border border-slate-200/80">
                   <History className="h-8 w-8 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">No records have been removed yet</p>
-                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                    When an administrator authorizes and deletes a passenger complaint or violation citation, the exact administrator ID and timestamp will appear here.
+                  <p className="text-xs font-bold text-slate-700">
+                    {searchQuery.trim()
+                      ? `No removal logs matching "${searchQuery}"`
+                      : 'No records have been removed yet'}
                   </p>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                    {searchQuery.trim()
+                      ? 'Try searching with another plate number, administrator username, or item remark.'
+                      : 'When an administrator authorizes and deletes a passenger complaint or violation citation, the exact administrator ID and timestamp will appear here.'}
+                  </p>
+                  {searchQuery.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                    >
+                      Clear Search
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -807,8 +1003,12 @@ export const PendingReviewsTable: React.FC = () => {
                           <span className="font-mono text-xs font-bold text-slate-900">
                             Plate: {log.cityPlateNumber}
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-500">
-                            ({log.vehicleCategory})
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+                            log.vehicleCategory === 'Pedicab'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {log.vehicleCategory}
                           </span>
                         </div>
 

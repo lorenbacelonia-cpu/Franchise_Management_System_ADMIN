@@ -1,22 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { FranchiseStatus } from '../../types';
 import {
-  ArrowLeft,
   UserPlus,
   CheckCircle2,
   QrCode,
-  Users,
   Lock,
   Sparkles,
   PlusCircle,
   Trash2,
-  Receipt
+  Receipt,
+  Printer,
+  FileDown,
+  Globe,
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatTitleCase, formatCodeUpper, formatDigitsOnly } from '../../utils/formatters';
-import { cleanFare, getDefaultFareMatrix } from '../../utils/fareUtils';
+import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
+import { downloadFranchiseDocx } from '../../utils/docxExport';
 
 interface FareRow {
   id: string;
@@ -29,9 +33,9 @@ interface FareRow {
 export const RegisterFranchiseModal: React.FC = () => {
   const {
     activeModule,
-    setActiveModule,
     addFranchise,
     vehicleCategory,
+    setVehicleCategory,
     setSelectedFranchiseId,
     franchises,
     generatePermanentQr
@@ -68,7 +72,6 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [amountPaid, setAmountPaid] = useState(vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
 
-  // Fare Adjustment Matrix (per Destination / Route) - Separate Student & Senior 20%
   const [fareMatrix, setFareMatrix] = useState<FareRow[]>([
     {
       id: 'fare-1',
@@ -93,7 +96,10 @@ export const RegisterFranchiseModal: React.FC = () => {
     }
   ]);
 
-  // Sync category and default fare matrix when switching vehicle mode from dashboard
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (vehicleCategory) {
       setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
@@ -114,8 +120,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       setFareMatrix(defaultRows);
     }
   }, [vehicleCategory]);
-
-  const [createdId, setCreatedId] = useState<string | null>(null);
 
   if (activeModule !== 'register') return null;
 
@@ -144,7 +148,6 @@ export const RegisterFranchiseModal: React.FC = () => {
     setFareMatrix(prev => prev.map(r => {
       if (r.id !== id) return r;
       const updated = { ...r, [field]: formattedValue };
-      // When regular fare is typed or changed, automatically re-compute exact 20% discount for Student & Senior/PWD
       if (field === 'regularFare') {
         const cleanedStr = value.replace(/[₱Php\s,]/gi, '');
         const num = parseFloat(cleanedStr);
@@ -224,7 +227,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       plateNumber: vehicleCategory === 'Tricycle' ? `${targetPlate}-TR` : `${targetPlate}-PED`,
       vehicleCategory: vehicleCategory,
 
-      // Owner fields
       ownerLastName,
       ownerFirstName,
       ownerMiddleName,
@@ -235,7 +237,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       beneficiaryName: beneficiaryName.trim(),
       beneficiaryAddress: beneficiaryAddress.trim(),
 
-      // Synced operator fields for system compatibility
       operatorLastName: ownerLastName,
       operatorFirstName: ownerFirstName,
       operatorMiddleName: ownerMiddleName,
@@ -244,7 +245,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       operatorAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       residentialAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
 
-      // Driver fields
       driverLastName,
       driverFirstName,
       driverMiddleName,
@@ -253,7 +253,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       driverLicenseNo: 'Verified',
       licenseExpiry: '2028-11-20',
 
-      // Vehicle & Model
       makeModel: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
       modelMake: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
       color: color.trim() || 'Blue / Silver',
@@ -283,667 +282,853 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   const createdFranchise = franchises.find(f => f.id === createdId);
   const isPermanentActive = createdFranchise?.hasPermanentQr === true;
+  const permanentQrPayload = createdFranchise ? buildPermanentQrPayload(createdFranchise) : '';
+  const qrDataUrl = createdFranchise
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(permanentQrPayload)}`
+    : '';
 
-  const handleGenerateOrViewQr = async () => {
+  const handleGenerateQrInline = async () => {
     if (!createdId) return;
-    if (!isPermanentActive) {
-      await generatePermanentQr(createdId);
-      confetti({
-        particleCount: 90,
-        spread: 75,
-        origin: { y: 0.6 },
-        colors: ['#05b875', '#10b981', '#049d63']
-      });
-    } else {
-      setSelectedFranchiseId(createdId);
-      handleReset();
-      setActiveModule('qr_scanner');
+    await generatePermanentQr(createdId);
+    confetti({
+      particleCount: 90,
+      spread: 75,
+      origin: { y: 0.6 },
+      colors: ['#05b875', '#10b981', '#049d63']
+    });
+    setToastMessage('Unique Permanent QR Code generated and locked on this page!');
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!createdFranchise) return;
+    setIsExportingDocx(true);
+    try {
+      await downloadFranchiseDocx(createdFranchise, qrDataUrl);
+      setToastMessage(`Downloaded Word (.docx) for Unit ${createdFranchise.mtopNumber}.`);
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setIsExportingDocx(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-fadeIn">
-      <div className="max-w-6xl w-full my-auto space-y-2">
+  const handlePrintBadge = () => {
+    window.print();
+  };
 
-        {/* Top title text */}
-        <div className="text-[13px] font-bold text-slate-400 select-none pl-2">
-          Register {vehicleCategory} Franchise
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Module Top Header Card */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-3.5">
+          <div className="h-11 w-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">
+              Register {vehicleCategory} Franchise
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Complete registration, generate permanent QR badge, and download/print all on this single page
+            </p>
+          </div>
         </div>
 
-        {/* Outer White / Light Container */}
-        <div className="bg-[#f7f8fa] rounded-[32px] border border-slate-300 shadow-2xl p-6 sm:p-9 space-y-6 max-h-[92vh] overflow-y-auto">
+        {createdId && (
+          <button
+            type="button"
+            onClick={handleReset}
+            className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all cursor-pointer"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Register Another {vehicleCategory}</span>
+          </button>
+        )}
+      </div>
 
-          {/* Card 1: Top Navigation Card */}
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-300/80 shadow-sm space-y-4">
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  handleReset();
-                  setActiveModule('overview');
-                }}
-                className="flex items-center space-x-2 text-sm font-bold text-slate-800 hover:text-slate-950 cursor-pointer transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4 stroke-[2.5]" />
-                <span>Back to Dashboard</span>
-              </button>
-            </div>
+      {toastMessage && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
-            <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
-              <UserPlus className="h-6 w-6 text-slate-700 stroke-[2]" />
+      {/* If Registration Completed: Show Inline Summary + Inline QR Generator & Print on the SAME page */}
+      {createdId && createdFranchise && (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/40 shadow-md space-y-6 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900 leading-tight">
-                  Register {vehicleCategory} Franchise
-                </h2>
-                <p className="text-xs text-slate-400 font-medium italic mt-0.5">
-                  Add new franchise to the system
+                <h3 className="text-lg font-extrabold text-slate-900">
+                  Franchise Registration Completed — Unit {createdFranchise.mtopNumber}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Enrolled in system registry • Generate and print the permanent QR badge right below without leaving this page
                 </p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              + New Registration Form
+            </button>
           </div>
 
-          {/* If registration success step */}
-          {createdId ? (
-            <div className="bg-white rounded-2xl p-8 sm:p-10 border border-slate-300/80 shadow-sm text-center space-y-6 animate-fadeIn">
-              <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 className="h-10 w-10" />
-              </div>
-
-              <div>
-                <h3 className="text-xl font-extrabold text-slate-900">
-                  Franchise Registration Completed!
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  City Plate No. <span className="font-mono font-bold text-slate-900">{cityPlateNo}</span> has been officially enrolled into the system registry.
-                </p>
-              </div>
-
-              {/* Official Receipt & Payment Summary Card */}
-              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 max-w-lg mx-auto text-left shadow-xs">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-emerald-200/80">
-                  <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-950">
-                    <Receipt className="h-4 w-4 text-emerald-700" />
-                    <span>Official Receipt & Payment Summary</span>
-                  </div>
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    Paid & Verified
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Left: Enrolled Record & Official Receipt Summary */}
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                    Enrolled Franchise Details
+                  </span>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    {createdFranchise.status}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">Receipt No.</span>
-                    <span className="font-mono font-bold text-emerald-800">{receiptNumber}</span>
+
+                <div className="bg-white rounded-xl p-4 border border-slate-200 text-xs space-y-2 divide-y divide-slate-100">
+                  <div className="flex justify-between pt-1">
+                    <span className="text-slate-500 font-medium">City Plate No.:</span>
+                    <span className="font-mono font-bold text-slate-900">{createdFranchise.mtopNumber}</span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">Date Paid</span>
-                    <span className="font-semibold text-slate-800">{paymentDate}</span>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Application No.:</span>
+                    <span className="font-mono font-semibold text-slate-800">{createdFranchise.applicationNo}</span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">Amount Paid</span>
-                    <span className="font-mono font-extrabold text-emerald-700">
-                      ₱{parseFloat(amountPaid || '0').toFixed(2)}
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Owner / Operator:</span>
+                    <span className="font-bold text-slate-900">{createdFranchise.operatorName}</span>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Authorized Driver:</span>
+                    <span className="font-bold text-slate-900">{createdFranchise.driverName}</span>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Route / Parada:</span>
+                    <span className="font-semibold text-slate-800">{createdFranchise.routeParada}</span>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Expiration Date:</span>
+                    <span className="font-mono font-bold text-emerald-700">{createdFranchise.expirationDate}</span>
+                  </div>
+                </div>
+
+                {/* Official Receipt Summary */}
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-950 flex items-center space-x-1.5">
+                      <Receipt className="h-4 w-4 text-emerald-700" />
+                      <span>Official Receipt &amp; Payment</span>
                     </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      Paid &amp; Verified
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-500">Receipt No.</span>
+                      <span className="font-mono font-bold text-emerald-800">{receiptNumber}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-500">Date Paid</span>
+                      <span className="font-semibold text-slate-800">{paymentDate}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-slate-500">Amount Paid</span>
+                      <span className="font-mono font-extrabold text-emerald-700">
+                        ₱{parseFloat(amountPaid || '0').toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Next Steps Buttons */}
-              <div className="bg-[#f5f7f9] p-6 rounded-2xl border border-slate-200 space-y-4 max-w-md mx-auto">
-                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Select Next Step:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleReset();
-                      setActiveModule('franchise_records');
-                    }}
-                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all cursor-pointer"
-                  >
-                    <Users className="h-4 w-4" />
-                    <span>Go to Franchise Records</span>
-                  </button>
-
-                  {isPermanentActive ? (
-                    <button
-                      type="button"
-                      onClick={handleGenerateOrViewQr}
-                      className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-sm transition-all cursor-pointer"
-                      title="View official permanent QR code"
-                    >
-                      <QrCode className="h-4 w-4 text-emerald-600" />
-                      <span>View QR Code</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleGenerateOrViewQr}
-                      className="w-full bg-[#00ba7c] hover:bg-[#009b67] text-slate-950 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer animate-pulse"
-                      title="Generate permanent QR code for this unit"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      <span>Generate QR Code</span>
-                    </button>
-                  )}
+              {/* Generate QR Button */}
+              {isPermanentActive ? (
+                <div className="w-full bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2">
+                  <Lock className="h-4 w-4 text-emerald-700" />
+                  <span>Permanent QR Code Generated &amp; Locked</span>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGenerateQrInline}
+                  className="w-full bg-[#05b875] hover:bg-[#049d63] text-white font-bold text-xs py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Generate Permanent QR Code Now</span>
+                </button>
+              )}
+            </div>
 
-                {isPermanentActive && (
-                  <div className="flex items-center justify-center space-x-1.5 text-emerald-800 text-[11px] font-bold bg-emerald-50 border border-emerald-200 py-2 px-3 rounded-xl animate-fadeIn">
-                    <Lock className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Permanent QR Code Locked • Cannot be modified</span>
+            {/* Right: Inline QR Code Preview, Word Download & 1-Page Print */}
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col justify-between space-y-4">
+              <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col items-center justify-center flex-1 space-y-3">
+                {isPermanentActive ? (
+                  <>
+                    <div className="flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      <Globe className="h-3 w-3 text-emerald-600" />
+                      <span>UNIVERSAL QR LINK • READY TO SCAN OR PRINT</span>
+                    </div>
+                    <img
+                      src={qrDataUrl}
+                      alt="System QR Code"
+                      className="w-44 h-44 object-contain p-2 border border-slate-200 rounded-xl"
+                    />
+                    <div className="flex items-center space-x-2 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
+                      <input
+                        type="text"
+                        readOnly
+                        value={permanentQrPayload}
+                        className="text-[10px] font-mono text-slate-700 bg-transparent flex-1 outline-none"
+                      />
+                      <a
+                        href={permanentQrPayload}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shrink-0"
+                      >
+                        <span>Test Link</span>
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 space-y-2">
+                    <QrCode className="h-12 w-12 text-slate-300 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">QR Badge Ready to Issue</p>
+                    <p className="text-[11px] text-slate-400 max-w-xs">
+                      Click &ldquo;Generate Permanent QR Code Now&rdquo; on the left to preview, download Word (.docx), or print the 1-page badge right here.
+                    </p>
                   </div>
                 )}
               </div>
-            </div>
-          ) : (
-            /* Card 2: Main Registration Form Card */
-            <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-300/80 shadow-sm space-y-6">
 
-              {/* Form Title & Subtitle */}
-              <div className="border-b border-slate-100 pb-4">
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                  {vehicleCategory} Registration Form
-                </h3>
-                <p className="text-xs text-slate-400 font-medium italic mt-0.5">
-                  Enter franchise details for registration
-                </p>
-              </div>
-
-              {/* 2-Column Responsive Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5 items-start">
-
-                {/* ================= LEFT COLUMN ================= */}
-                <div className="space-y-4">
-
-                  {/* Owner: Last Name, First Name, Middlename */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Owner
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={ownerLastName}
-                        onChange={(e) => setOwnerLastName(formatTitleCase(e.target.value))}
-                        placeholder="{Last Name}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={ownerFirstName}
-                        onChange={(e) => setOwnerFirstName(formatTitleCase(e.target.value))}
-                        placeholder="{First Name}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                      <input
-                        type="text"
-                        value={ownerMiddleName}
-                        onChange={(e) => setOwnerMiddleName(formatTitleCase(e.target.value))}
-                        placeholder="{Middlename}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Age & Contact / Telephone Number */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Age
-                      </label>
-                      <input
-                        type="number"
-                        min="18"
-                        max="120"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value)}
-                        placeholder="e.g. 42"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={11}
-                        required
-                        value={ownerContact}
-                        onKeyDown={(e) => {
-                          if (
-                            !/[0-9]/.test(e.key) &&
-                            !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) &&
-                            !e.ctrlKey &&
-                            !e.metaKey
-                          ) {
-                            e.preventDefault();
-                          }
-                        }}
-                        onChange={(e) => setOwnerContact(formatDigitsOnly(e.target.value, 11))}
-                        placeholder="e.g. 09178821920"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Residential Address */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Residential Address
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={residentialAddress}
-                      onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
-                      placeholder="Zone 4, Poblacion, Tabaco City"
-                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
-                  </div>
-
-                  {/* Beneficiary Details: Beneficiary Name & Beneficiary Address */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Beneficiary Name
-                      </label>
-                      <input
-                        type="text"
-                        value={beneficiaryName}
-                        onChange={(e) => setBeneficiaryName(formatTitleCase(e.target.value))}
-                        placeholder="Full name of beneficiary"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Beneficiary Address
-                      </label>
-                      <input
-                        type="text"
-                        value={beneficiaryAddress}
-                        onChange={(e) => setBeneficiaryAddress(formatTitleCase(e.target.value))}
-                        placeholder="Address of beneficiary"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Driver: Last Name, First Name, Middlename */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Driver
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        value={driverLastName}
-                        onChange={(e) => setDriverLastName(formatTitleCase(e.target.value))}
-                        placeholder="{Last Name}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                      <input
-                        type="text"
-                        value={driverFirstName}
-                        onChange={(e) => setDriverFirstName(formatTitleCase(e.target.value))}
-                        placeholder="{First Name}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                      <input
-                        type="text"
-                        value={driverMiddleName}
-                        onChange={(e) => setDriverMiddleName(formatTitleCase(e.target.value))}
-                        placeholder="{Middlename}"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Driver Address */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Driver Address
-                    </label>
-                    <input
-                      type="text"
-                      value={driverAddress}
-                      onChange={(e) => setDriverAddress(formatTitleCase(e.target.value))}
-                      placeholder="Zone 4, Poblacion, Tabaco City"
-                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
-                  </div>
-
-                </div>
-
-                {/* ================= RIGHT COLUMN ================= */}
-                <div className="space-y-4">
-
-                  {/* Application No. & Vehicle Type */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Application No.
-                      </label>
-                      <input
-                        type="text"
-                        value={applicationNo}
-                        onChange={(e) => setApplicationNo(e.target.value)}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5 flex items-center justify-between">
-                        <span>Vehicle Type</span>
-                        <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
-                          Auto-Selected
-                        </span>
-                      </label>
-                      <div className={`w-full flex items-center justify-center space-x-2 rounded-lg px-3 py-2 text-xs font-black shadow-sm border-2 transition-all select-none ${vehicleCategory === 'Pedicab'
-                        ? 'bg-amber-100/90 border-amber-500 text-amber-950 ring-2 ring-amber-400/30'
-                        : 'bg-emerald-100/90 border-emerald-600 text-emerald-950 ring-2 ring-emerald-500/30'
-                        }`}>
-                        <span className="text-base">{vehicleCategory === 'Pedicab' ? '🚲' : '🛺'}</span>
-                        <span className="text-[13px] tracking-wide uppercase font-black">{vehicleCategory}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Model / Make & Color */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Model / Make
-                      </label>
-                      <input
-                        type="text"
-                        value={modelMake}
-                        onChange={(e) => setModelMake(formatTitleCase(e.target.value))}
-                        placeholder={vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Passenger Pedicab'}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Color
-                      </label>
-                      <input
-                        type="text"
-                        value={color}
-                        onChange={(e) => setColor(formatTitleCase(e.target.value))}
-                        placeholder="e.g. Blue / Silver"
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tourist Guide & Status */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Tourist Guide
-                      </label>
-                      <select
-                        value={touristGuide}
-                        onChange={(e) => setTouristGuide(e.target.value as 'Yes' | 'No')}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer text-center"
-                      >
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Status
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as FranchiseStatus)}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer text-center"
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Under Review">Under Review</option>
-                        <option value="Pending Renewal">Pending Renewal</option>
-                        <option value="Deactivated">Deactivated</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Parada/Route & City Plate No. */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        Parada/Route
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={paradaRoute}
-                        onChange={(e) => setParadaRoute(formatTitleCase(e.target.value))}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                        City Plate No.
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={cityPlateNo}
-                        onChange={(e) => setCityPlateNo(formatCodeUpper(e.target.value))}
-                        className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Expiration Date */}
-                  <div>
-                    <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                      Expiration Date
-                    </label>
-                    <input
-                      type="date"
-                      value={expirationDate}
-                      onChange={(e) => setExpirationDate(e.target.value)}
-                      className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Official Receipt & Payment Details */}
-                  <div className="bg-[#d8dfe6] border border-[#c4ccd6] rounded-xl p-3.5 space-y-2.5 shadow-sm">
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-400/40">
-                      <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
-                        <Receipt className="h-4 w-4 text-emerald-700" />
-                        <span>Official Receipt & Payment Details</span>
-                      </div>
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        Paid / Verified
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {/* Receipt Number */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                          Receipt No. (OR No.)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={receiptNumber}
-                          onChange={(e) => setReceiptNumber(e.target.value.toUpperCase())}
-                          placeholder="OR-2026-10492"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-
-                      {/* Payment Date */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                          Payment Date
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
-                        />
-                      </div>
-
-                      {/* Amount Paid */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                          Amount Paid (PHP)
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700">
-                            ₱
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            required
-                            value={amountPaid}
-                            onChange={(e) => setAmountPaid(e.target.value)}
-                            placeholder={vehicleCategory === 'Pedicab' ? '250.00' : '450.00'}
-                            className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fare Adjustment Matrix (per Destination / Distance) */}
-                  <div className="bg-[#d8dfe6] border border-[#c4ccd6] rounded-xl p-3.5 space-y-2.5 shadow-sm">
-                    <div className="flex items-center justify-between pb-1">
-                      <span className="text-xs font-bold text-slate-900">
-                        Fare Adjustment Matrix
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleAddFareRow}
-                        className="flex items-center space-x-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
-                      >
-                        <PlusCircle className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Add Route/Distance</span>
-                      </button>
-                    </div>
-
-                    {/* Matrix Table */}
-                    <div className="border-t border-slate-400/40 pt-2 space-y-2">
-                      <div className="grid grid-cols-12 gap-1.5 text-[10px] sm:text-[11px] font-bold text-slate-800 px-1 items-center">
-                        <div className="col-span-5 truncate">Route / Distance</div>
-                        <div className="col-span-2 text-center truncate">Regular Fare</div>
-                        <div className="col-span-2 text-center truncate">Student</div>
-                        <div className="col-span-2 text-center truncate">Senior 20%</div>
-                        <div className="col-span-1 text-center"></div>
-                      </div>
-
-                      <div className="space-y-2 max-h-36 overflow-y-auto pr-0.5">
-                        {fareMatrix.map((row) => (
-                          <div key={row.id} className="grid grid-cols-12 gap-1.5 items-center">
-                            <div className="col-span-5">
-                              <input
-                                type="text"
-                                value={row.destination}
-                                onChange={(e) => handleUpdateFareRow(row.id, 'destination', e.target.value)}
-                                placeholder="Route / Distance"
-                                className="w-full bg-white border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <input
-                                type="text"
-                                value={row.regularFare}
-                                onChange={(e) => handleUpdateFareRow(row.id, 'regularFare', e.target.value)}
-                                placeholder="20.00"
-                                className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <input
-                                type="text"
-                                value={row.studentFare}
-                                onChange={(e) => handleUpdateFareRow(row.id, 'studentFare', e.target.value)}
-                                placeholder="15.00"
-                                className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <input
-                                type="text"
-                                value={row.seniorPwdFare}
-                                onChange={(e) => handleUpdateFareRow(row.id, 'seniorPwdFare', e.target.value)}
-                                placeholder="15.00"
-                                className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                              />
-                            </div>
-                            <div className="col-span-1 flex items-center justify-center">
-                              {fareMatrix.length > 1 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFareRow(row.id)}
-                                  className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition-colors"
-                                  title="Remove route"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              ) : (
-                                <span className="w-3.5" />
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* Bottom Actions: Cancel (Grey) & Submit (Green) */}
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    handleReset();
-                    setActiveModule('overview');
-                  }}
-                  className="bg-[#8ca0b3] hover:bg-[#7a8f9f] active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm px-9 py-2 rounded-full shadow-[0_3px_5px_rgba(0,0,0,0.15)] border border-slate-400/50 transition-all cursor-pointer"
+                  disabled={!isPermanentActive || isExportingDocx}
+                  onClick={handleDownloadDocx}
+                  className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${
+                    isPermanentActive && !isExportingDocx
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
                 >
-                  Cancel
+                  <FileDown className="h-4 w-4" />
+                  <span>{isExportingDocx ? 'Generating...' : 'Download Word (.docx)'}</span>
                 </button>
 
                 <button
-                  type="submit"
-                  className="bg-[#00ba7c] hover:bg-[#00a36d] active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm px-10 py-2 rounded-full shadow-[0_3px_5px_rgba(0,0,0,0.2)] border border-emerald-600/50 transition-all cursor-pointer"
+                  type="button"
+                  disabled={!isPermanentActive}
+                  onClick={handlePrintBadge}
+                  className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${
+                    isPermanentActive
+                      ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-xs'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
                 >
-                  Submit
+                  <Printer className="h-4 w-4" />
+                  <span>Print / Save PDF (1-Page)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Registration Form Card */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+              {vehicleCategory} Registration Form
+            </h3>
+            <p className="text-xs text-slate-400 font-medium italic mt-0.5">
+              Enter owner, driver, vehicle, official receipt, and fare matrix details
+            </p>
+          </div>
+          <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            All-in-One Registration Page
+          </span>
+        </div>
+
+        {/* 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5 items-start">
+          {/* ================= LEFT COLUMN ================= */}
+          <div className="space-y-4">
+            {/* Owner: Last Name, First Name, Middlename */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                Owner
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  required
+                  value={ownerLastName}
+                  onChange={(e) => setOwnerLastName(formatTitleCase(e.target.value))}
+                  placeholder="Last Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <input
+                  type="text"
+                  required
+                  value={ownerFirstName}
+                  onChange={(e) => setOwnerFirstName(formatTitleCase(e.target.value))}
+                  placeholder="First Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <input
+                  type="text"
+                  value={ownerMiddleName}
+                  onChange={(e) => setOwnerMiddleName(formatTitleCase(e.target.value))}
+                  placeholder="Middle Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Age & Mobile Number */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Age
+                </label>
+                <input
+                  type="number"
+                  min="18"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="e.g. 42"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={11}
+                  required
+                  value={ownerContact}
+                  onKeyDown={(e) => {
+                    if (
+                      !/[0-9]/.test(e.key) &&
+                      !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) &&
+                      !e.ctrlKey &&
+                      !e.metaKey
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => setOwnerContact(formatDigitsOnly(e.target.value, 11))}
+                  placeholder="e.g. 09178821920"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Residential Address */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                Residential Address
+              </label>
+              <input
+                type="text"
+                required
+                value={residentialAddress}
+                onChange={(e) => setResidentialAddress(formatTitleCase(e.target.value))}
+                placeholder="Zone 4, Poblacion, Tabaco City"
+                className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              />
+            </div>
+
+            {/* Beneficiary Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Beneficiary Name
+                </label>
+                <input
+                  type="text"
+                  value={beneficiaryName}
+                  onChange={(e) => setBeneficiaryName(formatTitleCase(e.target.value))}
+                  placeholder="Full name of beneficiary"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Beneficiary Address
+                </label>
+                <input
+                  type="text"
+                  value={beneficiaryAddress}
+                  onChange={(e) => setBeneficiaryAddress(formatTitleCase(e.target.value))}
+                  placeholder="Address of beneficiary"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Driver */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                Driver
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  value={driverLastName}
+                  onChange={(e) => setDriverLastName(formatTitleCase(e.target.value))}
+                  placeholder="Last Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <input
+                  type="text"
+                  value={driverFirstName}
+                  onChange={(e) => setDriverFirstName(formatTitleCase(e.target.value))}
+                  placeholder="First Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <input
+                  type="text"
+                  value={driverMiddleName}
+                  onChange={(e) => setDriverMiddleName(formatTitleCase(e.target.value))}
+                  placeholder="Middle Name"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Driver Address */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                Driver Address
+              </label>
+              <input
+                type="text"
+                value={driverAddress}
+                onChange={(e) => setDriverAddress(formatTitleCase(e.target.value))}
+                placeholder="Zone 4, Poblacion, Tabaco City"
+                className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* ================= RIGHT COLUMN ================= */}
+          <div className="space-y-4">
+            {/* Application No. & Vehicle Type */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Application No.
+                </label>
+                <input
+                  type="text"
+                  value={applicationNo}
+                  onChange={(e) => setApplicationNo(e.target.value)}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                  <span>Vehicle Type *</span>
+                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Select Category
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVehicleCategory('Tricycle')}
+                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${
+                      vehicleCategory === 'Tricycle'
+                        ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs'
+                        : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
+                    }`}
+                  >
+                    <span>🛺</span>
+                    <span>Tricycle</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVehicleCategory('Pedicab')}
+                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${
+                      vehicleCategory === 'Pedicab'
+                        ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                        : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
+                    }`}
+                  >
+                    <span>🚲</span>
+                    <span>Pedicab</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Model / Make & Color */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Model / Make
+                </label>
+                <input
+                  type="text"
+                  value={modelMake}
+                  onChange={(e) => setModelMake(formatTitleCase(e.target.value))}
+                  placeholder={vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Passenger Pedicab'}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Color
+                </label>
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => setColor(formatTitleCase(e.target.value))}
+                  placeholder="e.g. Blue / Silver"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Tourist Guide & Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Tourist Guide
+                </label>
+                <select
+                  value={touristGuide}
+                  onChange={(e) => setTouristGuide(e.target.value as 'Yes' | 'No')}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer text-center"
+                >
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as FranchiseStatus)}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer text-center"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Under Review">Under Review</option>
+                  <option value="Pending Renewal">Pending Renewal</option>
+                  <option value="Deactivated">Deactivated</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Parada/Route & City Plate No. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Parada/Route
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={paradaRoute}
+                  onChange={(e) => setParadaRoute(formatTitleCase(e.target.value))}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  City Plate No.
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={cityPlateNo}
+                  onChange={(e) => setCityPlateNo(formatCodeUpper(e.target.value))}
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Expiration Date */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                Expiration Date
+              </label>
+              <input
+                type="date"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+                className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+              />
+            </div>
+
+            {/* Official Receipt & Payment Details */}
+            <div className="bg-[#d8dfe6] border border-[#c4ccd6] rounded-xl p-3.5 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-400/40">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-900">
+                  <Receipt className="h-4 w-4 text-emerald-700" />
+                  <span>Official Receipt &amp; Payment Details</span>
+                </div>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Paid / Verified
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                    Receipt No. (OR No.)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={receiptNumber}
+                    onChange={(e) => setReceiptNumber(e.target.value.toUpperCase())}
+                    placeholder="OR-2026-10492"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                    Payment Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                    Amount Paid (PHP)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-700">
+                      ₱
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={amountPaid}
+                      onChange={(e) => setAmountPaid(e.target.value)}
+                      placeholder={vehicleCategory === 'Pedicab' ? '250.00' : '450.00'}
+                      className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fare Adjustment Matrix */}
+            <div className="bg-[#d8dfe6] border border-[#c4ccd6] rounded-xl p-3.5 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs font-bold text-slate-900">
+                  Fare Adjustment Matrix
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddFareRow}
+                  className="flex items-center space-x-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
+                >
+                  <PlusCircle className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Add Route/Distance</span>
                 </button>
               </div>
 
-            </form>
-          )}
+              <div className="border-t border-slate-400/40 pt-2 space-y-2">
+                <div className="grid grid-cols-12 gap-1.5 text-[10px] sm:text-[11px] font-bold text-slate-800 px-1 items-center">
+                  <div className="col-span-5 truncate">Route / Distance</div>
+                  <div className="col-span-2 text-center truncate">Regular Fare</div>
+                  <div className="col-span-2 text-center truncate">Student</div>
+                  <div className="col-span-2 text-center truncate">Senior 20%</div>
+                  <div className="col-span-1 text-center"></div>
+                </div>
 
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-0.5">
+                  {fareMatrix.map((row) => (
+                    <div key={row.id} className="grid grid-cols-12 gap-1.5 items-center">
+                      <div className="col-span-5">
+                        <input
+                          type="text"
+                          value={row.destination}
+                          onChange={(e) => handleUpdateFareRow(row.id, 'destination', e.target.value)}
+                          placeholder="Route / Distance"
+                          className="w-full bg-white border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          value={row.regularFare}
+                          onChange={(e) => handleUpdateFareRow(row.id, 'regularFare', e.target.value)}
+                          placeholder="20.00"
+                          className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          value={row.studentFare}
+                          onChange={(e) => handleUpdateFareRow(row.id, 'studentFare', e.target.value)}
+                          placeholder="15.00"
+                          className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="text"
+                          value={row.seniorPwdFare}
+                          onChange={(e) => handleUpdateFareRow(row.id, 'seniorPwdFare', e.target.value)}
+                          placeholder="15.00"
+                          className="w-full bg-white border border-slate-300 rounded-md px-1 py-1.5 text-xs text-center font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center">
+                        {fareMatrix.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFareRow(row.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition-colors"
+                            title="Remove route"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <span className="w-3.5" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-      </div>
+        {/* Bottom Actions */}
+        <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="bg-slate-200 hover:bg-slate-300 active:scale-[0.98] text-slate-800 font-bold text-xs sm:text-sm px-8 py-2.5 rounded-full transition-all cursor-pointer"
+          >
+            Reset Form
+          </button>
+
+          <button
+            type="submit"
+            className="bg-[#00ba7c] hover:bg-[#00a36d] active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm px-10 py-2.5 rounded-full shadow-md border border-emerald-600/50 transition-all cursor-pointer"
+          >
+            Submit &amp; Enroll Franchise
+          </button>
+        </div>
+      </form>
+
+      {/* Printable 1-Page QR Certificate Portal */}
+      {createdFranchise && typeof document !== 'undefined' && createPortal(
+        <div
+          id="printable-qr-certificate"
+          className="hidden print:flex flex-col items-center justify-between font-sans text-slate-900 bg-white h-full max-h-[96vh] p-4 sm:p-5 border-2 border-slate-900 rounded-xl box-border overflow-hidden"
+        >
+          <div className="w-full text-center pb-2 border-b-2 border-slate-900">
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-600">
+              Republic of the Philippines
+            </p>
+            <p className="text-xs uppercase font-extrabold tracking-wider text-slate-800">
+              Province of Albay • City of Tabaco
+            </p>
+            <h1 className="text-sm uppercase font-black tracking-tight text-emerald-800 mt-0.5">
+              Office of the Transportation Regulation Division (TRD)
+            </h1>
+            <div className="inline-block bg-slate-900 text-white font-black text-[11px] uppercase tracking-wider px-4 py-0.5 rounded-md mt-1 shadow-sm">
+              Official {vehicleCategory.toUpperCase()} System QR Badge
+            </div>
+          </div>
+
+          <div className="w-full bg-slate-100 border border-slate-900 rounded-lg py-2 px-5 my-2 flex items-center justify-between text-center">
+            <div className="text-left">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">City Plate Number</span>
+              <span className="text-2xl font-black font-mono text-slate-950 tracking-wider">
+                {createdFranchise.cityPlateNumber || createdFranchise.mtopNumber}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Status</span>
+              <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border bg-emerald-100 text-emerald-900 border-emerald-400">
+                {createdFranchise.status}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center my-1 text-center">
+            <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-xs">
+              <img
+                src={qrDataUrl}
+                alt="Official System QR Code"
+                className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
+              />
+            </div>
+            <p className="text-[10px] font-bold text-slate-700 mt-1 max-w-sm">
+              Scan via Google Lens or mobile camera for real-time cloud franchise credentials &amp; official fare matrix
+            </p>
+          </div>
+
+          <div className="w-full grid grid-cols-2 gap-2 text-xs my-1">
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Driver</span>
+              <span className="font-black text-slate-900 text-xs truncate block">{createdFranchise.driverName || '—'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Owner / Operator</span>
+              <span className="font-bold text-slate-900 text-xs truncate block">{createdFranchise.ownerName || createdFranchise.operatorName || '—'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
+              <span className="font-bold text-slate-900 text-[11px] truncate block">{createdFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
+              <span className="font-mono font-bold text-slate-900 text-[11px] block">{formatExpDate(createdFranchise.expirationDate)}</span>
+            </div>
+          </div>
+
+          <div className="w-full text-center pt-2 border-t border-slate-300 text-[9px] text-slate-500 italic">
+            Official Municipal Conveyance Permit • City Government of Tabaco • Scannable by citizens, enforcers, and passengers
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

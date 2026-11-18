@@ -24,7 +24,6 @@ export const VehicleSwitcher: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold text-slate-800 transition-colors cursor-pointer shadow-sm"
       >
-        <span className="text-base">{vehicleCategory === 'Tricycle' ? '🛺' : '🚲'}</span>
         <span>Vehicle Type: {vehicleCategory}</span>
         <ChevronDown className={`w-4 h-4 text-slate-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -44,10 +43,7 @@ export const VehicleSwitcher: React.FC = () => {
               vehicleCategory === 'Tricycle' ? 'text-emerald-700 bg-emerald-50/70' : 'text-slate-700'
             }`}
           >
-            <span className="flex items-center space-x-2">
-              <span>🛺</span>
-              <span>Tricycle</span>
-            </span>
+            <span>Tricycle</span>
             {vehicleCategory === 'Tricycle' && <Check className="w-4 h-4 text-emerald-600" />}
           </button>
           <button
@@ -60,10 +56,7 @@ export const VehicleSwitcher: React.FC = () => {
               vehicleCategory === 'Pedicab' ? 'text-emerald-700 bg-emerald-50/70' : 'text-slate-700'
             }`}
           >
-            <span className="flex items-center space-x-2">
-              <span>🚲</span>
-              <span>Pedicab</span>
-            </span>
+            <span>Pedicab</span>
             {vehicleCategory === 'Pedicab' && <Check className="w-4 h-4 text-emerald-600" />}
           </button>
         </div>

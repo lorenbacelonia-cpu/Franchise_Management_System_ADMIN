@@ -1,55 +1,165 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import { LogOut, ShieldCheck } from 'lucide-react';
-import { VehicleSwitcher } from './VehicleSwitcher';
+import { LogOut, ShieldCheck, Menu, RefreshCw, Search, X } from 'lucide-react';
+import type { ActiveModule } from '../types';
+import { NotificationBell } from './NotificationBell';
 
-export const Navbar: React.FC = () => {
-  const { setIsAuthenticated, vehicleCategory, currentAdmin } = useFranchise();
+interface NavbarProps {
+  onOpenMobileSidebar?: () => void;
+}
+
+const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> = {
+  overview: {
+    title: 'Dashboard Overview',
+    subtitle: 'Real-time operational metrics, quick actions, and pending reviews',
+  },
+  register: {
+    title: 'Register Franchise',
+    subtitle: 'Enroll new franchise units and generate permanent QR badges on one page',
+  },
+  franchise_records: {
+    title: 'Franchise Records',
+    subtitle: 'Complete unit registry with inline QR preview, renewal, and editing',
+  },
+  renewal: {
+    title: 'Process Renewal',
+    subtitle: 'Update permit expiration dates and official receipts inline',
+  },
+  qr_scanner: {
+    title: 'Generate QR Code',
+    subtitle: 'Generate, preview, download Word (.docx) or print 1-page QR badges',
+  },
+  driver_registry: {
+    title: 'Driver and Operator Registry',
+    subtitle: 'Manage and review operator and authorized driver assignments inline',
+  },
+  violation_entry: {
+    title: 'Violation and Reports',
+    subtitle: 'Enforcer traffic citations, citizen complaints, and audit trail',
+  },
+  reports: {
+    title: 'Reports and Analyst',
+    subtitle: 'Live regulatory compliance metrics and official printable PDF reports',
+  },
+  deactivation: {
+    title: 'Franchise Deactivation',
+    subtitle: 'Administrative permit revocation and unit cancellation',
+  },
+  system_access: {
+    title: 'User Managements',
+    subtitle: 'Add administrator accounts and manage system access control',
+  },
+  account: {
+    title: 'Account Settings',
+    subtitle: 'Manage administrator profile, credentials, and active session',
+  },
+};
+
+export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
+  const {
+    setIsAuthenticated,
+    currentAdmin,
+    activeModule,
+    isSyncing,
+    syncFromDatabase,
+    searchQuery,
+    setSearchQuery,
+  } = useFranchise();
+
+  const currentMeta = MODULE_TITLES[activeModule] || MODULE_TITLES.overview;
 
   return (
-    <header className="bg-transparent py-4">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          
-          {/* Admin Dashboard Title - Adapts cleanly to selected vehicle category */}
-          <div className="flex items-center space-x-3">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Admin {vehicleCategory} Dashboard
-            </h1>
-            <span className={`hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-              vehicleCategory === 'Tricycle' 
-                ? 'bg-amber-100 text-amber-800 border border-amber-300' 
-                : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-            }`}>
-              <span>{vehicleCategory === 'Tricycle' ? '🛺' : '🚲'}</span>
-              <span>{vehicleCategory} Mode</span>
-            </span>
-          </div>
-
-          {/* Center & Right Actions */}
-          <div className="flex items-center space-x-3 ml-auto">
-            {/* Vehicle Type Dropdown */}
-            <VehicleSwitcher />
-
-            {/* Current Active Admin Pill */}
-            <div className="hidden md:flex items-center space-x-2 bg-slate-900 text-white px-3.5 py-1.5 rounded-full border border-slate-700 shadow-xs">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-              <div className="text-left">
-                <p className="text-[10px] font-mono font-bold text-slate-200 leading-none">{currentAdmin.adminId}</p>
-                <p className="text-[9px] text-emerald-400 font-semibold leading-none mt-0.5">Admin In-Charge</p>
-              </div>
-            </div>
-
-            {/* Log Out Pill Button */}
+    <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-3.5 no-print">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        {/* Left: Mobile Menu Button + Module Title */}
+        <div className="flex items-center space-x-3 min-w-0">
+          {onOpenMobileSidebar && (
             <button
-              onClick={() => setIsAuthenticated(false)}
-              className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-full px-4 py-2 sm:px-5 sm:py-2.5 shadow-sm transition-all flex items-center space-x-2 cursor-pointer"
+              type="button"
+              onClick={onOpenMobileSidebar}
+              className="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer shrink-0"
+              title="Open sidebar menu"
             >
-              <LogOut className="h-4 w-4" />
-              <span>Log Out</span>
+              <Menu className="h-5 w-5" />
             </button>
+          )}
+
+          <div className="min-w-0">
+            <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
+                {currentMeta.title}
+              </h1>
+              <span className="hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Tricycle &amp; Pedicab Registry
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium hidden sm:block truncate">
+              {currentMeta.subtitle}
+            </p>
+          </div>
+        </div>
+
+        {/* Center: Search Bar */}
+        <div className="flex-1 max-w-md mx-2 min-w-[200px] order-last sm:order-none w-full sm:w-auto">
+          <div className="relative flex items-center">
+            <Search className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search plate, MTOP, driver, operator..."
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-100 hover:bg-slate-200/80 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-full outline-none transition-all placeholder:text-slate-400 shadow-2xs font-medium"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Actions */}
+        <div className="flex items-center space-x-2 sm:space-x-2.5 ml-auto">
+          {/* Notification Bell */}
+          <NotificationBell />
+
+          {/* Cloud Sync Button */}
+          <button
+            type="button"
+            onClick={() => syncFromDatabase()}
+            className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold transition-colors cursor-pointer"
+            title="Sync with live database"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-emerald-600 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className="hidden xl:inline">{isSyncing ? 'Syncing...' : 'Live Sync'}</span>
+          </button>
+
+          {/* Current Active Admin Pill */}
+          <div className="hidden md:flex items-center space-x-2 bg-slate-900 text-white px-3.5 py-1.5 rounded-full border border-slate-700 shadow-xs">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <div className="text-left">
+              <p className="text-[10px] font-mono font-bold text-slate-200 leading-none">
+                {currentAdmin.adminId}
+              </p>
+              <p className="text-[9px] text-emerald-400 font-semibold leading-none mt-0.5">
+                Admin In-Charge
+              </p>
+            </div>
           </div>
 
+          {/* Log Out Pill Button */}
+          <button
+            onClick={() => setIsAuthenticated(false)}
+            className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-full px-3.5 py-2 sm:px-4 shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Log Out</span>
+          </button>
         </div>
       </div>
     </header>
