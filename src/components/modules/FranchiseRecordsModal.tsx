@@ -223,7 +223,7 @@ export const FranchiseRecordsModal: React.FC = () => {
       const ownerFullName = [f.ownerFirstName, f.ownerMiddleName, f.ownerLastName].filter(Boolean).join(' ') || f.operatorName || f.ownerName || '—';
       const driverAddr = f.driverAddress || 'Tabaco City';
       const licenseNo = f.driverLicenseNo || 'On File';
-      const contact = f.ownerContact || f.operatorContact || '—';
+      const contact = [f.ownerContact || f.operatorContact, f.gmail || f.email].filter(Boolean).join(' / ') || '—';
       const ownerAddr = f.residentialAddress || f.operatorAddress || f.ownerAddress || 'Tabaco City';
       const modelColor = `${f.modelMake || f.makeModel || (f.vehicleCategory === 'Pedicab' ? 'Pedicab' : 'TMX 125')} / ${f.color || 'Standard'}`;
       const route = f.routeParada || 'Tabaco City Line';
@@ -990,28 +990,25 @@ export const FranchiseRecordsModal: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Contact Number
+                    Contact Number &amp; Gmail (Optional)
                   </label>
-                  <input
-                    type="tel"
-                    maxLength={11}
-                    value={editContact}
-                    onChange={(e) => setEditContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    placeholder="09..."
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Gmail Address (Optional)
-                  </label>
-                  <input
-                    type="email"
-                    value={editGmail}
-                    onChange={(e) => setEditGmail(e.target.value)}
-                    placeholder="e.g. operator@gmail.com (Optional)"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="tel"
+                      maxLength={11}
+                      value={editContact}
+                      onChange={(e) => setEditContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      placeholder="Mobile: 09..."
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <input
+                      type="email"
+                      value={editGmail}
+                      onChange={(e) => setEditGmail(e.target.value)}
+                      placeholder="Gmail: name@gmail.com"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1173,16 +1170,14 @@ export const FranchiseRecordsModal: React.FC = () => {
                     <span className="font-bold text-slate-900">{viewDetailsRecord.ownerName || viewDetailsRecord.operatorName || '—'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact Number</span>
-                    <span className="font-mono text-slate-800">{viewDetailsRecord.operatorContact || viewDetailsRecord.ownerContact || '—'}</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact Number &amp; Gmail</span>
+                    <span className="font-mono text-slate-900 font-bold block">
+                      {[viewDetailsRecord.operatorContact || viewDetailsRecord.ownerContact, viewDetailsRecord.gmail || viewDetailsRecord.email || viewDetailsRecord.operatorEmail].filter(Boolean).join(' • ') || '—'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Address</span>
                     <span className="text-slate-700">{viewDetailsRecord.operatorAddress || viewDetailsRecord.residentialAddress || viewDetailsRecord.ownerAddress || 'Tabaco City'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Gmail / Email Address</span>
-                    <span className="font-mono text-slate-800 font-semibold">{viewDetailsRecord.gmail || viewDetailsRecord.email || viewDetailsRecord.operatorEmail || 'Optional (Not Provided)'}</span>
                   </div>
                 </div>
               </div>
