@@ -76,8 +76,8 @@ export const FranchiseRecordsModal: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
   const [franchiseToDelete, setFranchiseToDelete] = useState<FranchiseRecord | null>(null);
 
-  // Pagination states (maximize up to 100 per page)
-  const [pageSize, setPageSize] = useState<number>(25);
+  // Pagination states (page-by-page view, no scrolling needed)
+  const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   // View Details & Previous Transaction History state
@@ -356,6 +356,20 @@ export const FranchiseRecordsModal: React.FC = () => {
             text-transform: uppercase;
             font-size: 6.5px;
           }
+          thead {
+            display: table-header-group;
+          }
+          tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          .page-break {
+            page-break-after: always;
+            break-after: page;
+            height: 0;
+            margin: 0;
+            padding: 0;
+          }
 
           .signatures {
             display: grid;
@@ -363,6 +377,7 @@ export const FranchiseRecordsModal: React.FC = () => {
             gap: 30px;
             margin-top: 14px;
             page-break-inside: avoid;
+            break-inside: avoid;
           }
           .sign-box {
             text-align: center;
@@ -424,6 +439,9 @@ export const FranchiseRecordsModal: React.FC = () => {
             ${tricycleTableHtml}
           </tbody>
         </table>
+
+        <!-- Page Break: Page by Page separation between categories -->
+        <div class="page-break"></div>
 
         <!-- ════════ SECTION 2: PEDICAB REGISTRY TABLE ════════ -->
         <div class="section-title">
@@ -1059,18 +1077,16 @@ export const FranchiseRecordsModal: React.FC = () => {
                   <h4 className="text-sm font-bold font-mono">
                     Unit {viewDetailsRecord.cityPlateNumber || viewDetailsRecord.mtopNumber}
                   </h4>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    viewDetailsRecord.vehicleCategory === 'Pedicab'
-                      ? 'bg-sky-500/20 text-sky-200 border-sky-400/30'
-                      : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30'
-                  }`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${viewDetailsRecord.vehicleCategory === 'Pedicab'
+                    ? 'bg-sky-500/20 text-sky-200 border-sky-400/30'
+                    : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30'
+                    }`}>
                     {viewDetailsRecord.vehicleCategory}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    viewDetailsRecord.status === 'Active'
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
-                      : 'bg-rose-500/20 text-rose-300 border-rose-400/40'
-                  }`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${viewDetailsRecord.status === 'Active'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                    : 'bg-rose-500/20 text-rose-300 border-rose-400/40'
+                    }`}>
                     {viewDetailsRecord.status}
                   </span>
                 </div>
@@ -1221,15 +1237,14 @@ export const FranchiseRecordsModal: React.FC = () => {
                           {tx.date ? new Date(tx.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
                         </td>
                         <td className="px-3.5 py-2.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            tx.type === 'Registration'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : tx.type === 'Renewal'
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${tx.type === 'Registration'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : tx.type === 'Renewal'
                               ? 'bg-blue-50 text-blue-800 border-blue-200'
                               : tx.type === 'Driver Change'
-                              ? 'bg-purple-50 text-purple-800 border-purple-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}>
+                                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                            }`}>
                             {tx.type}
                           </span>
                         </td>
@@ -1562,7 +1577,7 @@ export const FranchiseRecordsModal: React.FC = () => {
 
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center space-x-1.5 text-slate-600 font-medium mr-2">
-              <span>Show per page:</span>
+              <span>Rows per page:</span>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -1571,10 +1586,10 @@ export const FranchiseRecordsModal: React.FC = () => {
                 }}
                 className="bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
               >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100 (Max)</option>
+                <option value={5}>5 (Compact)</option>
+                <option value={10}>10 (Standard - No Scroll)</option>
+                <option value={15}>15 (Medium)</option>
+                <option value={20}>20 (Extended)</option>
               </select>
             </div>
 
@@ -1598,9 +1613,30 @@ export const FranchiseRecordsModal: React.FC = () => {
                 <ChevronLeft className="h-4 w-4" />
               </button>
 
-              <span className="px-3 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs">
-                Page {currentPage} of {totalPages}
-              </span>
+              {/* Direct Numbered Page Buttons for Page-by-Page navigation */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                .map((pageNum, idx, arr) => {
+                  const prevPage = arr[idx - 1];
+                  return (
+                    <React.Fragment key={pageNum}>
+                      {prevPage && pageNum - prevPage > 1 && (
+                        <span className="px-1 text-slate-400 font-bold text-xs select-none">...</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`min-w-7 h-7 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
 
               <button
                 type="button"
