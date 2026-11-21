@@ -37,7 +37,12 @@ export interface FranchiseRecord {
   operatorName: string;
   operatorContact?: string;
   operatorAddress?: string;
+  operatorEmail?: string;
   residentialAddress?: string;
+
+  // Contact / Gmail (Optional)
+  email?: string;
+  gmail?: string;
 
   // Driver fields from form
   driverLastName?: string;

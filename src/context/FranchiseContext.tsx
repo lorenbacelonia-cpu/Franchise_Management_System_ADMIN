@@ -126,6 +126,8 @@ interface FranchiseContextType {
       color?: string;
       engineNumber?: string;
       chassisNumber?: string;
+      email?: string;
+      gmail?: string;
     }
   ) => Promise<void>;
   approveReview: (reviewId: string) => Promise<void>;
@@ -1039,6 +1041,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       color?: string;
       engineNumber?: string;
       chassisNumber?: string;
+      email?: string;
+      gmail?: string;
     }
   ) => {
     const target = franchises.find(f => f.mtopNumber === mtopNumber || f.cityPlateNumber === mtopNumber);
@@ -1125,6 +1129,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           color: driverData.color || item.color,
           engineNumber: driverData.engineNumber || item.engineNumber,
           chassisNumber: driverData.chassisNumber || item.chassisNumber,
+          email: driverData.email ?? driverData.gmail ?? item.email ?? item.gmail,
+          gmail: driverData.gmail ?? driverData.email ?? item.gmail ?? item.email,
           nameChangeHistory: newHistoryEntry
             ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
             : item.nameChangeHistory,

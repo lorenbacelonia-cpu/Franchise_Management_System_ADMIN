@@ -101,6 +101,7 @@ export const FranchiseRecordsModal: React.FC = () => {
   const [editDriverAddress, setEditDriverAddress] = useState('');
   const [editDriverLicense, setEditDriverLicense] = useState('');
   const [editContact, setEditContact] = useState('');
+  const [editGmail, setEditGmail] = useState('');
   const [editRouteParada, setEditRouteParada] = useState('');
   const [editMakeModel, setEditMakeModel] = useState('');
   const [editColor, setEditColor] = useState('');
@@ -172,6 +173,8 @@ export const FranchiseRecordsModal: React.FC = () => {
       (f.ownerName || '').toLowerCase().includes(search.toLowerCase()) ||
       (f.operatorName || '').toLowerCase().includes(search.toLowerCase()) ||
       f.driverName.toLowerCase().includes(search.toLowerCase()) ||
+      (f.gmail || '').toLowerCase().includes(search.toLowerCase()) ||
+      (f.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (f.status || '').toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
   });
@@ -600,6 +603,7 @@ export const FranchiseRecordsModal: React.FC = () => {
     setEditDriverAddress(item.driverAddress || '');
     setEditDriverLicense(item.driverLicenseNo || '');
     setEditContact(item.operatorContact || item.ownerContact || '');
+    setEditGmail(item.gmail || item.email || item.operatorEmail || '');
     setEditRouteParada(item.routeParada || '');
     setEditMakeModel(item.modelMake || item.makeModel || '');
     setEditColor(item.color || '');
@@ -612,6 +616,8 @@ export const FranchiseRecordsModal: React.FC = () => {
       operatorName: editOperatorName.trim(),
       operatorAddress: editOperatorAddress.trim(),
       operatorContact: editContact.trim(),
+      email: editGmail.trim(),
+      gmail: editGmail.trim(),
       driverName: editDriverName.trim(),
       driverAddress: editDriverAddress.trim(),
       licenseNo: editDriverLicense.trim(),
@@ -995,6 +1001,18 @@ export const FranchiseRecordsModal: React.FC = () => {
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Gmail Address (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={editGmail}
+                    onChange={(e) => setEditGmail(e.target.value)}
+                    placeholder="e.g. operator@gmail.com (Optional)"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1161,6 +1179,10 @@ export const FranchiseRecordsModal: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Address</span>
                     <span className="text-slate-700">{viewDetailsRecord.operatorAddress || viewDetailsRecord.residentialAddress || viewDetailsRecord.ownerAddress || 'Tabaco City'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Gmail / Email Address</span>
+                    <span className="font-mono text-slate-800 font-semibold">{viewDetailsRecord.gmail || viewDetailsRecord.email || viewDetailsRecord.operatorEmail || 'Optional (Not Provided)'}</span>
                   </div>
                 </div>
               </div>
