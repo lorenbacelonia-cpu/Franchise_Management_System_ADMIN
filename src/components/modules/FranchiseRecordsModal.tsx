@@ -1593,12 +1593,12 @@ export const FranchiseRecordsModal: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1.5">
               <button
                 type="button"
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="px-2 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center space-x-1 text-xs font-bold"
                 title="First Page"
               >
                 <ChevronsLeft className="h-4 w-4" />
@@ -1607,51 +1607,56 @@ export const FranchiseRecordsModal: React.FC = () => {
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center space-x-1 text-xs font-bold shadow-2xs"
                 title="Previous Page"
               >
                 <ChevronLeft className="h-4 w-4" />
+                <span>Prev</span>
               </button>
 
               {/* Direct Numbered Page Buttons for Page-by-Page navigation */}
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
-                .map((pageNum, idx, arr) => {
-                  const prevPage = arr[idx - 1];
-                  return (
-                    <React.Fragment key={pageNum}>
-                      {prevPage && pageNum - prevPage > 1 && (
-                        <span className="px-1 text-slate-400 font-bold text-xs select-none">...</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`min-w-7 h-7 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          currentPage === pageNum
-                            ? 'bg-slate-900 text-white shadow-xs'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    </React.Fragment>
-                  );
-                })}
+              <div className="flex items-center space-x-1 px-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .map((pageNum, idx, arr) => {
+                    const prevPage = arr[idx - 1];
+                    return (
+                      <React.Fragment key={pageNum}>
+                        {prevPage && pageNum - prevPage > 1 && (
+                          <span className="px-1 text-slate-400 font-bold text-xs select-none">...</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                            currentPage === pageNum
+                              ? 'bg-slate-900 text-white shadow-xs scale-105'
+                              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
 
+              {/* PROMINENT NEXT PAGE BUTTON */}
               <button
                 type="button"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                title="Next Page"
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center space-x-1.5 text-xs font-black shadow-sm hover:shadow-md active:scale-95"
+                title="Go to Next Page"
               >
-                <ChevronRight className="h-4 w-4" />
+                <span>Next</span>
+                <ChevronRight className="h-4 w-4 stroke-[2.5]" />
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                className="px-2 py-1.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center space-x-1 text-xs font-bold"
                 title="Last Page"
               >
                 <ChevronsRight className="h-4 w-4" />
