@@ -18,7 +18,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { formatTitleCase, formatCodeUpper, formatDigitsOnly } from '../../utils/formatters';
+import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
 
@@ -220,6 +220,11 @@ export const RegisterFranchiseModal: React.FC = () => {
       };
     });
 
+    const isPhone = /^[0-9+]/.test(ownerContact.trim());
+    const cleanPhone = isPhone ? ownerContact.replace(/\D/g, '').slice(0, 11) : '';
+    const cleanEmail = !isPhone || ownerContact.includes('@') ? ownerContact.trim() : '';
+    const contactValue = cleanPhone || cleanEmail || ownerContact;
+
     const newId = await addFranchise({
       applicationNo: applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
       cityPlateNumber: targetPlate,
@@ -231,7 +236,9 @@ export const RegisterFranchiseModal: React.FC = () => {
       ownerFirstName,
       ownerMiddleName,
       ownerName: ownerFullName,
-      ownerContact: formatDigitsOnly(ownerContact),
+      ownerContact: contactValue,
+      email: cleanEmail,
+      gmail: cleanEmail,
       ownerAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       age: age.trim(),
       beneficiaryName: beneficiaryName.trim(),
@@ -241,7 +248,7 @@ export const RegisterFranchiseModal: React.FC = () => {
       operatorFirstName: ownerFirstName,
       operatorMiddleName: ownerMiddleName,
       operatorName: ownerFullName,
-      operatorContact: formatDigitsOnly(ownerContact),
+      operatorContact: contactValue,
       operatorAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       residentialAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
 
@@ -616,27 +623,37 @@ export const RegisterFranchiseModal: React.FC = () => {
 
               <div>
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Mobile Number
+                  Mobile Number / Gmail (Optional)
                 </label>
                 <input
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={11}
+                  type="text"
                   required
                   value={ownerContact}
                   onKeyDown={(e) => {
                     if (
-                      !/[0-9]/.test(e.key) &&
-                      !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) &&
-                      !e.ctrlKey &&
-                      !e.metaKey
+                      ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
+                      e.ctrlKey ||
+                      e.metaKey
                     ) {
-                      e.preventDefault();
+                      return;
+                    }
+                    // If the user first puts a number, do not allow words or letters
+                    if (/^[0-9]/.test(ownerContact.trimStart())) {
+                      if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                      }
                     }
                   }}
-                  onChange={(e) => setOwnerContact(formatDigitsOnly(e.target.value, 11))}
-                  placeholder="e.g. 09178821920"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    // If first character is a number, restrict to digits only (max 11 digits)
+                    if (/^[0-9]/.test(raw.trimStart())) {
+                      setOwnerContact(raw.replace(/\D/g, '').slice(0, 11));
+                    } else {
+                      setOwnerContact(raw);
+                    }
+                  }}
+                  placeholder="e.g. 09178821920 or operator@gmail.com"
                   className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
               </div>
@@ -862,7 +879,7 @@ export const RegisterFranchiseModal: React.FC = () => {
 
               <div>
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  City Plate No.
+                  Franchise No. / City Plate No.
                 </label>
                 <input
                   type="text"

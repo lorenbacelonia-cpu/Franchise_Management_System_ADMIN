@@ -994,10 +994,31 @@ export const FranchiseRecordsModal: React.FC = () => {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
-                      type="tel"
+                      type="text"
                       maxLength={11}
                       value={editContact}
-                      onChange={(e) => setEditContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      onKeyDown={(e) => {
+                        if (
+                          ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
+                          e.ctrlKey ||
+                          e.metaKey
+                        ) {
+                          return;
+                        }
+                        if (/^[0-9]/.test(editContact.trimStart())) {
+                          if (!/[0-9]/.test(e.key)) {
+                            e.preventDefault();
+                          }
+                        }
+                      }}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (/^[0-9]/.test(raw.trimStart())) {
+                          setEditContact(raw.replace(/\D/g, '').slice(0, 11));
+                        } else {
+                          setEditContact(raw);
+                        }
+                      }}
                       placeholder="Mobile: 09..."
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     />
