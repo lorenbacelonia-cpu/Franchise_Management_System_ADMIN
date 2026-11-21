@@ -22,7 +22,7 @@ export const RegisterRenewTable: React.FC = () => {
   const [localSearch, setLocalSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'Tricycle' | 'Pedicab'>('all');
   const [transactionFilter, setTransactionFilter] = useState<'all' | 'registered' | 'renewed'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Pending Renewal' | 'Expired'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Expired'>('all');
 
   const query = (localSearch || globalSearchQuery || '').toLowerCase().trim();
 
@@ -51,7 +51,6 @@ export const RegisterRenewTable: React.FC = () => {
         const resolvedExpired = f.status === 'Expired' || isRecordExpired(f.expirationDate);
         if (statusFilter === 'Expired' && !resolvedExpired) return false;
         if (statusFilter === 'Active' && (f.status !== 'Active' || resolvedExpired)) return false;
-        if (statusFilter === 'Pending Renewal' && f.status !== 'Pending Renewal') return false;
       }
 
       // Search match
@@ -315,15 +314,6 @@ export const RegisterRenewTable: React.FC = () => {
               }`}
             >
               Active
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('Pending Renewal')}
-              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                statusFilter === 'Pending Renewal' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Pending Ren.
             </button>
             <button
               type="button"

@@ -121,6 +121,11 @@ interface FranchiseContextType {
       contact?: string;
       address?: string;
       availability?: string;
+      routeParada?: string;
+      makeModel?: string;
+      color?: string;
+      engineNumber?: string;
+      chassisNumber?: string;
     }
   ) => Promise<void>;
   approveReview: (reviewId: string) => Promise<void>;
@@ -914,6 +919,17 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setFranchises(prev => prev.map(item => {
       if (item.id === id) {
+        const renewalTx = {
+          id: `tx-ren-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          type: 'Renewal' as const,
+          description: `Franchise permit renewed until ${newExpiry}. App No: ${newAppNo}${renewalData?.orNumber ? `, OR: ${renewalData.orNumber}` : ''}`,
+          date: new Date().toISOString(),
+          processedBy: currentAdmin?.name || 'TRD Admin',
+          applicationNo: newAppNo,
+          orNumber: renewalData?.orNumber || item.orNumber,
+          amountPaid: renewalData?.amountPaid ?? item.amountPaid,
+        };
+
         const updated = {
           ...item,
           applicationNo: newAppNo,
@@ -923,6 +939,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           receiptNumber: renewalData?.orNumber || item.receiptNumber,
           amountPaid: renewalData?.amountPaid ?? item.amountPaid,
           paymentDate: new Date().toISOString().split('T')[0],
+          transactionHistory: [renewalTx, ...(item.transactionHistory || [])],
         };
         return {
           ...updated,
@@ -1017,6 +1034,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       contact?: string;
       address?: string;
       availability?: string;
+      routeParada?: string;
+      makeModel?: string;
+      color?: string;
+      engineNumber?: string;
+      chassisNumber?: string;
     }
   ) => {
     const target = franchises.find(f => f.mtopNumber === mtopNumber || f.cityPlateNumber === mtopNumber);
@@ -1069,6 +1091,25 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           : null;
 
+        const newTxEntry = {
+          id: `tx-edit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          type: (nameChanged ? 'Driver Change' : 'Information Edit') as any,
+          description: nameChanged
+            ? `Driver/Operator updated: Driver: "${newDriverName}", Operator: "${newOperatorName}"`
+            : `Franchise & Driver details updated for Unit ${item.cityPlateNumber || item.mtopNumber}`,
+          date: new Date().toISOString(),
+          processedBy: currentAdmin?.name || 'TRD Admin',
+          details: {
+            driverName: newDriverName,
+            driverAddress: newDriverAddress,
+            driverLicenseNo: driverData.licenseNo,
+            operatorName: newOperatorName,
+            operatorAddress: newOperatorAddress,
+            operatorContact: newOperatorContact,
+            routeParada: driverData.routeParada,
+          }
+        };
+
         const updatedItem: FranchiseRecord = {
           ...item,
           operatorName: newOperatorName || item.operatorName,
@@ -1078,9 +1119,16 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           driverAddress: newDriverAddress ?? item.driverAddress,
           driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
           availability: driverData.availability || item.availability,
+          routeParada: driverData.routeParada || item.routeParada,
+          makeModel: driverData.makeModel || item.makeModel,
+          modelMake: driverData.makeModel || item.modelMake,
+          color: driverData.color || item.color,
+          engineNumber: driverData.engineNumber || item.engineNumber,
+          chassisNumber: driverData.chassisNumber || item.chassisNumber,
           nameChangeHistory: newHistoryEntry
             ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
             : item.nameChangeHistory,
+          transactionHistory: [newTxEntry, ...(item.transactionHistory || [])],
         };
         return {
           ...updatedItem,

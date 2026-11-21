@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
-import type { FranchiseRecord } from '../../types';
+import type { FranchiseRecord, FranchiseTransactionItem } from '../../types';
 import {
   Users,
   Search,
@@ -20,7 +20,14 @@ import {
   ExternalLink,
   Globe,
   Edit3,
-  Receipt
+  Receipt,
+  Eye,
+  History,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Car
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
@@ -64,9 +71,17 @@ export const FranchiseRecordsModal: React.FC = () => {
   } = useFranchise();
 
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'All' | 'Tricycle' | 'Pedicab'>('All');
   const [notification, setNotification] = useState<string | null>(null);
   const [franchiseToDelete, setFranchiseToDelete] = useState<FranchiseRecord | null>(null);
+
+  // Pagination states (maximize up to 100 per page)
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // View Details & Previous Transaction History state
+  const [viewDetailsRecord, setViewDetailsRecord] = useState<FranchiseRecord | null>(null);
 
   // Inline Action States (all actions happen right on this page without moving to another portal)
   const [inlineQrUnitId, setInlineQrUnitId] = useState<string | null>(null);
@@ -78,12 +93,60 @@ export const FranchiseRecordsModal: React.FC = () => {
   const [renewalOrNumber, setRenewalOrNumber] = useState('');
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
 
+  // Comprehensive Edit Form States
   const [franchiseToEdit, setFranchiseToEdit] = useState<FranchiseRecord | null>(null);
   const [editOperatorName, setEditOperatorName] = useState('');
+  const [editOperatorAddress, setEditOperatorAddress] = useState('');
   const [editDriverName, setEditDriverName] = useState('');
+  const [editDriverAddress, setEditDriverAddress] = useState('');
+  const [editDriverLicense, setEditDriverLicense] = useState('');
   const [editContact, setEditContact] = useState('');
+  const [editRouteParada, setEditRouteParada] = useState('');
+  const [editMakeModel, setEditMakeModel] = useState('');
+  const [editColor, setEditColor] = useState('');
 
   if (activeModule !== 'franchise_records') return null;
+
+  // ── Helper: Retrieve / synthesize complete previous transaction history for Driver/Operator ──
+  const getRecordTransactions = (rec: FranchiseRecord): FranchiseTransactionItem[] => {
+    if (rec.transactionHistory && rec.transactionHistory.length > 0) {
+      return rec.transactionHistory;
+    }
+    const txs: FranchiseTransactionItem[] = [];
+    if (rec.registrationDate || rec.paymentDate) {
+      txs.push({
+        id: `reg-${rec.id}`,
+        type: 'Registration',
+        description: `Official registration for ${rec.vehicleCategory} (Driver: ${rec.driverName}, Operator: ${rec.operatorName || rec.ownerName})`,
+        date: rec.registrationDate || rec.paymentDate || '2026-01-01',
+        processedBy: 'TRD Records Officer',
+        applicationNo: rec.applicationNo,
+        orNumber: rec.receiptNumber || rec.orNumber,
+        amountPaid: rec.amountPaid,
+      });
+    }
+    if (rec.nameChangeHistory && rec.nameChangeHistory.length > 0) {
+      rec.nameChangeHistory.forEach((nc) => {
+        txs.push({
+          id: nc.id,
+          type: 'Driver Change',
+          description: `Driver updated to "${nc.newDriverName}" (Previous: "${nc.previousDriverName}"). Operator: "${nc.newOperatorName}".`,
+          date: nc.changedAt,
+          processedBy: nc.changedBy || 'TRD Admin',
+        });
+      });
+    }
+    if (rec.expirationDate) {
+      txs.push({
+        id: `status-${rec.id}`,
+        type: 'Status Update',
+        description: `Permit valid until ${rec.expirationDate} (Status: ${rec.status})`,
+        date: rec.registrationDate || '2026-01-01',
+        processedBy: 'TRD Admin',
+      });
+    }
+    return txs;
+  };
 
   // ── Totals Calculation: Total of all units, separated for Pedicab and Tricycle ──
   const totalAll = franchises.length;
@@ -112,6 +175,18 @@ export const FranchiseRecordsModal: React.FC = () => {
       (f.status || '').toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
   });
+
+  // Table pagination logic (max 100 per page)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filtered.length);
+  const paginatedRecords = filtered.slice(startIndex, endIndex);
+
+  const handleExecuteSearch = (customVal?: string) => {
+    const val = typeof customVal === 'string' ? customVal : searchInput;
+    setSearch(val.trim());
+    setCurrentPage(1);
+  };
 
   const pendingQrCount = franchises.filter(f => !f.hasPermanentQr).length;
   const allGenerated = pendingQrCount === 0;
@@ -499,22 +574,36 @@ export const FranchiseRecordsModal: React.FC = () => {
   const handleOpenEditInline = (item: FranchiseRecord) => {
     setInlineQrUnitId(null);
     setFranchiseToRenew(null);
+    setViewDetailsRecord(null);
     setFranchiseToEdit(item);
-    setEditOperatorName(item.operatorName || '');
+    setEditOperatorName(item.operatorName || item.ownerName || '');
+    setEditOperatorAddress(item.operatorAddress || item.residentialAddress || item.ownerAddress || '');
     setEditDriverName(item.driverName || '');
-    setEditContact(item.operatorContact || '');
+    setEditDriverAddress(item.driverAddress || '');
+    setEditDriverLicense(item.driverLicenseNo || '');
+    setEditContact(item.operatorContact || item.ownerContact || '');
+    setEditRouteParada(item.routeParada || '');
+    setEditMakeModel(item.modelMake || item.makeModel || '');
+    setEditColor(item.color || '');
   };
 
   const handleConfirmEditInline = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!franchiseToEdit || !editOperatorName.trim() || !editDriverName.trim()) return;
+    if (!franchiseToEdit || !editDriverName.trim()) return;
     await updateDriver(franchiseToEdit.cityPlateNumber || franchiseToEdit.mtopNumber, {
       operatorName: editOperatorName.trim(),
+      operatorAddress: editOperatorAddress.trim(),
+      operatorContact: editContact.trim(),
       driverName: editDriverName.trim(),
+      driverAddress: editDriverAddress.trim(),
+      licenseNo: editDriverLicense.trim(),
       contact: editContact.trim(),
+      routeParada: editRouteParada.trim(),
+      makeModel: editMakeModel.trim(),
+      color: editColor.trim(),
     });
     confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
-    setNotification(`Updated Operator & Driver for Unit ${franchiseToEdit.mtopNumber}.`);
+    setNotification(`Successfully updated registration details & saved transaction history for Unit ${franchiseToEdit.mtopNumber}.`);
     setTimeout(() => setNotification(null), 4000);
     setFranchiseToEdit(null);
   };
@@ -771,18 +860,18 @@ export const FranchiseRecordsModal: React.FC = () => {
         </div>
       )}
 
-      {/* INLINE PANEL 3: Quick Edit Operator & Driver right on this page */}
+      {/* INLINE PANEL 3: Comprehensive Edit Driver, Operator & Unit Details */}
       {franchiseToEdit && (
-        <div className="bg-white rounded-3xl shadow-md border-2 border-indigo-500/40 overflow-hidden animate-fadeIn">
+        <div className="bg-white rounded-3xl shadow-lg border-2 border-indigo-500/40 overflow-hidden animate-fadeIn">
           <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <Edit3 className="h-5 w-5 text-indigo-400" />
               <div>
                 <h4 className="text-sm font-bold">
-                  Inline Edit Operator &amp; Driver — Unit {franchiseToEdit.mtopNumber}
+                  Edit Registration Details — Unit {franchiseToEdit.mtopNumber} ({franchiseToEdit.vehicleCategory})
                 </h4>
                 <p className="text-[11px] text-slate-300">
-                  Update operator name, authorized driver name, and contact number directly here
+                  Update driver profile, operator information, and vehicle details • Updates are saved in transaction history
                 </p>
               </div>
             </div>
@@ -795,48 +884,149 @@ export const FranchiseRecordsModal: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleConfirmEditInline} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Operator / Owner Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editOperatorName}
-                  onChange={(e) => setEditOperatorName(formatTitleCase(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
+          <form onSubmit={handleConfirmEditInline} className="p-6 space-y-5">
+            {/* Driver Profile Section */}
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-indigo-100">
+                <Users className="h-3.5 w-3.5" />
+                <span>Authorized Driver Information</span>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Authorized Driver Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editDriverName}
-                  onChange={(e) => setEditDriverName(formatTitleCase(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Contact Number
-                </label>
-                <input
-                  type="tel"
-                  maxLength={11}
-                  value={editContact}
-                  onChange={(e) => setEditContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                  placeholder="09..."
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Driver Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editDriverName}
+                    onChange={(e) => setEditDriverName(formatTitleCase(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="First, Middle, Last"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Driver Residential Address
+                  </label>
+                  <input
+                    type="text"
+                    value={editDriverAddress}
+                    onChange={(e) => setEditDriverAddress(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="Barangay / Street, Tabaco City"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Driver's License No.
+                  </label>
+                  <input
+                    type="text"
+                    value={editDriverLicense}
+                    onChange={(e) => setEditDriverLicense(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="e.g. N01-12-345678"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-2">
+            {/* Operator Profile Section */}
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-slate-200">
+                <Users className="h-3.5 w-3.5" />
+                <span>Franchise Owner / Operator Information</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Operator / Owner Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editOperatorName}
+                    onChange={(e) => setEditOperatorName(formatTitleCase(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="Full registered name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Operator Address
+                  </label>
+                  <input
+                    type="text"
+                    value={editOperatorAddress}
+                    onChange={(e) => setEditOperatorAddress(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    placeholder="Address in Tabaco City"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={11}
+                    value={editContact}
+                    onChange={(e) => setEditContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    placeholder="09..."
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle & Route Section */}
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-slate-200">
+                <Car className="h-3.5 w-3.5" />
+                <span>Vehicle &amp; Route Information</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Route / Parada Line
+                  </label>
+                  <input
+                    type="text"
+                    value={editRouteParada}
+                    onChange={(e) => setEditRouteParada(e.target.value)}
+                    placeholder="e.g. Tabaco City - San Roque"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Vehicle Make / Model
+                  </label>
+                  <input
+                    type="text"
+                    value={editMakeModel}
+                    onChange={(e) => setEditMakeModel(e.target.value)}
+                    placeholder="e.g. Honda TMX 125 / Pedicab"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Body Color
+                  </label>
+                  <input
+                    type="text"
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    placeholder="e.g. Blue & White"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setFranchiseToEdit(null)}
@@ -849,10 +1039,228 @@ export const FranchiseRecordsModal: React.FC = () => {
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                <span>Save Updated Names</span>
+                <span>Save Registration Details</span>
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* VIEW DETAILS MODAL: Full Driver/Operator Profile & Previous Transaction History */}
+      {viewDetailsRecord && (
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-fadeIn space-y-4">
+          <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Eye className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h4 className="text-sm font-bold font-mono">
+                    Unit {viewDetailsRecord.cityPlateNumber || viewDetailsRecord.mtopNumber}
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    viewDetailsRecord.vehicleCategory === 'Pedicab'
+                      ? 'bg-sky-500/20 text-sky-200 border-sky-400/30'
+                      : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30'
+                  }`}>
+                    {viewDetailsRecord.vehicleCategory}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    viewDetailsRecord.status === 'Active'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                      : 'bg-rose-500/20 text-rose-300 border-rose-400/40'
+                  }`}>
+                    {viewDetailsRecord.status}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  Complete registered profile &amp; previous transaction history
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => handleOpenEditInline(viewDetailsRecord)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit Detail</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewDetailsRecord(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Grid of Profile Information */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Driver Details Card */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <div className="text-xs font-black uppercase text-indigo-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Authorized Driver</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Full Name</span>
+                    <span className="font-bold text-slate-900">{viewDetailsRecord.driverName || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">License No.</span>
+                    <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.driverLicenseNo || 'On File'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Residential Address</span>
+                    <span className="text-slate-700">{viewDetailsRecord.driverAddress || 'Tabaco City'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Availability</span>
+                    <span className="text-slate-700">{viewDetailsRecord.availability || 'Active Full-time'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operator Details Card */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <div className="text-xs font-black uppercase text-emerald-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Franchise Operator / Owner</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Name</span>
+                    <span className="font-bold text-slate-900">{viewDetailsRecord.ownerName || viewDetailsRecord.operatorName || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact Number</span>
+                    <span className="font-mono text-slate-800">{viewDetailsRecord.operatorContact || viewDetailsRecord.ownerContact || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Address</span>
+                    <span className="text-slate-700">{viewDetailsRecord.operatorAddress || viewDetailsRecord.residentialAddress || viewDetailsRecord.ownerAddress || 'Tabaco City'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle & Franchise Card */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <div className="text-xs font-black uppercase text-sky-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
+                  <Car className="h-3.5 w-3.5" />
+                  <span>Vehicle &amp; Franchise Status</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Make / Model / Color</span>
+                    <span className="font-semibold text-slate-900">
+                      {viewDetailsRecord.modelMake || viewDetailsRecord.makeModel || (viewDetailsRecord.vehicleCategory === 'Pedicab' ? 'Pedicab' : 'TMX 125')} • {viewDetailsRecord.color || 'Standard'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Authorized Route / Parada</span>
+                    <span className="font-semibold text-slate-800">{viewDetailsRecord.routeParada || 'Tabaco City Line'}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">App No.</span>
+                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.applicationNo || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">OR No.</span>
+                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.receiptNumber || viewDetailsRecord.orNumber || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Registration</span>
+                      <span className="font-mono text-slate-700">{viewDetailsRecord.registrationDate || viewDetailsRecord.paymentDate || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Permit Expiry</span>
+                      <span className="font-mono font-bold text-emerald-700">{viewDetailsRecord.expirationDate}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PREVIOUS TRANSACTION HISTORY OF DRIVER / OPERATOR */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <History className="h-4 w-4 text-emerald-600" />
+                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                    Previous Transaction History &amp; Audit Log
+                  </h5>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Log of initial registration, permit renewals, and driver/operator updates
+                </span>
+              </div>
+
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3.5 py-2.5 w-32">Date / Time</th>
+                      <th className="px-3.5 py-2.5 w-36">Transaction Type</th>
+                      <th className="px-3.5 py-2.5">Transaction Details &amp; Changes</th>
+                      <th className="px-3.5 py-2.5 w-36">Processed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {getRecordTransactions(viewDetailsRecord).map((tx, idx) => (
+                      <tr key={tx.id || idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                          {tx.date ? new Date(tx.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                        </td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            tx.type === 'Registration'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : tx.type === 'Renewal'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                              : tx.type === 'Driver Change'
+                              ? 'bg-purple-50 text-purple-800 border-purple-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}>
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-800 font-medium">
+                          {tx.description}
+                          {tx.applicationNo && (
+                            <span className="font-mono text-[11px] text-slate-500 block">
+                              App No: {tx.applicationNo} • OR: {tx.orNumber || '—'} {tx.amountPaid ? `• Paid: ₱${tx.amountPaid}` : ''}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600 font-semibold text-[11px] whitespace-nowrap">
+                          {tx.processedBy || 'TRD Admin'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setViewDetailsRecord(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -868,12 +1276,15 @@ export const FranchiseRecordsModal: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap w-full md:w-auto">
             {/* Category Filter Tabs */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
               <button
                 type="button"
-                onClick={() => setCategoryFilter('All')}
+                onClick={() => {
+                  setCategoryFilter('All');
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'All'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -883,7 +1294,10 @@ export const FranchiseRecordsModal: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setCategoryFilter('Tricycle')}
+                onClick={() => {
+                  setCategoryFilter('Tricycle');
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'Tricycle'
                   ? 'bg-emerald-600 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -893,7 +1307,10 @@ export const FranchiseRecordsModal: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setCategoryFilter('Pedicab')}
+                onClick={() => {
+                  setCategoryFilter('Pedicab');
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'Pedicab'
                   ? 'bg-sky-600 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -906,7 +1323,7 @@ export const FranchiseRecordsModal: React.FC = () => {
             <button
               type="button"
               onClick={handleGenerateAllQrCodes}
-              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap ${allGenerated
+              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0 ${allGenerated
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
                 : 'bg-[#05b875] hover:bg-[#049d63] text-white active:scale-[0.98]'
                 }`}
@@ -924,17 +1341,50 @@ export const FranchiseRecordsModal: React.FC = () => {
               )}
             </button>
 
-            <div className="relative w-full sm:w-60">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Search className="h-4 w-4" />
+            {/* Prominent Search bar & Dedicated Visible Search Button on the Right */}
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    setSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleExecuteSearch();
+                    }
+                  }}
+                  placeholder="Search plate, MTOP, driver, operator..."
+                  className="w-full pl-9 pr-8 py-2 bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-all"
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchInput('');
+                      setSearch('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search plate, MTOP, driver..."
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <button
+                type="button"
+                onClick={() => handleExecuteSearch()}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
+                title="Search Franchise Records"
+              >
+                <Search className="h-3.5 w-3.5 text-white" />
+                <span>Search</span>
+              </button>
             </div>
           </div>
         </div>
@@ -965,10 +1415,10 @@ export const FranchiseRecordsModal: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filtered.map((item) => (
+                paginatedRecords.map((item) => (
                   <tr
                     key={item.id}
-                    className={`transition-colors ${inlineQrUnitId === item.id || franchiseToRenew?.id === item.id || franchiseToEdit?.id === item.id
+                    className={`transition-colors ${inlineQrUnitId === item.id || franchiseToRenew?.id === item.id || franchiseToEdit?.id === item.id || viewDetailsRecord?.id === item.id
                       ? 'bg-emerald-50/40'
                       : 'hover:bg-slate-50'
                       }`}
@@ -1022,6 +1472,31 @@ export const FranchiseRecordsModal: React.FC = () => {
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                        {/* VIEW DETAILS & PREVIOUS TRANSACTIONS BUTTON */}
+                        <button
+                          type="button"
+                          onClick={() => setViewDetailsRecord(item)}
+                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 whitespace-nowrap shadow-2xs"
+                          title="View complete driver profile, operator details, and transaction history"
+                        >
+                          <Eye className="h-3.5 w-3.5 text-slate-700 shrink-0" />
+                          <span>View</span>
+                        </button>
+
+                        {/* EDIT DETAIL BUTTON */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditInline(item)}
+                          className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${franchiseToEdit?.id === item.id
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                            }`}
+                          title="Edit driver, operator, and unit registration details"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 shrink-0" />
+                          <span>Edit</span>
+                        </button>
+
                         {item.hasPermanentQr ? (
                           <button
                             type="button"
@@ -1062,18 +1537,6 @@ export const FranchiseRecordsModal: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => handleOpenEditInline(item)}
-                          className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${franchiseToEdit?.id === item.id
-                            ? 'bg-slate-900 text-white'
-                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
-                            }`}
-                        >
-                          <Edit3 className="h-3.5 w-3.5 shrink-0" />
-                          <span>Edit</span>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => setFranchiseToDelete(item)}
                           className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 whitespace-nowrap"
                         >
@@ -1087,6 +1550,78 @@ export const FranchiseRecordsModal: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls - Maximize up to 100 per page */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+          <div className="text-slate-500 font-medium">
+            Showing <span className="font-bold text-slate-900">{filtered.length === 0 ? 0 : startIndex + 1}</span> to{' '}
+            <span className="font-bold text-slate-900">{endIndex}</span> of{' '}
+            <span className="font-bold text-slate-900">{filtered.length}</span> units
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center space-x-1.5 text-slate-600 font-medium mr-2">
+              <span>Show per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100 (Max)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="First Page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <span className="px-3 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Last Page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

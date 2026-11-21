@@ -88,6 +88,21 @@ export interface FranchiseRecord {
     changedAt: string;
     changedBy?: string;
   }>;
+
+  // Complete log of driver/operator previous transactions & updates
+  transactionHistory?: FranchiseTransactionItem[];
+}
+
+export interface FranchiseTransactionItem {
+  id: string;
+  type: 'Registration' | 'Renewal' | 'Information Edit' | 'Driver Change' | 'Operator Change' | 'Status Update' | 'Fee Payment';
+  description: string;
+  date: string;
+  processedBy?: string;
+  applicationNo?: string;
+  orNumber?: string;
+  amountPaid?: number | string;
+  details?: Record<string, any>;
 }
 
 export interface ViolationRecord {
