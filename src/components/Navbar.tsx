@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import { LogOut, ShieldCheck, Menu, RefreshCw, Search, X } from 'lucide-react';
+import { ShieldCheck, Menu, RefreshCw, Search, X } from 'lucide-react';
 import type { ActiveModule } from '../types';
 import { NotificationBell } from './NotificationBell';
 
@@ -151,15 +151,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
               </p>
             </div>
           </div>
-
-          {/* Log Out Pill Button */}
-          <button
-            onClick={() => setIsAuthenticated(false)}
-            className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-full px-3.5 py-2 sm:px-4 shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Log Out</span>
-          </button>
         </div>
       </div>
     </header>
