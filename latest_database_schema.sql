@@ -1,21 +1,26 @@
 -- ==============================================================================
--- TABACO CITY TRD PORTAL - LATEST OFFICIAL CONSOLIDATED DATABASE SCHEMA (2026)
--- Transportation Regulation Division (TRD) - City Government of Tabaco, Albay
--- Compatible with Admin Panel & Mobile Web (Enforcer Citation & Passenger Portal)
--- 
--- Run this complete script directly in your Supabase SQL Editor:
+-- TABACO CITY TRD - UNIFIED MASTER DATABASE SCHEMA (ADMIN & MOBILE WEB 2026)
+-- City Government of Tabaco, Albay • Office of the City Mayor
+-- Transportation Regulation Division (TRD)
+--
+-- This single unified script contains 100% of the tables, triggers, indexes,
+-- schemas, and security permissions for BOTH systems:
+--   1. Admin Panel (Franchise Management & Regulatory Administration)
+--   2. Mobile Web App (Enforcer QR Citation & Citizen/Passenger Portal)
+--
+-- Run this script in your Supabase SQL Editor:
 -- https://supabase.com/dashboard/project/ynyjkwcjjfswcfzwgumv/sql
 -- ==============================================================================
 
--- Enable UUID extension
+-- ── 0. DATABASE EXTENSIONS ──
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ==============================================================================
--- 1. AUTHENTICATION & ACCESS CONTROL (ADMINS & TRAFFIC ENFORCERS)
+-- 1. AUTHENTICATION & USER MANAGEMENT (ADMINS, ENFORCERS, PASSENGERS)
 -- ==============================================================================
 
--- 1.1 Dedicated Administrator Accounts Table (Admin Portal Sign-In & Multi-admin)
+-- 1.1 Administrator Accounts (Admin Portal Web Access)
 CREATE TABLE IF NOT EXISTS public.admin_accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_id VARCHAR(50) NOT NULL UNIQUE,
@@ -27,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.admin_accounts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Seed initial default TRD Administrators
+-- Seed default initial administrators
 INSERT INTO public.admin_accounts (admin_id, name, email, role, department, password)
 VALUES 
     ('ADM-2026-001', 'TRD Chief Administrator', 'admin@franchise.gov.ph', 'Head Administrator', 'Transportation Regulation Division', 'admin'),
@@ -37,36 +42,61 @@ SET password = EXCLUDED.password,
     name = EXCLUDED.name,
     email = EXCLUDED.email;
 
--- 1.2 Mobile Web Traffic Enforcers Account Table (Exclusively Issued by Admin)
+-- 1.2 Traffic Enforcers Mobile Accounts (Solely Created & Managed by Admin)
 CREATE TABLE IF NOT EXISTS public.account_enforcer_mobile (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username VARCHAR(100) NOT NULL UNIQUE, -- Badge Number (e.g., ENF-2026-001)
-    fullname TEXT NOT NULL,                -- Contains: Name [Email] (Patrol Area) {Contact}
-    password VARCHAR(255) NOT NULL,        -- Mobile Web login password
+    username VARCHAR(100) NOT NULL UNIQUE,      -- Badge Number / Username (e.g. ENF-2026-001 or enforcer)
+    fullname TEXT NOT NULL,                     -- Officer Name with embedded [email] (area) {contact}
+    email TEXT,                                 -- Officer Gmail / Email
+    email_verified BOOLEAN DEFAULT TRUE,        -- Verified status for mobile login
+    password VARCHAR(255) NOT NULL,             -- Mobile Web password
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Seed initial default Traffic Enforcers
-INSERT INTO public.account_enforcer_mobile (username, fullname, password)
+ALTER TABLE public.account_enforcer_mobile ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.account_enforcer_mobile ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_account_enforcer_email 
+    ON public.account_enforcer_mobile (LOWER(email));
+
+-- Seed default traffic enforcer accounts
+INSERT INTO public.account_enforcer_mobile (username, fullname, email, email_verified, password)
 VALUES
-    ('ENF-2026-001', 'Officer Jaime Ramos [jaime.ramos@gmail.com] (Poblacion District) {0917-111-2233}', 'TRD-ENF-7731'),
-    ('ENF-2026-002', 'Officer Ronald Santos [ronald.santos@gmail.com] (San Carlos & Terminal) {0918-222-3344}', 'TRD-ENF-8842'),
-    ('ENF-2026-003', 'Officer Mark Anthony Lopez [mark.lopez@gmail.com] (Public Market & Port Area) {0920-333-4455}', 'TRD-ENF-9915')
+    ('ENF-2026-001', 'Officer Jaime Ramos [jaime.ramos@gmail.com] (Poblacion District) {0917-111-2233}', 'jaime.ramos@gmail.com', true, 'TRD-ENF-7731'),
+    ('ENF-2026-002', 'Officer Ronald Santos [ronald.santos@gmail.com] (San Carlos & Terminal) {0918-222-3344}', 'ronald.santos@gmail.com', true, 'TRD-ENF-8842'),
+    ('ENF-2026-003', 'Officer Mark Anthony Lopez [mark.lopez@gmail.com] (Public Market & Port Area) {0920-333-4455}', 'mark.lopez@gmail.com', true, 'TRD-ENF-9915'),
+    ('enforcer', 'Officer Juan Dela Cruz [enforcer@trd.tabacocity.gov.ph] (Central District) {0917-882-1920}', 'enforcer@trd.tabacocity.gov.ph', true, 'enforcer123'),
+    ('andrie', 'Andrie Barasona [andrie@trd.tabacocity.gov.ph] (Zone 4 Poblacion)', 'andrie@trd.tabacocity.gov.ph', true, 'andrie123'),
+    ('admin', 'TRD Field Supervisor [admin@trd.tabacocity.gov.ph]', 'admin@trd.tabacocity.gov.ph', true, 'admin123')
 ON CONFLICT (username) DO NOTHING;
 
--- 1.3 Mobile Web Passenger Accounts Table (Citizen Portal)
+-- 1.3 Passengers Mobile Accounts (Citizen Portal Mobile Web)
 CREATE TABLE IF NOT EXISTS public.account_passenger_mobile (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(100) NOT NULL UNIQUE,
-    fullname VARCHAR(150),
+    fullname VARCHAR(150) NOT NULL,
+    email TEXT,
+    email_verified BOOLEAN DEFAULT TRUE,
     contact_number VARCHAR(30),
-    email VARCHAR(150),
-    password VARCHAR(255),
+    password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+ALTER TABLE public.account_passenger_mobile ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.account_passenger_mobile ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_account_passenger_email 
+    ON public.account_passenger_mobile (LOWER(email));
+
+-- Seed default passenger accounts
+INSERT INTO public.account_passenger_mobile (username, fullname, email, email_verified, password)
+VALUES
+    ('passenger', 'Maria Santos', 'passenger@gmail.com', true, 'passenger123'),
+    ('pedro', 'Pedro Penduko', 'pedro@gmail.com', true, 'pedro123')
+ON CONFLICT (username) DO NOTHING;
+
 -- ==============================================================================
--- 2. MASTER FRANCHISE RECORDS (TRICYCLE & PEDICAB)
+-- 2. MASTER FRANCHISE RECORDS (ADMIN MANAGEMENT & MOBILE VERIFIER LOOKUP)
 -- ==============================================================================
 
 -- 2.1 Tricycle Master Records Table
@@ -137,7 +167,6 @@ CREATE TABLE IF NOT EXISTS public.franchise_records_tricycle_admin (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Ensure all columns exist for existing tables
 ALTER TABLE public.franchise_records_tricycle_admin 
     ADD COLUMN IF NOT EXISTS owner_last_name VARCHAR(100),
     ADD COLUMN IF NOT EXISTS owner_first_name VARCHAR(100),
@@ -227,7 +256,6 @@ CREATE TABLE IF NOT EXISTS public.franchise_records_pedicab_admin (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Ensure all columns exist for existing pedicab table
 ALTER TABLE public.franchise_records_pedicab_admin 
     ADD COLUMN IF NOT EXISTS owner_last_name VARCHAR(100),
     ADD COLUMN IF NOT EXISTS owner_first_name VARCHAR(100),
@@ -282,10 +310,10 @@ CREATE TABLE IF NOT EXISTS public.system_qr_codes_pedicab_admin (
 );
 
 -- ==============================================================================
--- 4. TRAFFIC VIOLATIONS & CITATIONS (ENFORCER & CITIZEN REPORTS)
+-- 4. CITATIONS, TRAFFIC VIOLATIONS & EVIDENCE ATTACHMENTS
 -- ==============================================================================
 
--- 4.1 Tricycle Violations Table
+-- 4.1 Tricycle Violations Table (Admin Primary)
 CREATE TABLE IF NOT EXISTS public.violations_tricycle_admin (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     city_plate_number VARCHAR(50) NOT NULL,
@@ -308,7 +336,7 @@ CREATE TABLE IF NOT EXISTS public.violations_tricycle_admin (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4.2 Pedicab Violations Table
+-- 4.2 Pedicab Violations Table (Admin Primary)
 CREATE TABLE IF NOT EXISTS public.violations_pedicab_admin (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     city_plate_number VARCHAR(50) NOT NULL,
@@ -331,7 +359,39 @@ CREATE TABLE IF NOT EXISTS public.violations_pedicab_admin (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 4.3 General Violations Fallback View / Table (Used by Mobile Portal)
+-- 4.3 Dedicated Mobile Enforcer Citations Table (Mobile Web Submission)
+CREATE TABLE IF NOT EXISTS public.enforcer_violations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    enforcer_name TEXT NOT NULL,
+    enforcer_badge TEXT NOT NULL,
+    citation_no TEXT,
+    city_plate_number TEXT,
+    mtop_number TEXT,
+    vehicle_category TEXT DEFAULT 'Pedicab',
+    driver_name TEXT,
+    violation_type TEXT NOT NULL,
+    remarks TEXT,
+    description TEXT,
+    incident_date DATE DEFAULT CURRENT_DATE,
+    status TEXT DEFAULT 'Pending TRD Review',
+    evidence_image TEXT,        -- PNG / JPEG Base64 or Storage URL
+    evidence_filename TEXT,     -- Filename e.g. ticket_photo.jpg
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 4.4 Photo Attachments for Enforcer Citations
+CREATE TABLE IF NOT EXISTS public.violation_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    violation_id UUID REFERENCES public.enforcer_violations(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    file_size INTEGER DEFAULT 0,
+    image_data TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 4.5 General Violations Table (Fallback used by Mobile)
 CREATE TABLE IF NOT EXISTS public.violations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     city_plate_number VARCHAR(50) NOT NULL,
@@ -354,10 +414,10 @@ CREATE TABLE IF NOT EXISTS public.violations (
 );
 
 -- ==============================================================================
--- 5. PASSENGER COMPLAINTS, LIVE CHAT & DISPUTES
+-- 5. CITIZEN / PASSENGER COMPLAINTS & LIVE CHAT MESSAGES
 -- ==============================================================================
 
--- 5.1 Passenger Complaints Master Table
+-- 5.1 Passenger Complaints Master Table (Admin & Mobile Web)
 CREATE TABLE IF NOT EXISTS public.passenger_complaints (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tracking_number VARCHAR(50) UNIQUE,
@@ -369,13 +429,17 @@ CREATE TABLE IF NOT EXISTS public.passenger_complaints (
     vehicle_category VARCHAR(20) DEFAULT 'Tricycle',
     driver_name VARCHAR(150),
     operator_name VARCHAR(150),
-    incident_date DATE NOT NULL,
+    actual_fare NUMERIC,
+    incident_date DATE NOT NULL DEFAULT CURRENT_DATE,
     incident_time VARCHAR(20),
     incident_location TEXT,
-    complaint_type VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
+    complaint_type VARCHAR(100),
+    issue_type TEXT DEFAULT 'Overcharging (Excess Fare)',
+    description TEXT,
     evidence_url TEXT,
-    status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Under Investigation', 'Resolved', 'Dismissed')),
+    evidence_image TEXT,        -- Mobile photo Base64 / Storage URL
+    evidence_filename TEXT,     -- Filename e.g. receipt.png
+    status VARCHAR(50) DEFAULT 'Pending',
     admin_response TEXT,
     admin_decision TEXT,
     admin_remarks TEXT,
@@ -383,7 +447,35 @@ CREATE TABLE IF NOT EXISTS public.passenger_complaints (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 5.2 Complaint Messages (Admin & Citizen Real-Time Conversation Log)
+ALTER TABLE public.passenger_complaints 
+    ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS contact_number VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS email VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS driver_name VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS operator_name VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS actual_fare NUMERIC,
+    ADD COLUMN IF NOT EXISTS incident_time VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS incident_location TEXT,
+    ADD COLUMN IF NOT EXISTS complaint_type VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS issue_type TEXT DEFAULT 'Overcharging (Excess Fare)',
+    ADD COLUMN IF NOT EXISTS evidence_image TEXT,
+    ADD COLUMN IF NOT EXISTS evidence_filename TEXT,
+    ADD COLUMN IF NOT EXISTS admin_response TEXT,
+    ADD COLUMN IF NOT EXISTS admin_decision TEXT,
+    ADD COLUMN IF NOT EXISTS admin_remarks TEXT;
+
+-- 5.2 Dedicated Photo Attachments for Passenger Complaints
+CREATE TABLE IF NOT EXISTS public.complaint_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    complaint_id UUID REFERENCES public.passenger_complaints(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    file_size INTEGER DEFAULT 0,
+    image_data TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5.3 Live Support Chat Messages (Admin & Passenger Real-Time Dialogue)
 CREATE TABLE IF NOT EXISTS public.complaint_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     complaint_id VARCHAR(100) NOT NULL,
@@ -400,7 +492,7 @@ CREATE INDEX IF NOT EXISTS idx_complaint_messages_complaint
     ON public.complaint_messages (complaint_id, created_at ASC);
 
 -- ==============================================================================
--- 6. MOBILE PUSH NOTIFICATIONS (CROSS-PORTAL SYNC)
+-- 6. REAL-TIME MOBILE NOTIFICATIONS (STATUS UPDATES & ALERTS)
 -- ==============================================================================
 
 CREATE TABLE IF NOT EXISTS public.mobile_notifications (
@@ -422,11 +514,56 @@ CREATE INDEX IF NOT EXISTS idx_mobile_notifications_recipient
 CREATE INDEX IF NOT EXISTS idx_mobile_notifications_record 
     ON public.mobile_notifications (record_id, record_type);
 
+-- Trigger: Automatically dispatch notification to passenger on complaint status change
+CREATE OR REPLACE FUNCTION public.fn_sync_passenger_complaint_status_notification()
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF (TG_OP = 'UPDATE' AND (OLD.status IS DISTINCT FROM NEW.status OR OLD.admin_response IS DISTINCT FROM NEW.admin_response)) THEN
+        BEGIN
+            INSERT INTO public.mobile_notifications (
+                recipient_type,
+                recipient_username,
+                title,
+                message,
+                record_type,
+                record_id,
+                plate_number,
+                status,
+                is_read,
+                created_at
+            ) VALUES (
+                'passenger',
+                COALESCE(NEW.complainant_name, 'all'),
+                'Report Decision: ' || NEW.status,
+                COALESCE(NEW.admin_response, 'Your passenger report for Plate ' || COALESCE(NEW.city_plate_number, '') || ' is marked as [' || NEW.status || '].'),
+                'complaint',
+                NEW.id::text,
+                NEW.city_plate_number,
+                NEW.status,
+                FALSE,
+                timezone('utc'::text, now())
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Notification sync notice: %', SQLERRM;
+        END;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_passenger_complaint_status_sync ON public.passenger_complaints;
+CREATE TRIGGER trg_passenger_complaint_status_sync
+    AFTER UPDATE ON public.passenger_complaints
+    FOR EACH ROW
+    EXECUTE FUNCTION public.fn_sync_passenger_complaint_status_notification();
+
 -- ==============================================================================
--- 7. PENDING REVIEWS, AUDIT LOGS & NAME CHANGE HISTORY
+-- 7. PENDING REVIEWS, DELETION LOGS & NAME CHANGE AUDIT
 -- ==============================================================================
 
--- 7.1 Pending Reviews Queue (For Flagged Units)
 CREATE TABLE IF NOT EXISTS public.pending_reviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     city_plate_number VARCHAR(50) NOT NULL,
@@ -440,7 +577,6 @@ CREATE TABLE IF NOT EXISTS public.pending_reviews (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 7.2 Permanent Deletion Security Audit Logs Table
 CREATE TABLE IF NOT EXISTS public.deletion_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     record_id VARCHAR(100) NOT NULL,
@@ -452,7 +588,6 @@ CREATE TABLE IF NOT EXISTS public.deletion_logs (
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 7.3 Driver / Operator Name Change Audit Trail Table
 CREATE TABLE IF NOT EXISTS public.name_change_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     franchise_id VARCHAR(100) NOT NULL,
@@ -466,10 +601,10 @@ CREATE TABLE IF NOT EXISTS public.name_change_history (
 );
 
 -- ==============================================================================
--- 8. ROW LEVEL SECURITY (RLS) & PUBLIC ACCESS PERMISSIONS
+-- 8. ROW LEVEL SECURITY (RLS) & PUBLIC PERMISSIONS
 -- ==============================================================================
--- Disable RLS on all operational tables to allow instant synchronization between
--- the Admin Panel and the Vercel Mobile Web without blocking anonymous requests.
+-- RLS is disabled across all operational tables to allow instant bi-directional
+-- sync between the Admin Panel and Mobile Web without authentication roadblocks.
 
 ALTER TABLE IF EXISTS public.admin_accounts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.account_enforcer_mobile DISABLE ROW LEVEL SECURITY;
@@ -480,15 +615,17 @@ ALTER TABLE IF EXISTS public.system_qr_codes_tricycle_admin DISABLE ROW LEVEL SE
 ALTER TABLE IF EXISTS public.system_qr_codes_pedicab_admin DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.violations_tricycle_admin DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.violations_pedicab_admin DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.enforcer_violations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.violation_attachments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.violations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.passenger_complaints DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.complaint_attachments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.complaint_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.mobile_notifications DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.pending_reviews DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.deletion_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.name_change_history DISABLE ROW LEVEL SECURITY;
 
--- Grant broad schema permissions to standard Supabase roles
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
@@ -496,8 +633,6 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 -- ==============================================================================
 -- 9. REAL-TIME REPLICATION SUBSCRIPTIONS
 -- ==============================================================================
--- Enables instant live WebSocket updates across Admin and Mobile Web
-
 DO $$
 BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE 
@@ -507,20 +642,22 @@ BEGIN
         public.system_qr_codes_pedicab_admin,
         public.violations_tricycle_admin,
         public.violations_pedicab_admin,
+        public.enforcer_violations,
         public.passenger_complaints,
         public.complaint_messages,
         public.mobile_notifications,
         public.account_enforcer_mobile,
+        public.account_passenger_mobile,
         public.pending_reviews;
 EXCEPTION WHEN OTHERS THEN
     NULL;
 END $$;
 
 -- ==============================================================================
--- 10. INITIAL SEED DATA FOR TESTING & IMMEDIATE OPERATION
+-- 10. INITIAL SEED RECORDS FOR IMMEDIATE VERIFICATION & TESTING
 -- ==============================================================================
 
--- 10.1 Seed Tricycle Master Record
+-- Seed Tricycle Unit
 INSERT INTO public.franchise_records_tricycle_admin (
     id, application_no, city_plate_number, mtop_number, vehicle_category, plate_number,
     owner_name, operator_name, operator_contact, operator_address, residential_address,
@@ -535,7 +672,7 @@ INSERT INTO public.franchise_records_tricycle_admin (
     'Active', '₱20.00 Minimum', 0, true
 ) ON CONFLICT (city_plate_number) DO NOTHING;
 
--- 10.2 Seed Pedicab Master Record
+-- Seed Pedicab Unit
 INSERT INTO public.franchise_records_pedicab_admin (
     id, application_no, city_plate_number, mtop_number, vehicle_category, plate_number,
     owner_name, operator_name, operator_contact, operator_address, residential_address,
