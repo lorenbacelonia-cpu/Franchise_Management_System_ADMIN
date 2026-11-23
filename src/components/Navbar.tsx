@@ -57,7 +57,6 @@ const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> =
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
   const {
-    setIsAuthenticated,
     currentAdmin,
     activeModule,
     isSyncing,

@@ -10,7 +10,11 @@ import {
   Users,
   CheckCircle2,
   Lock,
-  ArrowRight
+  ArrowRight,
+  History,
+  Calendar,
+  Clock,
+  Filter
 } from 'lucide-react';
 
 export const AccountDashboard: React.FC = () => {
@@ -20,14 +24,44 @@ export const AccountDashboard: React.FC = () => {
     setIsAuthenticated,
     setActiveModule,
     lastSyncedAt,
+    activityLogs,
+    clearActivityLogs,
   } = useFranchise();
 
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [activityFilter, setActivityFilter] = useState<string>('all');
 
   const formatLastSync = (d: Date | null) => {
     if (!d) return 'Just now';
     return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
   };
+
+  const formatActivityDateTime = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      const day = d.toLocaleDateString('en-PH', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      const time = d.toLocaleTimeString('en-PH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      return { day, time };
+    } catch {
+      return { day: 'Today', time: 'Just now' };
+    }
+  };
+
+  const filteredLogs = activityLogs.filter(log => {
+    if (activityFilter === 'all') return true;
+    if (activityFilter === 'my_logs') return log.adminId === currentAdmin.adminId;
+    return log.category?.toLowerCase() === activityFilter.toLowerCase();
+  });
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -210,6 +244,132 @@ export const AccountDashboard: React.FC = () => {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Section 3: Persistent Admin Activity Log (Never disappears on logout) */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+                  <History className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>Account Activity &amp; Audit Log</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full border border-slate-200">
+                      {filteredLogs.length} events
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Permanent record of actions performed — preserved across sessions and device logouts
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Selector */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={activityFilter}
+                  onChange={(e) => setActivityFilter(e.target.value)}
+                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-semibold text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="all">All Events</option>
+                  <option value="my_logs">My Actions Only</option>
+                  <option value="auth">Auth &amp; Sessions</option>
+                  <option value="franchise">Franchise Actions</option>
+                  <option value="violation">Violations</option>
+                  <option value="complaint">Complaints</option>
+                  <option value="user">User Accounts</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Clear local activity log history on this browser? (Cloud records remain saved in Supabase)')) {
+                      clearActivityLogs();
+                    }
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-rose-600 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Clear local view"
+                >
+                  Clear View
+                </button>
+              </div>
+            </div>
+
+            {/* Activity List with Exact Day & Time */}
+            {filteredLogs.length === 0 ? (
+              <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-700">No activity recorded for this filter</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Actions taken across modules will automatically appear here with exact day and time</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto pr-1 space-y-0.5">
+                {filteredLogs.map((log) => {
+                  const { day, time } = formatActivityDateTime(log.createdAt);
+                  const isMine = log.adminId === currentAdmin.adminId;
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="py-3 px-3 rounded-2xl hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center space-x-2 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            log.category === 'Auth'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : log.category === 'Franchise'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : log.category === 'Violation'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : log.category === 'Complaint'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}>
+                            {log.category || 'System'}
+                          </span>
+
+                          <span className="font-bold text-slate-900">
+                            {log.action}
+                          </span>
+
+                          <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                            {log.adminName} ({log.adminId})
+                          </span>
+
+                          {isMine && (
+                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                              You
+                            </span>
+                          )}
+                        </div>
+
+                        {log.details && (
+                          <p className="text-[11px] text-slate-600 pl-0.5">
+                            {log.details}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Day and Time Stamps */}
+                      <div className="shrink-0 flex sm:flex-col items-start sm:items-end justify-between text-right border-t sm:border-t-0 pt-1.5 sm:pt-0 border-slate-100">
+                        <div className="flex items-center space-x-1 text-slate-700 font-semibold text-[11px]">
+                          <Calendar className="w-3 h-3 text-emerald-600" />
+                          <span>{day}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-slate-400 font-mono text-[10px] mt-0.5">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>{time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
         </div>

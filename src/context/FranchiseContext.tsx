@@ -12,7 +12,8 @@ import type {
   AdminUser,
   AdminAccount,
   EnforcerAccount,
-  DeletionLog
+  DeletionLog,
+  AdminActivityLog
 } from '../types';
 import { initialFranchises } from '../data/mockData';
 import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus, isRecordExpired } from '../utils/fareUtils';
@@ -41,7 +42,9 @@ import {
   saveAdminAccountInSupabase,
   fetchEnforcersFromSupabase,
   saveEnforcerAccountInSupabase,
-  deleteEnforcerAccountInSupabase
+  deleteEnforcerAccountInSupabase,
+  fetchAdminActivityLogsFromSupabase,
+  saveAdminActivityLogInSupabase
 } from '../lib/supabaseClient';
 
 interface DeletionNotice {
@@ -182,6 +185,11 @@ interface FranchiseContextType {
   reminderTargetRecord: FranchiseRecord | null;
   openExpiryReminderModal: (record?: FranchiseRecord | null) => void;
   closeExpiryReminderModal: () => void;
+
+  // Persistent Activity Logs
+  activityLogs: AdminActivityLog[];
+  logAdminActivity: (action: string, details?: string, module?: string, category?: 'Auth' | 'Franchise' | 'Violation' | 'Complaint' | 'User' | 'System') => void;
+  clearActivityLogs: () => void;
 }
 
 const FranchiseContext = createContext<FranchiseContextType | undefined>(undefined);
@@ -192,6 +200,7 @@ const STORAGE_KEY_ADMIN_USER = 'tabaco_trd_admin_user_v2';
 const STORAGE_KEY_AUTH = 'tabaco_trd_admin_authenticated_v1';
 const STORAGE_KEY_REGISTERED_ADMINS = 'tabaco_trd_registered_admins_v1';
 const STORAGE_KEY_ENFORCERS = 'tabaco_trd_enforcers_v2';
+const STORAGE_KEY_ACTIVITY_LOGS = 'tabaco_trd_activity_logs_v1';
 
 const DEFAULT_ENFORCERS: EnforcerAccount[] = [
   {
@@ -478,14 +487,6 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
-  const logoutAdmin = useCallback(() => {
-    setIsAuthenticated(false);
-  }, [setIsAuthenticated]);
-
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedReview, setSelectedReview] = useState<PendingReview | null>(null);
-  const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
-
   const defaultAdminUser: AdminUser = {
     adminId: 'ADM-2026-001',
     name: 'TRD Chief Administrator',
@@ -502,6 +503,83 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
     return defaultAdminUser;
   });
+
+  // Persistent Activity Logs (never disappears on logout, stored in localStorage + Supabase)
+  const [activityLogs, setActivityLogs] = useState<AdminActivityLog[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_ACTIVITY_LOGS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading activity logs from localStorage:', e);
+    }
+    return [
+      {
+        id: 'act-init-1',
+        adminId: 'ADM-2026-001',
+        adminName: 'TRD Chief Administrator',
+        action: 'System Access & Authentication Initiated',
+        details: 'Admin portal established secure connection to Tabaco City TRD cloud database.',
+        module: 'system',
+        category: 'Auth',
+        createdAt: new Date().toISOString()
+      }
+    ];
+  });
+
+  const logAdminActivity = useCallback((
+    action: string,
+    details?: string,
+    mod?: string,
+    category: 'Auth' | 'Franchise' | 'Violation' | 'Complaint' | 'User' | 'System' = 'System'
+  ) => {
+    const newLog: AdminActivityLog = {
+      id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      adminId: currentAdmin.adminId || 'ADM-2026-001',
+      adminName: currentAdmin.name || 'TRD Administrator',
+      action,
+      details,
+      module: mod || activeModule,
+      category,
+      createdAt: new Date().toISOString()
+    };
+
+    setActivityLogs(prev => {
+      const updated = [newLog, ...prev.filter(l => l.id !== newLog.id)].slice(0, 200);
+      try {
+        localStorage.setItem(STORAGE_KEY_ACTIVITY_LOGS, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Could not persist activity log:', e);
+      }
+      return updated;
+    });
+
+    // Also persist asynchronously to Supabase cloud
+    saveAdminActivityLogInSupabase(newLog);
+  }, [currentAdmin, activeModule]);
+
+  const clearActivityLogs = useCallback(() => {
+    setActivityLogs([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY_ACTIVITY_LOGS);
+    } catch { }
+  }, []);
+
+  const logoutAdmin = useCallback(() => {
+    logAdminActivity(
+      'Administrator Signed Out',
+      `Administrator ${currentAdmin.name} (${currentAdmin.adminId}) signed out of the session.`,
+      'auth',
+      'Auth'
+    );
+    setIsAuthenticated(false);
+  }, [setIsAuthenticated, logAdminActivity, currentAdmin]);
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedReview, setSelectedReview] = useState<PendingReview | null>(null);
+  const [selectedFranchiseId, setSelectedFranchiseId] = useState<string | null>(null);
 
   const [deletionLogs, setDeletionLogs] = useState<DeletionLog[]>(() => {
     try {
@@ -614,8 +692,14 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setCurrentAdmin(adminUser);
     setIsAuthenticated(true, rememberMe);
+    logAdminActivity(
+      'Administrator Signed In',
+      `Administrator ${adminUser.name} (${adminUser.adminId}) successfully logged in.`,
+      'auth',
+      'Auth'
+    );
     return { success: true, admin: adminUser };
-  }, [registeredAdmins, setIsAuthenticated]);
+  }, [registeredAdmins, setIsAuthenticated, logAdminActivity]);
 
   const loginWithEmailVerification = useCallback(async (emailOrId: string, rememberMe: boolean = true) => {
     const clean = emailOrId.trim().toLowerCase();
@@ -655,8 +739,14 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setCurrentAdmin(adminUser);
     setIsAuthenticated(true, rememberMe);
+    logAdminActivity(
+      'Administrator Signed In',
+      `Administrator ${adminUser.name} (${adminUser.adminId}) successfully logged in.`,
+      'auth',
+      'Auth'
+    );
     return { success: true, admin: adminUser };
-  }, [registeredAdmins, setIsAuthenticated]);
+  }, [registeredAdmins, setIsAuthenticated, logAdminActivity]);
 
   const registerAdmin = useCallback(async (accountData: Omit<AdminAccount, 'createdAt'>, options?: { switchSession?: boolean }) => {
     const cleanId = accountData.adminId.trim().toUpperCase();
@@ -831,7 +921,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dbViolPedicabs,
         dbComplaints,
         dbReviews,
-        dbAdmins
+        dbAdmins,
+        dbActivityLogs
       ] = await Promise.all([
         fetchFranchiseRecordsFromSupabase('Tricycle'),
         fetchFranchiseRecordsFromSupabase('Pedicab'),
@@ -839,8 +930,21 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchViolationsFromSupabase('Pedicab'),
         fetchPassengerComplaintsFromSupabase(),
         fetchPendingReviewsFromSupabase(),
-        fetchAdminAccountsFromSupabase()
+        fetchAdminAccountsFromSupabase(),
+        fetchAdminActivityLogsFromSupabase()
       ]);
+
+      if (Array.isArray(dbActivityLogs) && dbActivityLogs.length > 0) {
+        setActivityLogs(prev => {
+          const ids = new Set(prev.map(p => p.id));
+          const newFromDb = dbActivityLogs.filter(d => !ids.has(d.id));
+          const merged = [...newFromDb, ...prev].slice(0, 200);
+          try {
+            localStorage.setItem(STORAGE_KEY_ACTIVITY_LOGS, JSON.stringify(merged));
+          } catch { }
+          return merged;
+        });
+      }
 
       // Synchronize live admin accounts from database across all browsers
       if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
@@ -1797,6 +1901,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         reminderTargetRecord,
         openExpiryReminderModal,
         closeExpiryReminderModal,
+        activityLogs,
+        logAdminActivity,
+        clearActivityLogs,
       }}
     >
       {children}

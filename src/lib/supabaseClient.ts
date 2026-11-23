@@ -1521,3 +1521,67 @@ export async function deleteEnforcerAccountInSupabase(badgeNumber: string): Prom
   }
 }
 
+/** 19. Fetch persistent Admin Activity Logs from Supabase */
+export async function fetchAdminActivityLogsFromSupabase(): Promise<any[]> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_activity_logs?select=*&order=created_at.desc&limit=100`, {
+      headers: getHeaders()
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        return data.map(row => ({
+          id: row.id,
+          adminId: row.admin_id || 'ADMIN',
+          adminName: row.admin_name || 'Administrator',
+          action: row.action || 'Activity Recorded',
+          details: row.details || '',
+          module: row.module || '',
+          category: row.category || 'System',
+          createdAt: row.created_at || new Date().toISOString(),
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch activity logs from Supabase:', err);
+  }
+  return [];
+}
+
+/** 20. Save Admin Activity Log to Supabase */
+export async function saveAdminActivityLogInSupabase(log: {
+  id?: string;
+  adminId: string;
+  adminName: string;
+  action: string;
+  details?: string;
+  module?: string;
+  category?: string;
+  createdAt?: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_activity_logs`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        id: log.id || undefined,
+        admin_id: log.adminId,
+        admin_name: log.adminName,
+        action: log.action,
+        details: log.details || null,
+        module: log.module || null,
+        category: log.category || 'System',
+        created_at: log.createdAt || new Date().toISOString()
+      })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Could not save activity log to Supabase:', err);
+    return false;
+  }
+}
+
+

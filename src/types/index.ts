@@ -244,6 +244,17 @@ export interface DeletionLog {
   reason?: string;
 }
 
+export interface AdminActivityLog {
+  id: string;
+  adminId: string;
+  adminName: string;
+  action: string;
+  details?: string;
+  module?: string;
+  category?: 'Auth' | 'Franchise' | 'Violation' | 'Complaint' | 'User' | 'System';
+  createdAt: string; // ISO string
+}
+
 export type ActiveModule =
   | 'overview'
   | 'register'

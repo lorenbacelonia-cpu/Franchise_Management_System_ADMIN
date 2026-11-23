@@ -7,6 +7,10 @@
 -- https://supabase.com/dashboard/project/ynyjkwcjjfswcfzwgumv/sql
 -- ==============================================================================
 
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- ==============================================================================
 -- 1. AUTHENTICATION & ACCESS CONTROL (ADMINS & TRAFFIC ENFORCERS)
 -- ==============================================================================
@@ -461,6 +465,21 @@ CREATE TABLE IF NOT EXISTS public.name_change_history (
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 7.4 Persistent Administrator Activity & Audit Logs Table
+CREATE TABLE IF NOT EXISTS public.admin_activity_logs (
+    id VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    admin_id VARCHAR(50) NOT NULL,
+    admin_name VARCHAR(150) NOT NULL,
+    action VARCHAR(200) NOT NULL,
+    details TEXT,
+    module VARCHAR(50),
+    category VARCHAR(50) DEFAULT 'System',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_activity_logs_created_at
+    ON public.admin_activity_logs (created_at DESC);
+
 -- ==============================================================================
 -- 8. ROW LEVEL SECURITY (RLS) & PUBLIC ACCESS PERMISSIONS
 -- ==============================================================================
@@ -483,6 +502,7 @@ ALTER TABLE IF EXISTS public.mobile_notifications DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.pending_reviews DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.deletion_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.name_change_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.admin_activity_logs DISABLE ROW LEVEL SECURITY;
 
 -- Grant broad schema permissions to standard Supabase roles
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
