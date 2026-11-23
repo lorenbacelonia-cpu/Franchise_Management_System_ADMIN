@@ -204,11 +204,45 @@ const STORAGE_KEY_ACTIVITY_LOGS = 'tabaco_trd_activity_logs_v1';
 
 const DEFAULT_ENFORCERS: EnforcerAccount[] = [
   {
+    badgeNumber: 'ENF-2026-001',
+    name: 'Officer Jaime Ramos',
+    email: 'jaime.ramos@gmail.com',
+    contactNumber: '0917-111-2233',
+    assignedArea: 'Poblacion District',
+    password: 'enforcer123',
+    createdAt: '2026-01-10T08:00:00.000Z',
+    status: 'Active',
+    createdBy: 'TRD Head Admin'
+  },
+  {
+    badgeNumber: 'ENF-2026-002',
+    name: 'Officer Ronald Santos',
+    email: 'ronald.santos@gmail.com',
+    contactNumber: '0918-222-3344',
+    assignedArea: 'San Carlos & Terminal',
+    password: 'enforcer123',
+    createdAt: '2026-01-12T08:00:00.000Z',
+    status: 'Active',
+    createdBy: 'TRD Head Admin'
+  },
+  {
+    badgeNumber: 'ENF-2026-003',
+    name: 'Officer Mark Anthony Lopez',
+    email: 'mark.lopez@gmail.com',
+    contactNumber: '0920-333-4455',
+    assignedArea: 'Public Market & Port Area',
+    password: 'enforcer123',
+    createdAt: '2026-01-15T08:00:00.000Z',
+    status: 'Active',
+    createdBy: 'TRD Head Admin'
+  },
+  {
     badgeNumber: 'ENF-2026-101',
     name: 'Officer Roberto Gomez',
     email: 'roberto.gomez@tabaco.gov.ph',
     contactNumber: '09171234567',
     assignedArea: 'Poblacion / Centro District',
+    password: 'enforcer123',
     createdAt: '2026-01-15T08:00:00.000Z',
     status: 'Active',
     createdBy: 'TRD Head Admin'
@@ -219,6 +253,7 @@ const DEFAULT_ENFORCERS: EnforcerAccount[] = [
     email: 'manuel.reyes@tabaco.gov.ph',
     contactNumber: '09289876543',
     assignedArea: 'Tabaco Port & Ferry Terminal',
+    password: 'enforcer123',
     createdAt: '2026-02-01T08:00:00.000Z',
     status: 'Active',
     createdBy: 'TRD Head Admin'
@@ -434,18 +469,10 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const dbEnforcers = await fetchEnforcersFromSupabase();
       if (Array.isArray(dbEnforcers) && dbEnforcers.length > 0) {
-        setEnforcers(prev => {
-          const merged = [...dbEnforcers];
-          for (const p of prev) {
-            if (!merged.some(m => m.badgeNumber.toUpperCase() === p.badgeNumber.toUpperCase())) {
-              merged.push(p);
-            }
-          }
-          try {
-            localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
+        setEnforcers(dbEnforcers);
+        try {
+          localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(dbEnforcers));
+        } catch {}
       }
     } catch (e) {
       console.warn('Error syncing enforcers from Supabase:', e);

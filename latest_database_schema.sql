@@ -43,16 +43,31 @@ CREATE TABLE IF NOT EXISTS public.account_enforcer_mobile (
     username VARCHAR(100) NOT NULL UNIQUE, -- Badge Number (e.g., ENF-2026-001)
     fullname TEXT NOT NULL,                -- Contains: Name [Email] (Patrol Area) {Contact}
     password VARCHAR(255) NOT NULL,        -- Mobile Web login password
+    email VARCHAR(150),
+    email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Seed initial default Traffic Enforcers
-INSERT INTO public.account_enforcer_mobile (username, fullname, password)
+ALTER TABLE IF EXISTS public.account_enforcer_mobile 
+    ADD COLUMN IF NOT EXISTS email VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+
+-- Seed and upsert all official Traffic Enforcer Accounts
+INSERT INTO public.account_enforcer_mobile (username, fullname, email, email_verified, password)
 VALUES
-    ('ENF-2026-001', 'Officer Jaime Ramos [jaime.ramos@gmail.com] (Poblacion District) {0917-111-2233}', 'TRD-ENF-7731'),
-    ('ENF-2026-002', 'Officer Ronald Santos [ronald.santos@gmail.com] (San Carlos & Terminal) {0918-222-3344}', 'TRD-ENF-8842'),
-    ('ENF-2026-003', 'Officer Mark Anthony Lopez [mark.lopez@gmail.com] (Public Market & Port Area) {0920-333-4455}', 'TRD-ENF-9915')
-ON CONFLICT (username) DO NOTHING;
+    ('ENF-2026-001', 'Officer Jaime Ramos [jaime.ramos@gmail.com] (Poblacion District) {0917-111-2233}', 'jaime.ramos@gmail.com', true, 'enforcer123'),
+    ('ENF-2026-002', 'Officer Ronald Santos [ronald.santos@gmail.com] (San Carlos & Terminal) {0918-222-3344}', 'ronald.santos@gmail.com', true, 'enforcer123'),
+    ('ENF-2026-003', 'Officer Mark Anthony Lopez [mark.lopez@gmail.com] (Public Market & Port Area) {0920-333-4455}', 'mark.lopez@gmail.com', true, 'enforcer123'),
+    ('ENF-2026-101', 'Officer Roberto Gomez [roberto.gomez@tabaco.gov.ph] (Poblacion / Centro District) {09171234567}', 'roberto.gomez@tabaco.gov.ph', true, 'enforcer123'),
+    ('ENF-2026-102', 'Officer Manuel Reyes [manuel.reyes@tabaco.gov.ph] (Tabaco Port & Ferry Terminal) {09289876543}', 'manuel.reyes@tabaco.gov.ph', true, 'enforcer123'),
+    ('enforcer', 'Officer Juan Dela Cruz [enforcer@trd.tabacocity.gov.ph] (HQ Special Operations)', 'enforcer@trd.tabacocity.gov.ph', true, 'enforcer123'),
+    ('andrie', 'Andrie Barasona [andrie@trd.tabacocity.gov.ph] (Mobile Patrol Division)', 'andrie@trd.tabacocity.gov.ph', true, 'andrie123'),
+    ('admin', 'TRD Admin Officer [admin@trd.tabacocity.gov.ph] (Enforcement Operations Bureau)', 'admin@trd.tabacocity.gov.ph', true, 'admin123')
+ON CONFLICT (username) DO UPDATE 
+SET fullname = EXCLUDED.fullname,
+    email = EXCLUDED.email,
+    email_verified = EXCLUDED.email_verified,
+    password = EXCLUDED.password;
 
 -- 1.3 Mobile Web Passenger Accounts Table (Citizen Portal)
 CREATE TABLE IF NOT EXISTS public.account_passenger_mobile (
@@ -61,9 +76,21 @@ CREATE TABLE IF NOT EXISTS public.account_passenger_mobile (
     fullname VARCHAR(150),
     contact_number VARCHAR(30),
     email VARCHAR(150),
+    email_verified BOOLEAN DEFAULT FALSE,
     password VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE IF EXISTS public.account_passenger_mobile 
+    ADD COLUMN IF NOT EXISTS email VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+
+-- Fast index lookups for mobile authentication
+CREATE INDEX IF NOT EXISTS idx_account_enforcer_email 
+  ON public.account_enforcer_mobile (LOWER(email));
+
+CREATE INDEX IF NOT EXISTS idx_account_passenger_email 
+  ON public.account_passenger_mobile (LOWER(email));
 
 -- ==============================================================================
 -- 2. MASTER FRANCHISE RECORDS (TRICYCLE & PEDICAB)
@@ -353,6 +380,26 @@ CREATE TABLE IF NOT EXISTS public.violations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 4.4 Dedicated Enforcer Citations Table (Mobile Web Enforcer Citations)
+CREATE TABLE IF NOT EXISTS public.enforcer_violations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    citation_no VARCHAR(100),
+    enforcer_name VARCHAR(150),
+    enforcer_badge VARCHAR(100),
+    city_plate_number VARCHAR(50),
+    mtop_number VARCHAR(50),
+    vehicle_category VARCHAR(50) DEFAULT 'Tricycle',
+    driver_name VARCHAR(150),
+    violation_type VARCHAR(200),
+    remarks TEXT,
+    description TEXT,
+    incident_date DATE DEFAULT CURRENT_DATE,
+    status VARCHAR(50) DEFAULT 'Pending TRD Review',
+    evidence_image TEXT,
+    evidence_filename VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- ==============================================================================
 -- 5. PASSENGER COMPLAINTS, LIVE CHAT & DISPUTES
 -- ==============================================================================
@@ -496,6 +543,7 @@ ALTER TABLE IF EXISTS public.system_qr_codes_pedicab_admin DISABLE ROW LEVEL SEC
 ALTER TABLE IF EXISTS public.violations_tricycle_admin DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.violations_pedicab_admin DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.violations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.enforcer_violations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.passenger_complaints DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.complaint_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.mobile_notifications DISABLE ROW LEVEL SECURITY;
@@ -527,6 +575,7 @@ BEGIN
         public.complaint_messages,
         public.mobile_notifications,
         public.account_enforcer_mobile,
+        public.enforcer_violations,
         public.pending_reviews;
 EXCEPTION WHEN OTHERS THEN
     NULL;
@@ -637,3 +686,19 @@ INSERT INTO public.franchise_records_pedicab_admin (
     0,
     true
 ) ON CONFLICT (city_plate_number) DO NOTHING;
+
+-- ==============================================================================
+-- 11. SUPABASE STORAGE BUCKETS (EVIDENCE & CITATION ATTACHMENTS)
+-- ==============================================================================
+-- Ensures storage buckets exist and are publicly accessible for image uploads
+DO $$
+BEGIN
+    INSERT INTO storage.buckets (id, name, public) 
+    VALUES 
+        ('complaint_evidence', 'complaint_evidence', true),
+        ('violations', 'violations', true)
+    ON CONFLICT (id) DO UPDATE SET public = true;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+

@@ -1487,17 +1487,22 @@ export async function saveEnforcerAccountInSupabase(enforcer: {
     }
     const storedFullname = parts.join(' ');
 
+    const payload: any = {
+      username: cleanBadge,
+      fullname: storedFullname,
+      password: enforcer.password || 'enforcer123'
+    };
+    if (enforcer.email && enforcer.email.trim()) {
+      payload.email = enforcer.email.trim().toLowerCase();
+    }
+
     const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile`, {
       method: 'POST',
       headers: {
         ...getHeaders(),
         'Prefer': 'resolution=merge-duplicates,return=representation'
       },
-      body: JSON.stringify({
-        username: cleanBadge,
-        fullname: storedFullname,
-        password: enforcer.password || 'enforcer123'
-      })
+      body: JSON.stringify(payload)
     });
     return res.ok;
   } catch (err) {
