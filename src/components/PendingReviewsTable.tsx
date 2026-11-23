@@ -664,6 +664,7 @@ export const PendingReviewsTable: React.FC = () => {
   const [deletingComplaint, setDeletingComplaint] = useState<PassengerComplaint | null>(null);
   const [selectedViolation, setSelectedViolation] = useState<ViolationRecord | null>(null);
   const [deletingViolation, setDeletingViolation] = useState<ViolationRecord | null>(null);
+  const [cardLightboxImage, setCardLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
   const searchQuery = localSearch || globalSearchQuery || '';
   const setSearchQuery = (val: string) => {
@@ -1252,10 +1253,24 @@ export const PendingReviewsTable: React.FC = () => {
                                 <span>{c.status}</span>
                               </span>
                               {(c.evidenceImage || c.chatMessages?.some(m => m.image)) && (
-                                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const img = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image;
+                                    if (img) {
+                                      setCardLightboxImage({
+                                        url: img,
+                                        title: `Passenger Report Evidence — Plate ${c.cityPlateNumber}`
+                                      });
+                                    }
+                                  }}
+                                  className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 hover:text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+                                  title="Click to preview attached photo evidence"
+                                >
                                   <ImageIcon className="h-2.5 w-2.5" />
                                   <span>Photo Attached</span>
-                                </span>
+                                </button>
                               )}
                             </div>
                             <div className="flex items-center space-x-3 mt-0.5">
@@ -1347,14 +1362,41 @@ export const PendingReviewsTable: React.FC = () => {
                       <div className="flex items-center justify-between px-4 py-3.5">
                         {/* Left: info */}
                         <div className="flex items-center space-x-3 min-w-0">
-                          <div className="relative shrink-0">
-                            <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200 font-bold text-sm">
-                              <ShieldAlert className="h-4 w-4" />
+                          {evidenceImg ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCardLightboxImage({
+                                  url: evidenceImg,
+                                  title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
+                                });
+                              }}
+                              className="group relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:shadow-md hover:ring-2 hover:ring-emerald-500 transition-all"
+                              title="Click to view full photo evidence"
+                            >
+                              <img
+                                src={evidenceImg}
+                                alt="Citation proof"
+                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <ZoomIn className="h-4 w-4" />
+                              </div>
+                              {(v.status === 'Pending' || v.status === 'Under Investigation') && (
+                                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
+                              )}
                             </div>
-                            {(v.status === 'Pending' || v.status === 'Under Investigation') && (
-                              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
-                            )}
-                          </div>
+                          ) : (
+                            <div className="relative shrink-0">
+                              <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200 font-bold text-sm">
+                                <ShieldAlert className="h-4 w-4" />
+                              </div>
+                              {(v.status === 'Pending' || v.status === 'Under Investigation') && (
+                                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
+                              )}
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <div className="flex items-center space-x-2">
                               <p className="text-xs font-bold text-slate-900 truncate">
@@ -1368,10 +1410,21 @@ export const PendingReviewsTable: React.FC = () => {
                                 ₱{(Number(v.fineAmount) || 0).toFixed(2)}
                               </span>
                               {evidenceImg && (
-                                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
-                                  <ImageIcon className="h-2.5 w-2.5" />
-                                  <span>Photo</span>
-                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCardLightboxImage({
+                                      url: evidenceImg,
+                                      title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
+                                    });
+                                  }}
+                                  className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 hover:text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+                                  title="Click to view attached enforcer citation photo proof"
+                                >
+                                  <ImageIcon className="h-2.5 w-2.5 text-sky-600" />
+                                  <span>View Photo Proof</span>
+                                </button>
                               )}
                             </div>
                             <div className="flex items-center space-x-3 mt-0.5 flex-wrap gap-y-1">
@@ -1616,6 +1669,50 @@ export const PendingReviewsTable: React.FC = () => {
         }}
         onClose={() => setDeletingViolation(null)}
       />
+
+      {/* Lightbox Modal for Card Direct Photo Preview */}
+      {cardLightboxImage && (
+        <div
+          className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setCardLightboxImage(null)}
+        >
+          <div
+            className="bg-slate-900 rounded-2xl max-w-2xl w-full overflow-hidden border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 bg-slate-850 border-b border-slate-800 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2">
+                <ImageIcon className="h-4 w-4 text-sky-400" />
+                <span className="text-xs font-bold truncate max-w-xs">{cardLightboxImage.title}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <a
+                  href={cardLightboxImage.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs flex items-center space-x-1 font-medium"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">Open Full</span>
+                </a>
+                <button
+                  onClick={() => setCardLightboxImage(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-slate-950 overflow-auto flex-1 min-h-[300px]">
+              <img
+                src={cardLightboxImage.url}
+                alt={cardLightboxImage.title}
+                className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

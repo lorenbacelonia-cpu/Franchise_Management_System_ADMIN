@@ -561,6 +561,8 @@ export async function saveViolationInSupabase(violation: ViolationRecord, catego
     remarks: violation.remarks,
     status: violation.status,
     date_submitted: violation.dateSubmitted,
+    evidence_image: violation.evidenceImage,
+    evidence_filename: violation.evidenceFilename,
   };
   const res = await postToTable(violations, payload);
 
@@ -613,6 +615,17 @@ export async function fetchViolationsFromSupabase(_category: VehicleCategory = '
                   ? 'Pedicab'
                   : (v.vehicle_category || (v.city_plate_number && v.city_plate_number.startsWith('P-') ? 'Pedicab' : 'Tricycle'));
 
+              let rawImg = v.evidence_image || v.evidenceImage || v.evidence_url || v.photo_url || v.image_url || v.proof_image || v.attachment_url || v.photo || v.image || undefined;
+              if (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('http://') && !rawImg.startsWith('https://') && !rawImg.startsWith('data:') && !rawImg.startsWith('blob:')) {
+                if (rawImg.startsWith('/storage/')) {
+                  rawImg = `${SUPABASE_URL}${rawImg}`;
+                } else {
+                  rawImg = `${SUPABASE_URL}/storage/v1/object/public/complaint_evidence/${rawImg}`;
+                }
+              }
+
+              const evidenceFile = v.evidence_filename || v.evidenceFilename || v.attachment_name || undefined;
+
               allViolations.push({
                 id: v.id,
                 franchiseId: v.franchise_id || '',
@@ -628,7 +641,10 @@ export async function fetchViolationsFromSupabase(_category: VehicleCategory = '
                 reportedBy: v.reported_by || v.enforcer_name || v.complainant_name || 'Traffic Enforcer',
                 dateSubmitted: v.incident_date || v.date_submitted || (v.created_at ? v.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
                 remarks: v.remarks || v.description || '',
-                status: v.status === 'Pending TRD Review' ? 'Pending' : (v.status || 'Pending')
+                status: v.status === 'Pending TRD Review' ? 'Pending' : (v.status || 'Pending'),
+                evidenceImage: rawImg,
+                evidenceFilename: evidenceFile,
+                vehicleCategory: tblCategory as VehicleCategory
               });
             }
           });
