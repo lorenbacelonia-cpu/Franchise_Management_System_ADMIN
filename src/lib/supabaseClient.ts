@@ -589,7 +589,7 @@ export async function saveViolationInSupabase(violation: ViolationRecord, catego
 
 /** 7. Fetch violations across active violation tables */
 export async function fetchViolationsFromSupabase(_category: VehicleCategory = 'Tricycle'): Promise<ViolationRecord[]> {
-  const targetTables = ['violations_tricycle_admin', 'violations_pedicab_admin'];
+  const targetTables = ['violations_tricycle_admin', 'violations_pedicab_admin', 'enforcer_violations', 'violations'];
   const allViolations: ViolationRecord[] = [];
   const seenIds = new Set<string>();
 
@@ -604,26 +604,31 @@ export async function fetchViolationsFromSupabase(_category: VehicleCategory = '
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
-          const tblCategory = table.includes('tri') ? 'Tricycle' : 'Pedicab';
           data.forEach((v: any) => {
             if (v.id && !seenIds.has(v.id)) {
               seenIds.add(v.id);
+              const tblCategory = table.includes('tri')
+                ? 'Tricycle'
+                : table.includes('ped')
+                  ? 'Pedicab'
+                  : (v.vehicle_category || (v.city_plate_number && v.city_plate_number.startsWith('P-') ? 'Pedicab' : 'Tricycle'));
+
               allViolations.push({
                 id: v.id,
                 franchiseId: v.franchise_id || '',
                 cityPlateNumber: v.city_plate_number || v.mtop_number || '',
                 mtopNumber: v.city_plate_number || v.mtop_number || '',
-                plateNumber: v.plate_number || '',
+                plateNumber: v.plate_number || (v.city_plate_number ? `${v.city_plate_number}-${tblCategory === 'Pedicab' ? 'PED' : 'TR'}` : ''),
                 operatorName: v.operator_name || 'Registered Operator',
                 driverName: v.driver_name || 'Designated Driver',
                 violationType: v.violation_type || v.issue_type || 'Reported Infraction',
                 location: v.location || 'Tabaco City',
                 fineAmount: Number(v.fine_amount) || (tblCategory === 'Pedicab' ? 300 : 500),
-                enforcerName: v.enforcer_name || 'Citizen Report / TRD Review',
-                reportedBy: v.reported_by || v.complainant_name || 'andrie30311',
-                dateSubmitted: v.date_submitted || (v.created_at ? v.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+                enforcerName: v.enforcer_name || v.reported_by || 'Citizen Report / TRD Review',
+                reportedBy: v.reported_by || v.enforcer_name || v.complainant_name || 'Traffic Enforcer',
+                dateSubmitted: v.incident_date || v.date_submitted || (v.created_at ? v.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
                 remarks: v.remarks || v.description || '',
-                status: v.status || 'Pending'
+                status: v.status === 'Pending TRD Review' ? 'Pending' : (v.status || 'Pending')
               });
             }
           });
@@ -745,8 +750,8 @@ export async function updateViolationStatusInSupabase(
   details?: { enforcerName?: string; reportedBy?: string; plateNumber?: string; violationType?: string; remarks?: string }
 ) {
   const targetTables = category === 'Pedicab'
-    ? ['violations_pedicab_admin', 'violations_tricycle_admin', 'enforcer_violations']
-    : ['violations_tricycle_admin', 'violations_pedicab_admin', 'enforcer_violations'];
+    ? ['violations_pedicab_admin', 'violations_tricycle_admin', 'enforcer_violations', 'violations']
+    : ['violations_tricycle_admin', 'violations_pedicab_admin', 'enforcer_violations', 'violations'];
 
   const updatePayload: any = {
     status,
@@ -831,6 +836,7 @@ export async function deleteViolationInSupabase(
   evidenceImageUrl?: string
 ) {
   const { violations } = getTableNames(category);
+  const targetTables = [violations, 'violations_tricycle_admin', 'violations_pedicab_admin', 'enforcer_violations', 'violations'];
   try {
     // Purge from storage if uploaded to bucket
     if (evidenceImageUrl && evidenceImageUrl.includes('/storage/v1/object/public/complaint_evidence/')) {
@@ -845,11 +851,19 @@ export async function deleteViolationInSupabase(
       }
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${violations}?id=eq.${encodeURIComponent(violationId)}`, {
-      method: 'DELETE',
-      headers: getHeaders()
-    });
-    return res.ok;
+    let deleted = false;
+    for (const tbl of targetTables) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${tbl}?id=eq.${encodeURIComponent(violationId)}`, {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (res.ok) {
+          deleted = true;
+        }
+      } catch { }
+    }
+    return deleted;
   } catch (e) {
     console.warn('Could not delete violation in Supabase:', e);
     return false;
