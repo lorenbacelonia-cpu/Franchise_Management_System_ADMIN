@@ -129,6 +129,9 @@ export interface ViolationRecord {
   dateSubmitted: string;
   remarks: string;
   status: 'Pending' | 'Settled' | 'Under Investigation';
+  evidenceImage?: string;
+  evidenceFilename?: string;
+  vehicleCategory?: VehicleCategory;
 }
 
 export interface DocumentItem {

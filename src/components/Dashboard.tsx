@@ -51,7 +51,7 @@ export const Dashboard: React.FC = () => {
               {/* 3. Downside: Total of Register/Renew Franchise (both Tricycle & Pedicab) - Naka-table */}
               <RegisterRenewTable />
 
-              {/* 4. Footer: Pending Review, Passenger Complaints, and Removed & Audit Trail (both Tricycle & Pedicab) - Naka-table */}
+              {/* 4. Footer: Pending Review, Passenger Complaints, Enforcer Violations, and Removed & Audit Trail (both Tricycle & Pedicab) - Naka-table */}
               <ReviewApprovalModal />
               <PendingReviewsTable />
             </div>

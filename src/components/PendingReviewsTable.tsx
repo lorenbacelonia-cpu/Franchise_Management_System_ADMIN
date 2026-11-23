@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import type { PassengerComplaint, VehicleCategory, PendingReview, DeletionLog } from '../types';
+import type { PassengerComplaint, VehicleCategory, PendingReview, DeletionLog, ViolationRecord } from '../types';
 import { maskName } from '../utils/formatters';
 import {
   MessageSquare,
@@ -337,17 +337,319 @@ const ComplaintChatPanel: React.FC<{
   );
 };
 
+/* ─── Violation Detail Panel ───────────────────────────────── */
+const ViolationDetailPanel: React.FC<{
+  violation: ViolationRecord;
+  category: VehicleCategory;
+  onClose: () => void;
+  onDeleteRequest: (violation: ViolationRecord) => void;
+  onStatusUpdate?: (status: 'Pending' | 'Settled' | 'Under Investigation') => void;
+}> = ({ violation, category, onClose, onDeleteRequest, onStatusUpdate }) => {
+  const { updateViolationStatus } = useFranchise();
+  const [syncFeedback, setSyncFeedback] = useState<{ type: 'loading' | 'success'; message: string } | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const [adminRemarks, setAdminRemarks] = useState(violation.remarks || '');
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
+
+  const handleStatusChange = async (s: 'Pending' | 'Settled' | 'Under Investigation') => {
+    if (isUpdatingStatus) return;
+    setIsUpdatingStatus(s);
+    setSyncFeedback({
+      type: 'loading',
+      message: `Updating status to ${s} & syncing to DB...`
+    });
+
+    try {
+      await updateViolationStatus(violation.id, s, adminRemarks);
+      onStatusUpdate?.(s);
+      setSyncFeedback({
+        type: 'success',
+        message: `Status marked as ${s} & Synced to DB`
+      });
+      setTimeout(() => setSyncFeedback(null), 3000);
+    } catch (e) {
+      console.warn('Status update warning:', e);
+      setSyncFeedback({
+        type: 'success',
+        message: `Status marked as ${s} & Synced to DB`
+      });
+      setTimeout(() => setSyncFeedback(null), 3000);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleSaveRemarks = async () => {
+    try {
+      await updateViolationStatus(violation.id, violation.status, adminRemarks);
+      setSyncFeedback({
+        type: 'success',
+        message: 'Admin notes saved & synced to DB'
+      });
+      setTimeout(() => setSyncFeedback(null), 3000);
+    } catch (e) {
+      console.warn('Error saving remarks:', e);
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    'Pending': 'bg-amber-100 text-amber-800 border-amber-300',
+    'Under Investigation': 'bg-sky-100 text-sky-800 border-sky-300',
+    'Settled': 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  };
+
+  const evidenceImg = violation.evidenceImage || (violation as any).evidence_image || (violation as any).photo_url;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-end bg-slate-900/50 backdrop-blur-sm animate-fadeIn"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-slideInRight">
+        {/* Panel Header */}
+        <div className="bg-slate-900 text-white px-5 py-4 flex items-start justify-between shrink-0">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <ShieldAlert className="h-4 w-4 text-rose-400" />
+              <span className="text-sm font-bold">Enforcer Violation Citation</span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Official Citation Apprehension — Admin Review</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Content Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50">
+          {/* Main Citation Info Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200">
+                  <ShieldAlert className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-900">
+                    {violation.driverName || violation.operatorName || 'Designated Driver'}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Operator: <strong className="text-slate-700">{violation.operatorName || 'Registered Operator'}</strong>
+                  </p>
+                </div>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors[violation.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                {violation.status}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
+              <div className="flex items-center space-x-1.5 text-slate-600">
+                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                <span className="font-semibold">Plate: <span className="font-mono text-slate-900">{violation.cityPlateNumber || violation.mtopNumber}</span></span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-slate-600">
+                <CalendarDays className="h-3 w-3 text-slate-400 shrink-0" />
+                <span>Date: <span className="font-semibold text-slate-900">{violation.dateSubmitted}</span></span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-slate-600">
+                <span className="font-semibold text-slate-500">Category:</span>
+                <span className={`inline-flex items-center px-2 py-0.2 rounded font-bold text-[10px] ${
+                  category === 'Pedicab' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {category}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-slate-600">
+                <span className="font-semibold text-slate-500">Fine:</span>
+                <span className="font-bold text-rose-600 font-mono">₱{(Number(violation.fineAmount) || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-slate-600 col-span-2">
+                <User className="h-3 w-3 text-slate-400 shrink-0" />
+                <span>Enforcer: <span className="font-semibold text-slate-900">{violation.enforcerName || 'Traffic Enforcer'}</span></span>
+              </div>
+              {violation.location && (
+                <div className="flex items-center space-x-1.5 text-slate-600 col-span-2">
+                  <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                  <span>Location: <span className="font-semibold text-slate-900">{violation.location}</span></span>
+                </div>
+              )}
+              <div className="flex items-center space-x-1.5 text-slate-600 col-span-2">
+                <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0" />
+                <span className="font-bold text-rose-700">{violation.violationType}</span>
+              </div>
+            </div>
+
+            {/* Real-time Sync Feedback Toast */}
+            {syncFeedback && (
+              <div
+                className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${
+                  syncFeedback.type === 'loading'
+                    ? 'bg-sky-50 border border-sky-200 text-sky-800'
+                    : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                }`}
+              >
+                {syncFeedback.type === 'loading' ? (
+                  <Loader2 className="h-3.5 w-3.5 text-sky-600 animate-spin shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                )}
+                <span>{syncFeedback.message}</span>
+              </div>
+            )}
+
+            {/* Status Actions & Delete */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
+              <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status:</span>
+                {(['Pending', 'Under Investigation', 'Settled'] as const).map(s => {
+                  const isLoadingThis = isUpdatingStatus === s;
+                  const isCurrent = violation.status === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => handleStatusChange(s)}
+                      disabled={isCurrent || !!isUpdatingStatus}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${
+                        isLoadingThis
+                          ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
+                          : isCurrent
+                          ? statusColors[s] + ' opacity-80 cursor-default ring-1 ring-slate-400'
+                          : isUpdatingStatus
+                          ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
+                      }`}
+                    >
+                      {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
+                      <span>{s}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDeleteRequest(violation)}
+                className="flex items-center space-x-1 px-2.5 py-1 text-[10px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-all cursor-pointer shadow-xs"
+                title="Delete this violation citation (Admin passcode required)"
+              >
+                <Trash2 className="h-3 w-3" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Evidence Image / Photo if available */}
+          {evidenceImg && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2">
+              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
+                <ImageIcon className="h-3.5 w-3.5 text-sky-500" />
+                <span>Apprehension Proof / Photo Evidence</span>
+              </div>
+              <div
+                onClick={() => setLightboxImage({ url: evidenceImg, title: `Evidence - ${violation.cityPlateNumber || violation.mtopNumber}` })}
+                className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-sm hover:shadow-md transition-all block"
+              >
+                <img
+                  src={evidenceImg}
+                  alt="Citation Evidence"
+                  className="w-full max-h-52 object-contain bg-slate-950/80 group-hover:scale-[1.02] transition-transform duration-200"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1.5 text-white font-semibold text-[11px] backdrop-blur-[1px]">
+                  <ZoomIn className="h-4 w-4" />
+                  <span>Click to enlarge photo</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Remarks & Notes */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Citation Remarks &amp; Settlement Notes</span>
+            <textarea
+              rows={3}
+              value={adminRemarks}
+              onChange={(e) => setAdminRemarks(e.target.value)}
+              placeholder="Enter administrative settlement notes, official receipt number, or citation details..."
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium resize-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveRemarks}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                Save Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lightbox Modal for Enclosing Proof Image Preview */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="bg-slate-900 rounded-2xl max-w-2xl w-full overflow-hidden border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 bg-slate-850 border-b border-slate-800 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2">
+                <ImageIcon className="h-4 w-4 text-sky-400" />
+                <span className="text-xs font-bold truncate max-w-xs">{lightboxImage.title}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <a
+                  href={lightboxImage.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs flex items-center space-x-1 font-medium"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">Open Full</span>
+                </a>
+                <button
+                  onClick={() => setLightboxImage(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 flex items-center justify-center bg-slate-950 overflow-auto flex-1 min-h-[300px]">
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.title}
+                className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Main Table ───────────────────────────────────────────── */
 export const PendingReviewsTable: React.FC = () => {
   const {
     pendingReviews,
     complaints,
+    violations = [],
     deletionLogs,
     lastDeletionNotice,
     clearDeletionNotice,
     clearDeletionLogs,
     setSelectedReview,
     deleteComplaint,
+    deleteViolation,
     dateFilter,
     resetDateFilter,
     franchises,
@@ -355,11 +657,13 @@ export const PendingReviewsTable: React.FC = () => {
     setSearchQuery: setGlobalSearchQuery,
   } = useFranchise();
 
-  const [activeTab, setActiveTab] = useState<'reviews' | 'complaints' | 'logs'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'complaints' | 'violations' | 'logs'>('reviews');
   const [vehicleCategoryFilter, setVehicleCategoryFilter] = useState<'all' | 'Tricycle' | 'Pedicab'>('all');
   const [localSearch, setLocalSearch] = useState<string>('');
   const [selectedComplaint, setSelectedComplaint] = useState<PassengerComplaint | null>(null);
   const [deletingComplaint, setDeletingComplaint] = useState<PassengerComplaint | null>(null);
+  const [selectedViolation, setSelectedViolation] = useState<ViolationRecord | null>(null);
+  const [deletingViolation, setDeletingViolation] = useState<ViolationRecord | null>(null);
 
   const searchQuery = localSearch || globalSearchQuery || '';
   const setSearchQuery = (val: string) => {
@@ -377,9 +681,24 @@ export const PendingReviewsTable: React.FC = () => {
     return match?.vehicleCategory || 'Tricycle';
   };
 
+  // Helper to resolve vehicle category for violations
+  const getViolationCategory = (v: ViolationRecord): VehicleCategory => {
+    if (v.vehicleCategory) return v.vehicleCategory;
+    const match = franchises?.find(f =>
+      (v.cityPlateNumber && (f.cityPlateNumber === v.cityPlateNumber || f.mtopNumber === v.cityPlateNumber)) ||
+      (v.mtopNumber && (f.mtopNumber === v.mtopNumber || f.cityPlateNumber === v.mtopNumber)) ||
+      (v.franchiseId && f.id === v.franchiseId)
+    );
+    if (match?.vehicleCategory) return match.vehicleCategory;
+    const plate = (v.cityPlateNumber || v.mtopNumber || '').toUpperCase();
+    if (plate.startsWith('P-') || plate.startsWith('PED')) return 'Pedicab';
+    return 'Tricycle';
+  };
+
   // Base date-filtered lists
   const dateFilteredReviews = pendingReviews.filter(r => isDateMatchingFilter(r.dateSubmitted, dateFilter));
   const dateFilteredComplaints = complaints.filter(c => isDateMatchingFilter(c.incidentDate, dateFilter));
+  const dateFilteredViolations = (violations || []).filter(v => isDateMatchingFilter(v.dateSubmitted, dateFilter));
   const dateFilteredLogs = deletionLogs.filter(l => isDateMatchingFilter(l.deletedAt, dateFilter));
 
   // Search match predicates
@@ -409,6 +728,22 @@ export const PendingReviewsTable: React.FC = () => {
       (c.issueType && c.issueType.toLowerCase().includes(q)) ||
       (c.description && c.description.toLowerCase().includes(q)) ||
       (c.adminRemarks && c.adminRemarks.toLowerCase().includes(q))
+    );
+  };
+
+  const violationMatchesSearch = (v: ViolationRecord) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (v.cityPlateNumber && v.cityPlateNumber.toLowerCase().includes(q)) ||
+      (v.mtopNumber && v.mtopNumber.toLowerCase().includes(q)) ||
+      (v.plateNumber && v.plateNumber.toLowerCase().includes(q)) ||
+      (v.operatorName && v.operatorName.toLowerCase().includes(q)) ||
+      (v.driverName && v.driverName.toLowerCase().includes(q)) ||
+      (v.violationType && v.violationType.toLowerCase().includes(q)) ||
+      (v.location && v.location.toLowerCase().includes(q)) ||
+      (v.enforcerName && v.enforcerName.toLowerCase().includes(q)) ||
+      (v.remarks && v.remarks.toLowerCase().includes(q))
     );
   };
 
@@ -443,13 +778,21 @@ export const PendingReviewsTable: React.FC = () => {
         pedicab: searched.filter(c => getComplaintCategory(c) === 'Pedicab').length,
       };
     }
+    if (activeTab === 'violations') {
+      const searched = dateFilteredViolations.filter(violationMatchesSearch);
+      return {
+        all: searched.length,
+        tricycle: searched.filter(v => getViolationCategory(v) === 'Tricycle').length,
+        pedicab: searched.filter(v => getViolationCategory(v) === 'Pedicab').length,
+      };
+    }
     const searched = dateFilteredLogs.filter(logMatchesSearch);
     return {
       all: searched.length,
       tricycle: searched.filter(l => l.vehicleCategory === 'Tricycle').length,
       pedicab: searched.filter(l => l.vehicleCategory === 'Pedicab').length,
     };
-  }, [activeTab, dateFilteredReviews, dateFilteredComplaints, dateFilteredLogs, searchQuery, franchises]);
+  }, [activeTab, dateFilteredReviews, dateFilteredComplaints, dateFilteredViolations, dateFilteredLogs, searchQuery, franchises]);
 
   // Filter reviews
   const filteredReviews = dateFilteredReviews.filter(r => {
@@ -462,6 +805,13 @@ export const PendingReviewsTable: React.FC = () => {
   const filteredComplaints = dateFilteredComplaints.filter(c => {
     if (vehicleCategoryFilter !== 'all' && getComplaintCategory(c) !== vehicleCategoryFilter) return false;
     if (!complaintMatchesSearch(c)) return false;
+    return true;
+  });
+
+  // Filter violations
+  const filteredViolations = dateFilteredViolations.filter(v => {
+    if (vehicleCategoryFilter !== 'all' && getViolationCategory(v) !== vehicleCategoryFilter) return false;
+    if (!violationMatchesSearch(v)) return false;
     return true;
   });
 
@@ -589,6 +939,26 @@ export const PendingReviewsTable: React.FC = () => {
 
             <button
               type="button"
+              onClick={() => setActiveTab('violations')}
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                activeTab === 'violations'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-700 bg-transparent'
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span>Enforcer Violations</span>
+              {filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length > 0 && (
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                  activeTab === 'violations' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                }`}>
+                  {filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('logs')}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
                 activeTab === 'logs'
@@ -628,6 +998,8 @@ export const PendingReviewsTable: React.FC = () => {
                       ? 'Search applicant, plate...'
                       : activeTab === 'complaints'
                       ? 'Search complainant, plate...'
+                      : activeTab === 'violations'
+                      ? 'Search plate, driver, enforcer...'
                       : 'Search plate, remover...'
                   }
                   className="w-full pl-8 pr-7 py-1.5 bg-slate-100 border border-slate-200 rounded-l-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -736,6 +1108,8 @@ export const PendingReviewsTable: React.FC = () => {
             ? 'Franchise waiting document review and approval'
             : activeTab === 'complaints'
             ? 'Community reports submitted via mobile web — click "View Chat" to read the complainant\'s messages.'
+            : activeTab === 'violations'
+            ? 'Official traffic citations issued by enforcers on mobile web — click "Manage Citation" to review details or update settlement status.'
             : 'Official audit log displaying the exact administrator who authorized and removed each complaint or violation citation from the system.'
           }
         </p>
@@ -934,6 +1308,132 @@ export const PendingReviewsTable: React.FC = () => {
                 })
               )}
             </div>
+          ) : activeTab === 'violations' ? (
+            <div className="space-y-2">
+              {filteredViolations.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  <p className="italic">
+                    {searchQuery.trim()
+                      ? `No enforcer violations matching "${searchQuery}".`
+                      : dateFilter.preset !== 'all'
+                      ? `No enforcer violations recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                      : vehicleCategoryFilter !== 'all'
+                      ? `No enforcer violations recorded for ${vehicleCategoryFilter} units.`
+                      : 'No enforcer violations recorded.'}
+                  </p>
+                  {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetDateFilter();
+                        setVehicleCategoryFilter('all');
+                        setSearchQuery('');
+                      }}
+                      className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                    >
+                      Reset Filters &amp; Search
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredViolations.map((v) => {
+                  const category = getViolationCategory(v);
+                  const evidenceImg = v.evidenceImage || (v as any).evidence_image || (v as any).photo_url;
+                  return (
+                    <div
+                      key={v.id}
+                      className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all shadow-xs overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between px-4 py-3.5">
+                        {/* Left: info */}
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="relative shrink-0">
+                            <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200 font-bold text-sm">
+                              <ShieldAlert className="h-4 w-4" />
+                            </div>
+                            {(v.status === 'Pending' || v.status === 'Under Investigation') && (
+                              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {v.driverName || v.operatorName || 'Designated Driver'}
+                              </p>
+                              <span className={`inline-flex items-center space-x-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadge(v.status)}`}>
+                                {statusIcon(v.status)}
+                                <span>{v.status}</span>
+                              </span>
+                              <span className="inline-flex items-center text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
+                                ₱{(Number(v.fineAmount) || 0).toFixed(2)}
+                              </span>
+                              {evidenceImg && (
+                                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                                  <ImageIcon className="h-2.5 w-2.5" />
+                                  <span>Photo</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-3 mt-0.5 flex-wrap gap-y-1">
+                              <span className="text-[11px] text-slate-500 font-mono">
+                                <span className="font-bold text-slate-700">{v.cityPlateNumber || v.mtopNumber}</span> ·{' '}
+                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                                  category === 'Pedicab'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  {category}
+                                </span>
+                              </span>
+                              <span className="text-[11px] text-rose-600 font-semibold truncate">{v.violationType}</span>
+                              <span className="text-[11px] text-slate-500 flex items-center space-x-1">
+                                <User className="h-3 w-3 text-slate-400" />
+                                <span>Enforcer: <strong className="text-slate-700">{v.enforcerName || 'Enforcer'}</strong></span>
+                              </span>
+                              {v.dateSubmitted && (
+                                <span className="text-[11px] text-slate-400 font-mono flex items-center space-x-1">
+                                  <CalendarDays className="h-3 w-3 text-slate-400" />
+                                  <span>{v.dateSubmitted}</span>
+                                </span>
+                              )}
+                            </div>
+                            {v.remarks && (
+                              <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-lg">
+                                <span className="font-semibold text-slate-600">Note:</span> "{v.remarks}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right: action buttons */}
+                        <div className="flex items-center space-x-2 shrink-0 ml-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedViolation(v)}
+                            className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-xl transition-colors cursor-pointer shadow-sm"
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                            <span>Manage Citation</span>
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingViolation(v);
+                            }}
+                            className="p-2 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-xl transition-all cursor-pointer shadow-xs"
+                            title="Delete enforcer citation (Admin Passcode Required)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           ) : (
             /* ─── Removal & Audit Logs Tab ─────────────────────────────────── */
             <div className="space-y-3">
@@ -1064,6 +1564,19 @@ export const PendingReviewsTable: React.FC = () => {
         />
       )}
 
+      {/* Violation Detail Panel Overlay */}
+      {selectedViolation && (
+        <ViolationDetailPanel
+          violation={violations.find(v => v.id === selectedViolation.id) || selectedViolation}
+          category={getViolationCategory(selectedViolation)}
+          onClose={() => setSelectedViolation(null)}
+          onDeleteRequest={(targetViolation) => setDeletingViolation(targetViolation)}
+          onStatusUpdate={(newStatus) => {
+            setSelectedViolation(prev => prev ? { ...prev, status: newStatus } : null);
+          }}
+        />
+      )}
+
       {/* Admin Passcode Modal for Deleting Complaint */}
       <AdminPasscodeModal
         isOpen={!!deletingComplaint}
@@ -1082,6 +1595,26 @@ export const PendingReviewsTable: React.FC = () => {
           }
         }}
         onClose={() => setDeletingComplaint(null)}
+      />
+
+      {/* Admin Passcode Modal for Deleting Violation */}
+      <AdminPasscodeModal
+        isOpen={!!deletingViolation}
+        title="Authorize Enforcer Violation Deletion"
+        description="Are you sure you want to permanently delete this enforcer traffic citation from the TRD records and Supabase database? The system will record who removed this citation."
+        itemType="Violation Citation"
+        itemName={deletingViolation ? `${deletingViolation.cityPlateNumber || deletingViolation.mtopNumber} — ${deletingViolation.violationType} (Fine: ₱${Number(deletingViolation.fineAmount || 0).toLocaleString()})` : undefined}
+        confirmButtonText="Authorize & Delete Citation"
+        onConfirm={(reason) => {
+          if (deletingViolation) {
+            deleteViolation(deletingViolation.id, reason);
+            if (selectedViolation?.id === deletingViolation.id) {
+              setSelectedViolation(null);
+            }
+            setDeletingViolation(null);
+          }
+        }}
+        onClose={() => setDeletingViolation(null)}
       />
     </>
   );

@@ -119,10 +119,10 @@ export const AccountDashboard: React.FC = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left Column: Account Details & Contact (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Section 1: Account Information */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-[11px] mb-4 pb-2 border-b border-slate-100">
@@ -318,17 +318,16 @@ export const AccountDashboard: React.FC = () => {
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center space-x-2 flex-wrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                            log.category === 'Auth'
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${log.category === 'Auth'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : log.category === 'Franchise'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : log.category === 'Violation'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : log.category === 'Complaint'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}>
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : log.category === 'Violation'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : log.category === 'Complaint'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
                             {log.category || 'System'}
                           </span>
 
@@ -376,7 +375,7 @@ export const AccountDashboard: React.FC = () => {
 
         {/* Right Column: Session & Registered Admins Summary (1 col) */}
         <div className="space-y-6">
-          
+
           {/* Session Overview Card */}
           <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-sm border border-slate-800">
             <div className="flex items-center space-x-2.5 mb-4">
