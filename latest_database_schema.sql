@@ -331,6 +331,8 @@ CREATE TABLE IF NOT EXISTS public.violations_tricycle_admin (
     status VARCHAR(30) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Settled', 'Under Investigation', 'Dismissed')),
     date_submitted DATE DEFAULT CURRENT_DATE,
     settled_date DATE,
+    evidence_image TEXT,
+    evidence_filename VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -354,6 +356,8 @@ CREATE TABLE IF NOT EXISTS public.violations_pedicab_admin (
     status VARCHAR(30) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Settled', 'Under Investigation', 'Dismissed')),
     date_submitted DATE DEFAULT CURRENT_DATE,
     settled_date DATE,
+    evidence_image TEXT,
+    evidence_filename VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -376,6 +380,8 @@ CREATE TABLE IF NOT EXISTS public.violations (
     status VARCHAR(30) DEFAULT 'Pending',
     date_submitted DATE DEFAULT CURRENT_DATE,
     settled_date DATE,
+    evidence_image TEXT,
+    evidence_filename VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -399,6 +405,16 @@ CREATE TABLE IF NOT EXISTS public.enforcer_violations (
     evidence_filename VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- 4.5 Ensure Evidence Image & Filename Columns Exist on All Violations Tables
+ALTER TABLE IF EXISTS public.violations_tricycle_admin ADD COLUMN IF NOT EXISTS evidence_image TEXT;
+ALTER TABLE IF EXISTS public.violations_tricycle_admin ADD COLUMN IF NOT EXISTS evidence_filename VARCHAR(255);
+ALTER TABLE IF EXISTS public.violations_pedicab_admin ADD COLUMN IF NOT EXISTS evidence_image TEXT;
+ALTER TABLE IF EXISTS public.violations_pedicab_admin ADD COLUMN IF NOT EXISTS evidence_filename VARCHAR(255);
+ALTER TABLE IF EXISTS public.violations ADD COLUMN IF NOT EXISTS evidence_image TEXT;
+ALTER TABLE IF EXISTS public.violations ADD COLUMN IF NOT EXISTS evidence_filename VARCHAR(255);
+ALTER TABLE IF EXISTS public.enforcer_violations ADD COLUMN IF NOT EXISTS evidence_image TEXT;
+ALTER TABLE IF EXISTS public.enforcer_violations ADD COLUMN IF NOT EXISTS evidence_filename VARCHAR(255);
 
 -- ==============================================================================
 -- 5. PASSENGER COMPLAINTS, LIVE CHAT & DISPUTES

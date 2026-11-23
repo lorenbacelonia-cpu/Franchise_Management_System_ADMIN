@@ -398,7 +398,10 @@ const ViolationDetailPanel: React.FC<{
     'Settled': 'bg-emerald-100 text-emerald-800 border-emerald-300',
   };
 
-  const evidenceImg = violation.evidenceImage || (violation as any).evidence_image || (violation as any).photo_url;
+  const rawEvidence = violation.evidenceImage || (violation as any).evidence_image || (violation as any).evidence_url || (violation as any).photo_url || (violation as any).image_url || (violation as any).attachment_url || (violation as any).proof_image || (violation as any).photo || (violation as any).image;
+  const evidenceImg = (rawEvidence && typeof rawEvidence === 'string' && !rawEvidence.startsWith('http') && !rawEvidence.startsWith('data:') && !rawEvidence.startsWith('blob:'))
+    ? (rawEvidence.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawEvidence}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawEvidence}`)
+    : rawEvidence;
 
   return (
     <div
@@ -1353,7 +1356,10 @@ export const PendingReviewsTable: React.FC = () => {
               ) : (
                 filteredViolations.map((v) => {
                   const category = getViolationCategory(v);
-                  const evidenceImg = v.evidenceImage || (v as any).evidence_image || (v as any).photo_url;
+                  const rawImg = v.evidenceImage || (v as any).evidence_image || (v as any).evidence_url || (v as any).photo_url || (v as any).image_url || (v as any).attachment_url || (v as any).proof_image || (v as any).photo || (v as any).image;
+                  const evidenceImg = (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('http') && !rawImg.startsWith('data:') && !rawImg.startsWith('blob:'))
+                    ? (rawImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
+                    : rawImg;
                   return (
                     <div
                       key={v.id}
