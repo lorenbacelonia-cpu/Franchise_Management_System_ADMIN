@@ -985,13 +985,12 @@ export const DriverRegistryModal: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-500">Franchise Status:</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
-                      editStatus === 'Active'
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : editStatus === 'Expired'
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${editStatus === 'Active'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : editStatus === 'Expired'
                         ? 'bg-rose-100 text-rose-800 border border-rose-300'
                         : 'bg-amber-100 text-amber-800 border border-amber-200'
-                    }`}>
+                      }`}>
                       {editStatus}
                     </span>
                   </div>
@@ -1036,11 +1035,10 @@ export const DriverRegistryModal: React.FC = () => {
                   type="button"
                   onClick={handleConfirmFinalSave}
                   disabled={!isConfirmedChecked || isSaving}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all inline-flex items-center space-x-1.5 cursor-pointer ${
-                    isConfirmedChecked && !isSaving
-                      ? 'bg-[#00ba7c] hover:bg-[#00a36d] text-slate-950 font-black active:scale-[0.98]'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all inline-flex items-center space-x-1.5 cursor-pointer ${isConfirmedChecked && !isSaving
+                    ? 'bg-[#00ba7c] hover:bg-[#00a36d] text-slate-950 font-black active:scale-[0.98]'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{isSaving ? 'Saving Changes...' : 'Yes, Confirm & Update'}</span>
