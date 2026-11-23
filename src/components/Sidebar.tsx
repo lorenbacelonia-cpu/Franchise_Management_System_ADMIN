@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {
           id: 'system_access',
           title: 'User Managements',
-          subtitle: 'Add admin users & access',
+          subtitle: 'Enforcers & admin users',
           icon: ShieldCheck,
           badge: moduleBadges.system_access > 0 ? moduleBadges.system_access : undefined,
           badgeColor: 'bg-emerald-500 text-slate-950',

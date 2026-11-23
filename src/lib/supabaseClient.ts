@@ -1,4 +1,4 @@
-import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount } from '../types';
+import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount, EnforcerAccount } from '../types';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, isRecordExpired, resolveFranchiseStatus } from '../utils/fareUtils';
 
 // Supabase configuration from environment variables
@@ -176,7 +176,7 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
 /** Helper to post directly to active table with optional on_conflict */
 async function postToTable(tableName: string, payload: any, onConflictColumn?: string) {
   try {
-    const url = onConflictColumn 
+    const url = onConflictColumn
       ? `${SUPABASE_URL}/rest/v1/${tableName}?on_conflict=${encodeURIComponent(onConflictColumn)}`
       : `${SUPABASE_URL}/rest/v1/${tableName}`;
 
@@ -194,7 +194,7 @@ async function postToTable(tableName: string, payload: any, onConflictColumn?: s
     }
     const errText = await res.text();
     console.error(`[Supabase ERROR] Failed to save to ${tableName} (${res.status}):`, errText);
-    
+
     // If error is column not found or schema mismatch, retry cleanly stripping unknown columns
     if (errText.includes('column') || errText.includes('PGRST') || res.status === 400) {
       const fallbackPayload = { ...payload };
@@ -427,7 +427,7 @@ export async function saveFranchiseRenewalInSupabase(data: {
 }, category: VehicleCategory = 'Tricycle') {
   const { renewals, records } = getTableNames(category);
   const plate = data.city_plate_number || data.mtop_number;
-  
+
   // 1. Insert into role renewals table
   const renewalPayload = {
     mtop_number: plate,
@@ -678,7 +678,7 @@ export async function patchWithFallback(table: string, idQuery: string, payload:
       const minimalPayload: any = { status: payload.status };
       if (payload.remarks) minimalPayload.remarks = payload.remarks;
       if (payload.updated_at) minimalPayload.updated_at = payload.updated_at;
-      
+
       const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${idQuery}`, {
         method: 'PATCH',
         headers: getHeaders(),
@@ -739,7 +739,7 @@ export async function sendMobileNotificationInSupabase(data: {
 
 /** Update violation status in Supabase and sync with mobile */
 export async function updateViolationStatusInSupabase(
-  violationId: string, 
+  violationId: string,
   status: 'Pending' | 'Settled' | 'Under Investigation',
   category: VehicleCategory = 'Tricycle',
   details?: { enforcerName?: string; reportedBy?: string; plateNumber?: string; violationType?: string; remarks?: string }
@@ -785,7 +785,7 @@ export async function updateViolationStatusInSupabase(
           patched = true;
           break;
         }
-      } catch {}
+      } catch { }
     }
   }
 
@@ -841,7 +841,7 @@ export async function deleteViolationInSupabase(
             method: 'DELETE',
             headers: getHeaders()
           });
-        } catch {}
+        } catch { }
       }
     }
 
@@ -872,13 +872,13 @@ export async function deleteFranchiseRecordInSupabase(
       await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?franchise_id=eq.${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: getHeaders()
-      }).catch(() => {});
+      }).catch(() => { });
     }
     if (plate) {
       await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
         method: 'DELETE',
         headers: getHeaders()
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     // 2. Delete master franchise record
@@ -1034,8 +1034,8 @@ export async function fetchPassengerComplaintsFromSupabase(): Promise<PassengerC
       const rawStatus = (c.admin_decision || c.status || 'Under Investigation').toString().trim();
       const resolvedStatus = (
         rawStatus.toLowerCase().includes('resolve') ? 'Resolved' :
-        rawStatus.toLowerCase().includes('escalat') ? 'Escalated' :
-        'Under Investigation'
+          rawStatus.toLowerCase().includes('escalat') ? 'Escalated' :
+            'Under Investigation'
       );
 
       return {
@@ -1063,7 +1063,7 @@ export async function fetchPassengerComplaintsFromSupabase(): Promise<PassengerC
 
 /** 11. Update status of passenger complaint in Supabase and notify the reporter */
 export async function updatePassengerComplaintStatusInSupabase(
-  id: string, 
+  id: string,
   status: 'Under Investigation' | 'Resolved' | 'Escalated',
   details?: { complainantName?: string; cityPlateNumber?: string; issueType?: string; adminRemarks?: string }
 ) {
@@ -1112,7 +1112,7 @@ export async function updatePassengerComplaintStatusInSupabase(
       record_id: id,
       plate_number: details?.cityPlateNumber,
       status
-    }).catch(() => {});
+    }).catch(() => { });
 
     return res;
   } catch (e) {
@@ -1123,8 +1123,8 @@ export async function updatePassengerComplaintStatusInSupabase(
 
 /** Save admin reply message to passenger complaint in Supabase and notify mobile app */
 export async function saveComplaintReplyInSupabase(
-  complaintId: string, 
-  message: string, 
+  complaintId: string,
+  message: string,
   adminName: string = 'TRD Admin',
   details?: { complainantName?: string; cityPlateNumber?: string }
 ) {
@@ -1291,7 +1291,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
         return accounts;
       }
     }
-  } catch {}
+  } catch { }
 
   // 2. Also check account_enforcer_mobile where enforcer/admin accounts are stored in Supabase
   try {
@@ -1301,6 +1301,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
       if (Array.isArray(data)) {
         for (const row of data) {
           const uname = String(row.username || '').trim();
+          if (uname.toUpperCase().startsWith('ENF-')) continue; // Strictly traffic enforcers, handled separately
           const rawName = String(row.fullname || uname).trim();
           let parsedName = rawName;
           let parsedEmail = uname.includes('@') ? uname.toLowerCase() : '';
@@ -1322,7 +1323,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
         }
       }
     }
-  } catch {}
+  } catch { }
 
   // 3. Also check account_passenger_mobile so any registered user can be recognized
   try {
@@ -1332,6 +1333,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
       if (Array.isArray(data)) {
         for (const row of data) {
           const uname = String(row.username || '').trim();
+          if (uname.toUpperCase().startsWith('ENF-')) continue; // Strictly traffic enforcers, handled separately
           const rawName = String(row.fullname || uname).trim();
           let parsedName = rawName;
           let parsedEmail = `${uname.toLowerCase()}@passenger.tabaco.gov.ph`;
@@ -1353,7 +1355,7 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
         }
       }
     }
-  } catch {}
+  } catch { }
 
   return accounts;
 }
@@ -1383,7 +1385,7 @@ export async function saveAdminAccountInSupabase(account: AdminAccount): Promise
       })
     });
     if (res.ok) return true;
-  } catch {}
+  } catch { }
 
   // 2. Also save to account_enforcer_mobile so it is immediately accessible from ANY browser or device!
   try {
@@ -1405,5 +1407,117 @@ export async function saveAdminAccountInSupabase(account: AdminAccount): Promise
   }
 
   return false;
+}
+
+/** 16. Fetch Traffic Enforcer accounts from Supabase account_enforcer_mobile */
+export async function fetchEnforcersFromSupabase(): Promise<EnforcerAccount[]> {
+  const enforcers: EnforcerAccount[] = [];
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?select=*`, { headers: getHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        for (const row of data) {
+          const uname = String(row.username || '').trim().toUpperCase();
+          const rawFullname = String(row.fullname || uname).trim();
+          let parsedName = rawFullname;
+          let parsedEmail = '';
+          let parsedArea = '';
+          let parsedContact = '';
+
+          const emailMatch = rawFullname.match(/\[(.*?)\]/);
+          if (emailMatch && emailMatch[1]) {
+            parsedEmail = emailMatch[1].trim();
+            parsedName = parsedName.replace(/\[(.*?)\]/, '').trim();
+          }
+
+          const areaMatch = rawFullname.match(/\((.*?)\)/);
+          if (areaMatch && areaMatch[1]) {
+            parsedArea = areaMatch[1].trim();
+            parsedName = parsedName.replace(/\((.*?)\)/, '').trim();
+          }
+
+          const contactMatch = rawFullname.match(/\{(.*?)\}/);
+          if (contactMatch && contactMatch[1]) {
+            parsedContact = contactMatch[1].trim();
+            parsedName = parsedName.replace(/\{(.*?)\}/, '').trim();
+          }
+
+          enforcers.push({
+            id: row.id,
+            badgeNumber: uname,
+            name: parsedName || uname,
+            email: parsedEmail,
+            contactNumber: parsedContact,
+            assignedArea: parsedArea || 'Poblacion / Centro District',
+            password: row.password,
+            createdAt: row.created_at || new Date().toISOString(),
+            status: 'Active',
+            createdBy: 'TRD Administrator'
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch enforcers from Supabase:', e);
+  }
+  return enforcers;
+}
+
+/** 17. Save Traffic Enforcer account to Supabase account_enforcer_mobile */
+export async function saveEnforcerAccountInSupabase(enforcer: {
+  badgeNumber: string;
+  name: string;
+  password?: string;
+  email?: string;
+  contactNumber?: string;
+  assignedArea?: string;
+}): Promise<boolean> {
+  try {
+    const cleanBadge = enforcer.badgeNumber.trim().toUpperCase();
+    const parts = [enforcer.name.trim()];
+    if (enforcer.email && enforcer.email.trim()) {
+      parts.push(`[${enforcer.email.trim().toLowerCase()}]`);
+    }
+    if (enforcer.assignedArea && enforcer.assignedArea.trim()) {
+      parts.push(`(${enforcer.assignedArea.trim()})`);
+    }
+    if (enforcer.contactNumber && enforcer.contactNumber.trim()) {
+      parts.push(`{${enforcer.contactNumber.trim()}}`);
+    }
+    const storedFullname = parts.join(' ');
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({
+        username: cleanBadge,
+        fullname: storedFullname,
+        password: enforcer.password || 'enforcer123'
+      })
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to save enforcer account to Supabase:', err);
+    return false;
+  }
+}
+
+/** 18. Delete Traffic Enforcer account from Supabase account_enforcer_mobile */
+export async function deleteEnforcerAccountInSupabase(badgeNumber: string): Promise<boolean> {
+  try {
+    const cleanBadge = badgeNumber.trim().toUpperCase();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?username=eq.${encodeURIComponent(cleanBadge)}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Failed to delete enforcer account from Supabase:', err);
+    return false;
+  }
 }
 

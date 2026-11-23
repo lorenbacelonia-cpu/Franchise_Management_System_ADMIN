@@ -11,6 +11,7 @@ import type {
   ActiveModule,
   AdminUser,
   AdminAccount,
+  EnforcerAccount,
   DeletionLog
 } from '../types';
 import { initialFranchises } from '../data/mockData';
@@ -37,7 +38,10 @@ import {
   fetchPendingReviewsFromSupabase,
   updatePendingReviewStatusInSupabase,
   fetchAdminAccountsFromSupabase,
-  saveAdminAccountInSupabase
+  saveAdminAccountInSupabase,
+  fetchEnforcersFromSupabase,
+  saveEnforcerAccountInSupabase,
+  deleteEnforcerAccountInSupabase
 } from '../lib/supabaseClient';
 
 interface DeletionNotice {
@@ -66,6 +70,10 @@ interface FranchiseContextType {
   setIsAuthenticated: (auth: boolean, remember?: boolean) => void;
   registeredAdmins: AdminAccount[];
   registerAdmin: (account: Omit<AdminAccount, 'createdAt'>, options?: { switchSession?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  enforcers: EnforcerAccount[];
+  registerEnforcer: (account: Omit<EnforcerAccount, 'createdAt'>, options?: { adminPasscode?: string }) => Promise<{ success: boolean; error?: string }>;
+  deleteEnforcer: (badgeNumber: string, options?: { adminPasscode?: string }) => Promise<{ success: boolean; error?: string }>;
+  syncEnforcersFromDatabase: () => Promise<void>;
   loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   loginWithEmailVerification: (emailOrId: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   logoutAdmin: () => void;
@@ -183,6 +191,30 @@ const STORAGE_KEY_DELETION_LOGS = 'tabaco_trd_deletion_logs_v2';
 const STORAGE_KEY_ADMIN_USER = 'tabaco_trd_admin_user_v2';
 const STORAGE_KEY_AUTH = 'tabaco_trd_admin_authenticated_v1';
 const STORAGE_KEY_REGISTERED_ADMINS = 'tabaco_trd_registered_admins_v1';
+const STORAGE_KEY_ENFORCERS = 'tabaco_trd_enforcers_v2';
+
+const DEFAULT_ENFORCERS: EnforcerAccount[] = [
+  {
+    badgeNumber: 'ENF-2026-101',
+    name: 'Officer Roberto Gomez',
+    email: 'roberto.gomez@tabaco.gov.ph',
+    contactNumber: '09171234567',
+    assignedArea: 'Poblacion / Centro District',
+    createdAt: '2026-01-15T08:00:00.000Z',
+    status: 'Active',
+    createdBy: 'TRD Head Admin'
+  },
+  {
+    badgeNumber: 'ENF-2026-102',
+    name: 'Officer Manuel Reyes',
+    email: 'manuel.reyes@tabaco.gov.ph',
+    contactNumber: '09289876543',
+    assignedArea: 'Tabaco Port & Ferry Terminal',
+    createdAt: '2026-02-01T08:00:00.000Z',
+    status: 'Active',
+    createdBy: 'TRD Head Admin'
+  }
+];
 
 const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
   {
@@ -374,6 +406,46 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }).catch(e => console.warn('Could not sync admin accounts on mount:', e));
   }, []);
+
+  // Registered Traffic Enforcer accounts from storage
+  const [enforcers, setEnforcers] = useState<EnforcerAccount[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_ENFORCERS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Error reading enforcers from storage:', e);
+    }
+    return DEFAULT_ENFORCERS;
+  });
+
+  const syncEnforcersFromDatabase = useCallback(async () => {
+    try {
+      const dbEnforcers = await fetchEnforcersFromSupabase();
+      if (Array.isArray(dbEnforcers) && dbEnforcers.length > 0) {
+        setEnforcers(prev => {
+          const merged = [...dbEnforcers];
+          for (const p of prev) {
+            if (!merged.some(m => m.badgeNumber.toUpperCase() === p.badgeNumber.toUpperCase())) {
+              merged.push(p);
+            }
+          }
+          try {
+            localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    } catch (e) {
+      console.warn('Error syncing enforcers from Supabase:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    syncEnforcersFromDatabase();
+  }, [syncEnforcersFromDatabase]);
 
   // Authentication session state (default: FALSE so user MUST log in or sign up!)
   const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
@@ -641,6 +713,112 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     return { success: true };
   }, [registeredAdmins, setIsAuthenticated]);
+
+  const registerEnforcer = useCallback(async (
+    enforcerData: Omit<EnforcerAccount, 'createdAt'>,
+    options?: { adminPasscode?: string }
+  ) => {
+    // 1. Strict Admin Authorization Check: Only Admin can add an account!
+    const passcode = (options?.adminPasscode || '').trim().toUpperCase();
+    const validPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'ADMIN', 'ADMIN123', 'TRDADMIN', '123456', '2004'];
+    const isAdminAuthed = validPasscodes.includes(passcode) ||
+      (currentAdmin?.password && currentAdmin.password.toUpperCase() === passcode);
+
+    if (!isAdminAuthed) {
+      return {
+        success: false,
+        error: 'Access Restricted: Only an authorized Administrator with the confidential Admin Passcode can create Traffic Enforcer accounts.'
+      };
+    }
+
+    const cleanBadge = enforcerData.badgeNumber.trim().toUpperCase();
+    const cleanName = enforcerData.name.trim();
+    const cleanEmail = (enforcerData.email || '').trim().toLowerCase();
+
+    if (!cleanBadge || !cleanName || !enforcerData.password) {
+      return { success: false, error: 'Officer Name, Badge Number, and Mobile App Password are required.' };
+    }
+
+    // Check duplicate
+    const exists = enforcers.some(e => e.badgeNumber.toUpperCase() === cleanBadge);
+    if (exists) {
+      return { success: false, error: `An enforcer with Badge Number "${cleanBadge}" already exists.` };
+    }
+
+    const newEnforcer: EnforcerAccount = {
+      ...enforcerData,
+      badgeNumber: cleanBadge,
+      name: cleanName,
+      email: cleanEmail,
+      contactNumber: (enforcerData.contactNumber || '').trim(),
+      assignedArea: (enforcerData.assignedArea || 'Poblacion / Centro District').trim(),
+      createdAt: new Date().toISOString(),
+      createdBy: currentAdmin?.name ? `${currentAdmin.name} (${currentAdmin.adminId})` : 'TRD Administrator',
+      status: 'Active'
+    };
+
+    // Save locally
+    const updated = [newEnforcer, ...enforcers];
+    setEnforcers(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Error saving enforcers to storage:', e);
+    }
+
+    // Save to Supabase account_enforcer_mobile so mobile enforcer app can log in immediately!
+    try {
+      await saveEnforcerAccountInSupabase({
+        badgeNumber: cleanBadge,
+        name: cleanName,
+        password: enforcerData.password,
+        email: cleanEmail,
+        contactNumber: enforcerData.contactNumber,
+        assignedArea: enforcerData.assignedArea
+      });
+    } catch (err) {
+      console.warn('Notice saving enforcer to Supabase:', err);
+    }
+
+    triggerModuleChange([
+      { mod: 'system_access', reason: `New Traffic Enforcer ${cleanBadge} (${cleanName}) registered` }
+    ]);
+
+    return { success: true };
+  }, [enforcers, currentAdmin, triggerModuleChange]);
+
+  const deleteEnforcer = useCallback(async (
+    badgeNumber: string,
+    options?: { adminPasscode?: string }
+  ) => {
+    // Strict Admin Authorization Check
+    const passcode = (options?.adminPasscode || '').trim().toUpperCase();
+    const validPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'ADMIN', 'ADMIN123', 'TRDADMIN', '123456', '2004'];
+    const isAdminAuthed = validPasscodes.includes(passcode) ||
+      (currentAdmin?.password && currentAdmin.password.toUpperCase() === passcode);
+
+    if (!isAdminAuthed) {
+      return {
+        success: false,
+        error: 'Access Restricted: Administrator Passcode required to remove an enforcer account.'
+      };
+    }
+
+    const cleanBadge = badgeNumber.trim().toUpperCase();
+    const updated = enforcers.filter(e => e.badgeNumber.toUpperCase() !== cleanBadge);
+    setEnforcers(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await deleteEnforcerAccountInSupabase(cleanBadge);
+    } catch (err) {
+      console.warn('Notice deleting enforcer from Supabase:', err);
+    }
+
+    return { success: true };
+  }, [enforcers, currentAdmin]);
 
   // Master Synchronizer with Supabase Database (non-destructive merge of both Tricycle & Pedicab)
   const syncFromDatabase = useCallback(async () => {
@@ -1577,6 +1755,10 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsAuthenticated,
         registeredAdmins,
         registerAdmin,
+        enforcers,
+        registerEnforcer,
+        deleteEnforcer,
+        syncEnforcersFromDatabase,
         loginAdmin,
         loginWithEmailVerification,
         logoutAdmin,

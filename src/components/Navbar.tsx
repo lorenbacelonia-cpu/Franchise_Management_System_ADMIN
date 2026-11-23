@@ -47,7 +47,7 @@ const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> =
   },
   system_access: {
     title: 'User Managements',
-    subtitle: 'Add administrator accounts and manage system access control',
+    subtitle: 'Add traffic enforcers & administrator accounts with access control',
   },
   account: {
     title: 'Account Settings',

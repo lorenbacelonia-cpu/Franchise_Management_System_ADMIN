@@ -204,6 +204,7 @@ export interface AdminUser {
   email: string;
   role: string;
   department?: string;
+  password?: string;
 }
 
 export interface AdminAccount {
@@ -214,6 +215,19 @@ export interface AdminAccount {
   department?: string;
   password?: string;
   createdAt?: string;
+}
+
+export interface EnforcerAccount {
+  id?: string;
+  badgeNumber: string; // e.g. ENF-2026-101
+  name: string;
+  email?: string;
+  contactNumber?: string;
+  assignedArea?: string;
+  password?: string;
+  createdAt?: string;
+  createdBy?: string;
+  status: 'Active' | 'Inactive';
 }
 
 export interface DeletionLog {
