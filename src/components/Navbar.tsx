@@ -38,7 +38,7 @@ const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> =
     subtitle: 'Enforcer traffic citations, citizen complaints, and audit trail',
   },
   reports: {
-    title: 'Reports and Analyst',
+    title: 'Reports and Analysis',
     subtitle: 'Live regulatory compliance metrics and official printable PDF reports',
   },
   deactivation: {

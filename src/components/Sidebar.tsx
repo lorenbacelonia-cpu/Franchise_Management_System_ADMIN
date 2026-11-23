@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'reports',
-          title: 'Reports and Analyst',
+          title: 'Reports and Analysis',
           subtitle: 'Charts & printable PDF',
           icon: BarChart3,
           badge: moduleBadges.reports > 0 ? moduleBadges.reports : undefined,
