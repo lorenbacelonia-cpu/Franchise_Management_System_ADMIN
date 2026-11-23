@@ -72,6 +72,7 @@ export const SystemAccessModal: React.FC = () => {
   const [enfAdminPasscode, setEnfAdminPasscode] = useState('');
   const [enfShowPassword, setEnfShowPassword] = useState(true);
   const [enfSearch, setEnfSearch] = useState('');
+  const [notifyViaGmailOnCreate, setNotifyViaGmailOnCreate] = useState(true);
   const [isSubmittingEnforcer, setIsSubmittingEnforcer] = useState(false);
 
   // Issued credentials popup modal state
@@ -150,6 +151,83 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
 
     navigator.clipboard.writeText(text);
     setCopyNotification('Complete credentials copied! Ready to send to the officer.');
+    setTimeout(() => setCopyNotification(null), 3000);
+  };
+
+  // ── GMAIL NOTIFICATION DISPATCHER ──
+  const generateEnforcerGmailContent = (cred: {
+    badgeNumber: string;
+    name: string;
+    password?: string;
+    assignedArea?: string;
+    contactNumber?: string;
+    email?: string;
+  }) => {
+    const todayStr = new Date().toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const subject = `TRD OFFICIAL NOTICE: Enforcer Mobile Web Account Credentials - Badge ${cred.badgeNumber}`;
+    const body = `CITY GOVERNMENT OF TABACO
+TRAFFIC & REGULATORY DIVISION (TRD)
+Office of the City Mayor • Tabaco City Hall, Tabaco City, Albay
+
+=======================================================
+OFFICIAL NOTICE OF ENFORCER MOBILE WEB ACCESS CREDENTIALS
+=======================================================
+
+Dear ${cred.name},
+
+Please be advised that your municipal Traffic Enforcer Mobile Citation Account has been officially authorized and issued by the Tabaco City Traffic & Regulatory Division (TRD).
+
+YOUR OFFICIAL MOBILE WEB LOGIN CREDENTIALS:
+- Authorized Officer: ${cred.name}
+- Badge Number / Login ID: ${cred.badgeNumber}
+- System-Generated Password: ${cred.password || 'enforcer123'}
+- Assigned Patrol Sector: ${cred.assignedArea || 'Poblacion District'}
+- Date Issued: ${todayStr}
+
+MOBILE CITATION WEB PORTAL:
+${DEFAULT_MOBILE_VERIFIER_URL}
+
+ACCESS INSTRUCTIONS:
+1. Open your smartphone browser (or scan the QR code on your credential pass) and navigate to the portal link above.
+2. Sign in with your assigned Badge Number as Username and your System-Generated Password.
+3. Once logged in, you can scan tricycle/pedicab QR codes, verify operator permits, and record municipal traffic citations in real time.
+
+SECURITY NOTICE:
+These credentials are strictly issued for your official duties as an authorized municipal traffic enforcer. Keep your password confidential.
+
+Issued by:
+${currentAdmin.name}
+Traffic & Regulatory Division (TRD)
+City Government of Tabaco, Albay`;
+
+    return { subject, body };
+  };
+
+  const handleSendCredentialsViaGmail = (cred: {
+    badgeNumber: string;
+    name: string;
+    password?: string;
+    assignedArea?: string;
+    contactNumber?: string;
+    email?: string;
+  }) => {
+    const { subject, body } = generateEnforcerGmailContent(cred);
+    const recipient = (cred.email || '').trim();
+    const params = new URLSearchParams({
+      view: 'cm',
+      fs: '1',
+      to: recipient,
+      su: subject,
+      body: body,
+    });
+    const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+    window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+    setCopyNotification(recipient ? `Gmail compose opened for ${recipient}!` : 'Gmail compose opened with credentials!');
     setTimeout(() => setCopyNotification(null), 3000);
   };
 
@@ -389,6 +467,10 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
       setIssuedCredentials(newCred);
 
       setSuccess(`Account successfully issued for ${newCred.name} (${newCred.badgeNumber})! The credentials below can now be used on the Mobile Web citation app.`);
+
+      if (notifyViaGmailOnCreate && newCred.email) {
+        handleSendCredentialsViaGmail(newCred);
+      }
 
       // Reset form with a fresh next badge & password
       setEnfFullName('');
@@ -760,9 +842,12 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
               {/* Official Email & Assigned Sector */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Official Email (Optional)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Officer Gmail Address (To receive login credentials)
+                    </label>
+                    <span className="text-[10px] text-emerald-600 font-semibold">Recommended</span>
+                  </div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                       <Mail className="w-3.5 h-3.5" />
@@ -771,10 +856,19 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
                       type="email"
                       value={enfEmail}
                       onChange={(e) => setEnfEmail(e.target.value)}
-                      placeholder="e.g. officer@tabaco.gov.ph"
+                      placeholder="e.g. officer.name@gmail.com"
                       className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
                   </div>
+                  <label className="flex items-center space-x-2 cursor-pointer mt-1.5 text-[11px] text-slate-700 font-medium select-none">
+                    <input
+                      type="checkbox"
+                      checked={notifyViaGmailOnCreate}
+                      onChange={(e) => setNotifyViaGmailOnCreate(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Automatically open Gmail with login details upon account issuance</span>
+                  </label>
                 </div>
 
                 <div>
@@ -960,6 +1054,17 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
                       </div>
 
                       <div className="flex items-center space-x-1.5 shrink-0">
+                        {/* Notify via Gmail Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleSendCredentialsViaGmail(enf)}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer flex items-center space-x-1"
+                          title={enf.email ? `Send credentials to ${enf.email} via Gmail` : 'Open Gmail to send credentials'}
+                        >
+                          <Mail className="h-3 w-3 text-rose-600" />
+                          <span>Gmail</span>
+                        </button>
+
                         {/* View & Re-Issue Credentials Button */}
                         <button
                           type="button"
@@ -1372,8 +1477,18 @@ Open the link on your smartphone browser to access the TRD Mobile Citation App.`
               </div>
             </div>
 
-            {/* Actions: Copy All or Print Slip */}
+            {/* Actions: Gmail, Copy All or Print Slip */}
             <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => handleSendCredentialsViaGmail(issuedCredentials)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center space-x-1.5"
+                title="Send credentials directly via Gmail"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                <span>Send via Gmail</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleCopyCompleteCredentials(issuedCredentials)}
