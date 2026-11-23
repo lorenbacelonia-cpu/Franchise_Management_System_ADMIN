@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import {
-  BarChart3,
   AlertTriangle,
   CheckCircle2,
   ShieldCheck,
@@ -433,33 +432,18 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
-            <BarChart3 className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Reports &amp; Analytics Dashboard (Tricycle &amp; Pedicab)
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Live regulatory metrics calculated directly from database records for all registered units
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={handleDownloadPDF}
-          className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center space-x-2 cursor-pointer transition-colors shrink-0"
-        >
-          <Printer className="h-4 w-4" />
-          <span>Generate &amp; Print Official PDF Report</span>
-        </button>
-      </div>
-
       {/* Main Content Card */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+        {/* Top Print Action */}
+        <div className="flex items-center justify-end pb-2 border-b border-slate-100">
+          <button
+            onClick={handleDownloadPDF}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center space-x-2 cursor-pointer transition-colors"
+          >
+            <Printer className="h-4 w-4" />
+            <span>Generate &amp; Print Official PDF Report</span>
+          </button>
+        </div>
         {/* Top KPI row (100% DYNAMIC FROM DATABASE) */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {/* 1. Active Compliance Rate */}

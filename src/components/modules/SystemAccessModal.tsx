@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import {
-  ShieldCheck,
   UserPlus,
   KeyRound,
   Mail,
@@ -13,7 +12,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Users,
-  BadgeCheck,
   RefreshCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -141,36 +139,6 @@ export const SystemAccessModal: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Top Module Banner */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-base font-bold text-slate-900">
-                System &amp; Access — Admin Account Management
-              </h2>
-              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-900 text-emerald-400">
-                Admin Only
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Provision and manage authorized administrator accounts for the TRD Franchise Management System
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl flex items-center space-x-2.5 shrink-0">
-          <BadgeCheck className="h-4 w-4 text-emerald-600" />
-          <div className="text-xs">
-            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Logged-in Admin</span>
-            <span className="font-bold text-slate-900">{currentAdmin.name} ({currentAdmin.adminId})</span>
-          </div>
-        </div>
-      </div>
-
       {/* Main Two-Column Grid: Left = Add Admin User Form, Right = Active Admin Accounts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Add New Admin Account Form (7 cols) */}

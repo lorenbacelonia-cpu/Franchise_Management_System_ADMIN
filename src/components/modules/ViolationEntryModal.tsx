@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { maskName } from '../../utils/formatters';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
-import { NotificationBell } from '../NotificationBell';
 
 interface SanctionDetail {
   investigationStatus: 'Under Investigation' | 'Pending Review' | 'Sanction Recommended' | 'Cleared';
@@ -692,30 +691,6 @@ export const ViolationEntryModal: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Header with Notification Bell */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="h-12 w-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-200 shrink-0 shadow-xs">
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                Violations &amp; Reports Monitor (Tricycle &amp; Pedicab)
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Official violation citations, citizen reports, multiple offenses inquiry &amp; removal audit logs
-              </p>
-            </div>
-          </div>
-
-          {/* Top Action Toolbar with Notification Bell */}
-          <div className="flex items-center space-x-3 self-end sm:self-center">
-            <div className="relative">
-              <NotificationBell />
-            </div>
-          </div>
-        </div>
 
         {/* Tab pills */}
         <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm">

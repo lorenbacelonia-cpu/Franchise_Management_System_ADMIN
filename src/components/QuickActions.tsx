@@ -1,20 +1,20 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
 import type { ActiveModule } from '../types';
-import { 
-  UserPlus, 
-  RotateCw, 
-  QrCode, 
+import {
+  UserPlus,
+  RotateCw,
+  QrCode,
   AlertTriangle,
   UserCheck,
-  Users, 
-  BarChart3, 
+  Users,
+  BarChart3,
   MinusCircle,
   Bell,
   ArrowRight,
   CheckCircle2,
   Clock,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 
 export const QuickActions: React.FC = () => {
@@ -42,73 +42,73 @@ export const QuickActions: React.FC = () => {
     badgeColor: string;
     isPersistentTask?: boolean;
   }[] = [
-    {
-      id: 'register',
-      title: 'Register Franchise',
-      description: 'Add new franchise to system',
-      icon: UserPlus,
-      iconColor: 'text-slate-700',
-      badgeColor: 'bg-emerald-600 text-white',
-    },
-    {
-      id: 'renewal',
-      title: 'Process Renewal',
-      description: 'Drivers with expired franchise',
-      icon: RotateCw,
-      iconColor: 'text-blue-600',
-      badgeColor: 'bg-blue-600 text-white',
-      isPersistentTask: true,
-    },
-    {
-      id: 'qr_scanner',
-      title: 'QR Code Scanner',
-      description: 'Generate QR Code',
-      icon: QrCode,
-      iconColor: 'text-slate-700',
-      badgeColor: 'bg-emerald-600 text-white',
-    },
-    {
-      id: 'violation_entry',
-      title: 'Violations & Reports',
-      description: 'Monitor enforcer & passenger reports',
-      icon: AlertTriangle,
-      iconColor: 'text-amber-500',
-      badgeColor: 'bg-rose-600 text-white',
-      isPersistentTask: true,
-    },
-    {
-      id: 'driver_registry',
-      title: 'Driver & Operator Registry',
-      description: 'Management',
-      icon: UserCheck,
-      iconColor: 'text-slate-700',
-      badgeColor: 'bg-indigo-600 text-white',
-    },
-    {
-      id: 'franchise_records',
-      title: 'Franchise Records',
-      description: 'View and update franchise data',
-      icon: Users,
-      iconColor: 'text-slate-700',
-      badgeColor: 'bg-emerald-600 text-white',
-    },
-    {
-      id: 'reports',
-      title: 'Reports & Analytics',
-      description: 'Generate visual data and reports',
-      icon: BarChart3,
-      iconColor: 'text-amber-500',
-      badgeColor: 'bg-amber-500 text-slate-950',
-    },
-    {
-      id: 'deactivation',
-      title: 'Franchise Deactivation',
-      description: 'Deactivate and cancel unit records',
-      icon: MinusCircle,
-      iconColor: 'text-red-500',
-      badgeColor: 'bg-rose-600 text-white',
-    },
-  ];
+      {
+        id: 'register',
+        title: 'Register Franchise',
+        description: 'Add new franchise to system',
+        icon: UserPlus,
+        iconColor: 'text-slate-700',
+        badgeColor: 'bg-emerald-600 text-white',
+      },
+      {
+        id: 'renewal',
+        title: 'Process Renewal',
+        description: 'Drivers with expired franchise',
+        icon: RotateCw,
+        iconColor: 'text-blue-600',
+        badgeColor: 'bg-blue-600 text-white',
+        isPersistentTask: true,
+      },
+      {
+        id: 'qr_scanner',
+        title: 'QR Code Scanner',
+        description: 'Generate QR Code',
+        icon: QrCode,
+        iconColor: 'text-slate-700',
+        badgeColor: 'bg-emerald-600 text-white',
+      },
+      {
+        id: 'violation_entry',
+        title: 'Violations & Reports',
+        description: 'Monitor enforcer & passenger reports',
+        icon: AlertTriangle,
+        iconColor: 'text-amber-500',
+        badgeColor: 'bg-rose-600 text-white',
+        isPersistentTask: true,
+      },
+      {
+        id: 'driver_registry',
+        title: 'Driver and Operator Management',
+        description: 'Manage driver & operator assignments',
+        icon: UserCheck,
+        iconColor: 'text-slate-700',
+        badgeColor: 'bg-indigo-600 text-white',
+      },
+      {
+        id: 'franchise_records',
+        title: 'Franchise Records',
+        description: 'View and update franchise data',
+        icon: Users,
+        iconColor: 'text-slate-700',
+        badgeColor: 'bg-emerald-600 text-white',
+      },
+      {
+        id: 'reports',
+        title: 'Reports & Analytics',
+        description: 'Generate visual data and reports',
+        icon: BarChart3,
+        iconColor: 'text-amber-500',
+        badgeColor: 'bg-amber-500 text-slate-950',
+      },
+      {
+        id: 'deactivation',
+        title: 'Franchise Deactivation',
+        description: 'Deactivate and cancel unit records',
+        icon: MinusCircle,
+        iconColor: 'text-red-500',
+        badgeColor: 'bg-rose-600 text-white',
+      },
+    ];
 
   return (
     <div className="mb-8 space-y-6">

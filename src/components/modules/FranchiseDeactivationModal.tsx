@@ -43,21 +43,6 @@ export const FranchiseDeactivationModal: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center space-x-3.5">
-        <div className="h-11 w-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
-          <UserX className="h-5 w-5" />
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-slate-900">
-            Franchise Revocation &amp; Deactivation (Tricycle &amp; Pedicab)
-          </h3>
-          <p className="text-xs text-slate-500 font-medium">
-            Administrative permit cancellation for flagged units — all actions on this single page
-          </p>
-        </div>
-      </div>
-
       {notification && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />

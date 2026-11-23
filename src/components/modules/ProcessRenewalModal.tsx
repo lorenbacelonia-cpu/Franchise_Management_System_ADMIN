@@ -1,9 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { FranchiseRecord } from '../../types';
-import { X, RefreshCw, CheckCircle2, Calendar, Search, AlertCircle, FileText, Receipt } from 'lucide-react';
+import {
+  X,
+  RefreshCw,
+  CheckCircle2,
+  Calendar,
+  Search,
+  AlertCircle,
+  FileText,
+  Receipt,
+  Bell,
+  Send,
+  Mail,
+  Phone,
+  History,
+  Sparkles,
+  RotateCcw,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { isRecordExpired } from '../../utils/fareUtils';
+import {
+  filterExpiringDrivers,
+  getFranchiseExpiryInfo,
+  buildDriverSmsReminderText,
+  sendDriverSmsReminder,
+  sendDriverGmailReminder,
+  sendDriverBothReminders,
+  sendBatchExpiryReminders,
+  getReminderLogs,
+  getLastReminderForRecord,
+  clearReminderLogs,
+  type ReminderLogEntry,
+  type BatchDispatchSummary,
+  type ExpiryFilterMode,
+} from '../../utils/expiryNotificationService';
 
 function computeDefaultNextExpiry(currentExpiry?: string): string {
   const today = new Date();
@@ -30,8 +61,12 @@ function generateNewApplicationNo(): string {
 }
 
 export const ProcessRenewalModal: React.FC = () => {
-  const { activeModule, franchises, renewFranchise } = useFranchise();
+  const { activeModule, franchises, renewFranchise, updateDriver } = useFranchise();
+
+  // Search & Filtering
   const [filterText, setFilterText] = useState('');
+
+  // Renewal Form State
   const [selectedForRenewal, setSelectedForRenewal] = useState<FranchiseRecord | null>(null);
   const [renewalExpiryDate, setRenewalExpiryDate] = useState('');
   const [renewalApplicationNo, setRenewalApplicationNo] = useState('');
@@ -39,6 +74,38 @@ export const ProcessRenewalModal: React.FC = () => {
   const [renewalPaymentDate, setRenewalPaymentDate] = useState('');
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Inline Single Reminder State (No separate portal)
+  const [selectedForReminder, setSelectedForReminder] = useState<FranchiseRecord | null>(null);
+  const [reminderPhone, setReminderPhone] = useState('');
+  const [reminderGmail, setReminderGmail] = useState('');
+  const [reminderChannel, setReminderChannel] = useState<'both' | 'sms' | 'email'>('both');
+  const [customNote, setCustomNote] = useState('');
+  const [isDispatching, setIsDispatching] = useState(false);
+  const [reminderFeedback, setReminderFeedback] = useState<string | null>(null);
+
+  // Inline Batch Reminder Dispatcher State (Inside the page)
+  const [showReminderCenter, setShowReminderCenter] = useState(false);
+  const [reminderFilter, setReminderFilter] = useState<ExpiryFilterMode>('all');
+  const [batchSendSms, setBatchSendSms] = useState(true);
+  const [batchSendGmail, setBatchSendGmail] = useState(true);
+  const [isBatchSending, setIsBatchSending] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; name?: string } | null>(null);
+  const [batchSummary, setBatchSummary] = useState<BatchDispatchSummary | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [reminderLogs, setReminderLogs] = useState<ReminderLogEntry[]>([]);
+
+  useEffect(() => {
+    setReminderLogs(getReminderLogs());
+  }, []);
+
+  const expiringDrivers = useMemo(() => {
+    return filterExpiringDrivers(franchises, 'all');
+  }, [franchises]);
+
+  const targetedDrivers = useMemo(() => {
+    return filterExpiringDrivers(franchises, reminderFilter);
+  }, [franchises, reminderFilter]);
 
   if (activeModule !== 'renewal') return null;
 
@@ -60,7 +127,9 @@ export const ProcessRenewalModal: React.FC = () => {
       return 0;
     });
 
+  // Open Renewal Form
   const handleOpenRenewalDialog = (item: FranchiseRecord) => {
+    setSelectedForReminder(null); // dismiss reminder if open
     setSelectedForRenewal(item);
     setRenewalExpiryDate(computeDefaultNextExpiry(item.expirationDate));
     setRenewalApplicationNo(item.applicationNo || generateNewApplicationNo());
@@ -69,6 +138,7 @@ export const ProcessRenewalModal: React.FC = () => {
     setRenewalAmountPaid(item.vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
   };
 
+  // Confirm Renewal
   const handleConfirmRenewal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForRenewal || !renewalExpiryDate || !renewalApplicationNo.trim()) return;
@@ -93,29 +163,112 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForRenewal(null);
   };
 
+  // Open Inline Single Driver Reminder (Inside page, NOT a portal)
+  const handleOpenReminder = (item: FranchiseRecord) => {
+    setSelectedForRenewal(null); // dismiss renewal form to focus on reminder
+    setSelectedForReminder(item);
+    setReminderPhone(item.driverContact || item.operatorContact || '');
+    setReminderGmail(item.gmail || item.email || '');
+    setReminderChannel('both');
+    const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item));
+    setCustomNote(defaultNotice);
+    setReminderFeedback(null);
+  };
+
+  // Dispatch Single Reminder
+  const handleSendSingleReminder = async () => {
+    if (!selectedForReminder) return;
+    setIsDispatching(true);
+    setReminderFeedback(null);
+
+    try {
+      const plate = selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber;
+      const phoneClean = reminderPhone.trim();
+      const emailClean = reminderGmail.trim();
+
+      // If user corrected phone or email, save it inline to record
+      if (
+        phoneClean !== (selectedForReminder.driverContact || selectedForReminder.operatorContact || '') ||
+        emailClean !== (selectedForReminder.gmail || selectedForReminder.email || '')
+      ) {
+        await updateDriver(plate, {
+          driverName: selectedForReminder.driverName,
+          contact: phoneClean,
+          gmail: emailClean,
+          email: emailClean,
+        });
+      }
+
+      const activeRecord: FranchiseRecord = {
+        ...selectedForReminder,
+        driverContact: phoneClean,
+        operatorContact: phoneClean,
+        gmail: emailClean,
+        email: emailClean,
+      };
+
+      let successMessage = '';
+      if (reminderChannel === 'both') {
+        const { sms, email, overallSuccess } = await sendDriverBothReminders(activeRecord, { customNote });
+        if (overallSuccess) {
+          successMessage = `Dispatched SMS & Gmail reminder to ${selectedForReminder.driverName} (${phoneClean || 'SMS'} & ${emailClean || 'Gmail'})!`;
+        } else {
+          successMessage = `Dispatched: SMS (${sms.success ? 'Success' : 'Failed'}), Gmail (${email.success ? 'Success' : 'Failed'}). Check phone or Gmail format.`;
+        }
+      } else if (reminderChannel === 'sms') {
+        const res = await sendDriverSmsReminder(activeRecord, { customMessage: customNote });
+        successMessage = res.success
+          ? `SMS reminder dispatched to ${selectedForReminder.driverName} (${res.recipient})`
+          : `SMS notice error: ${res.error || 'Missing valid mobile number'}`;
+      } else {
+        const res = await sendDriverGmailReminder(activeRecord, { customNote });
+        successMessage = res.success
+          ? `Gmail reminder dispatched to ${selectedForReminder.driverName} (${res.recipient})`
+          : `Gmail notice error: ${res.error || 'Missing valid Gmail address'}`;
+      }
+
+      setReminderFeedback(successMessage);
+      setNotification(successMessage);
+      setTimeout(() => setNotification(null), 6000);
+      setReminderLogs(getReminderLogs());
+    } catch (err: any) {
+      setReminderFeedback(`Dispatch failed: ${err?.message || 'Error occurred'}`);
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
+  // Batch Send Reminders (Inside page)
+  const handleBatchSend = async () => {
+    if (targetedDrivers.length === 0) return;
+    setIsBatchSending(true);
+    setBatchSummary(null);
+
+    try {
+      const summary = await sendBatchExpiryReminders(targetedDrivers, {
+        sendSms: batchSendSms,
+        sendGmail: batchSendGmail,
+        onProgress: (p) => {
+          setBatchProgress({ current: p.current, total: p.total, name: p.currentItem.driverName });
+        },
+      });
+
+      setBatchSummary(summary);
+      setReminderLogs(getReminderLogs());
+      setNotification(
+        `Batch Reminders Dispatched! Targeted ${summary.totalTargeted} drivers: ${summary.smsSucceeded} SMS delivered, ${summary.emailSucceeded} Gmail delivered.`
+      );
+      setTimeout(() => setNotification(null), 6000);
+    } catch (err: any) {
+      setNotification(`Batch dispatch encountered an issue: ${err?.message || 'Error occurred'}`);
+    } finally {
+      setIsBatchSending(false);
+      setBatchProgress(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0">
-            <RefreshCw className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Process Franchise Renewal (Tricycle &amp; Pedicab)
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Select any unit below to update its next expiration date, application number, and official receipt right on this page
-            </p>
-          </div>
-        </div>
-
-        <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl shrink-0">
-          {categoryFranchises.length} Registered Units
-        </span>
-      </div>
-
       {notification && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -123,7 +276,217 @@ export const ProcessRenewalModal: React.FC = () => {
         </div>
       )}
 
-      {/* Inline Renewal Form Card (when a unit is selected) */}
+      {/* INLINE DRIVER EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
+      {selectedForReminder && (
+        <div className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden animate-fadeIn">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 px-6 py-4 text-white flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-xs">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2 flex-wrap">
+                  <h4 className="text-sm font-bold text-white">
+                    Send Driver Expiration Notice (SMS &amp; Gmail)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950">
+                    Unit {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Driver: <strong>{selectedForReminder.driverName}</strong> • Operator: {selectedForReminder.operatorName} • Expiration: {selectedForReminder.expirationDate}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedForReminder(null)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Close Reminder Panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-5">
+            {/* Feedback notification inside panel */}
+            {reminderFeedback && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{reminderFeedback}</span>
+              </div>
+            )}
+
+            {/* Contact Details Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <span className="inline-flex items-center space-x-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Driver Mobile Number (SMS)</span>
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={reminderPhone}
+                  onChange={(e) => setReminderPhone(e.target.value)}
+                  placeholder="09171234567 or +639171234567"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Supports Philippine mobile numbers. Can be edited here directly.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <span className="inline-flex items-center space-x-1">
+                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Driver Gmail / Email Address</span>
+                  </span>
+                </label>
+                <input
+                  type="email"
+                  value={reminderGmail}
+                  onChange={(e) => setReminderGmail(e.target.value)}
+                  placeholder="driver@gmail.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Receives formal City Hall TRD renewal notification with permit breakdown.
+                </p>
+              </div>
+            </div>
+
+            {/* Channel Selection Buttons */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">
+                Select Dispatch Channel
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setReminderChannel('both')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'both'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Both SMS &amp; Gmail</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
+                    Recommended
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReminderChannel('sms')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'sms'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Phone className="w-4 h-4 text-emerald-500" />
+                  <span>SMS Only</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReminderChannel('email')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'email'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Mail className="w-4 h-4 text-blue-400" />
+                  <span>Gmail Only</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Official Notice Content Preview (Just One Header) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-bold text-slate-800 inline-flex items-center space-x-1.5">
+                  <FileText className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Official Notice Content Preview</span>
+                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Unit: {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const suggested = buildDriverSmsReminderText(
+                        selectedForReminder,
+                        getFranchiseExpiryInfo(selectedForReminder)
+                      );
+                      setCustomNote(suggested);
+                    }}
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[11px] font-bold transition-colors cursor-pointer shadow-2xs"
+                    title="Restore standard official template"
+                  >
+                    <RotateCcw className="w-3 h-3 text-slate-500" />
+                    <span>Reset to Suggested</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Editable Textarea */}
+              <div className="space-y-1">
+                <textarea
+                  rows={6}
+                  value={customNote}
+                  onChange={(e) => setCustomNote(e.target.value)}
+                  placeholder="Type or customize your official notice here..."
+                  className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y shadow-2xs"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                  <span>Editable notice dispatched via SMS &amp; Gmail. Use "Reset to Suggested" to restore standard wording.</span>
+                  <span>{customNote.length} characters</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-end space-x-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedForReminder(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDispatching}
+                onClick={handleSendSingleReminder}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {isDispatching ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Dispatching Notice...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Send Expiration Notice Now</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Renewal Form Card (when a unit is selected for renewal) */}
       {selectedForRenewal && (
         <div className="bg-white rounded-3xl shadow-md border-2 border-blue-500/40 overflow-hidden animate-fadeIn">
           <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
@@ -277,6 +640,227 @@ export const ProcessRenewalModal: React.FC = () => {
 
       {/* Main Search & Units Table Card */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+        {/* Top Control Bar: Total count & Reminder Dispatcher toggle */}
+        <div className="flex items-center justify-between flex-wrap gap-3 pb-1 border-b border-slate-100">
+          <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+            {categoryFranchises.length} Registered Units
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowReminderCenter(!showReminderCenter)}
+            className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+          >
+            <Bell className="w-3.5 h-3.5 text-amber-400" />
+            <span>{showReminderCenter ? 'Hide Reminder Dispatcher' : 'Reminder Dispatcher'}</span>
+            {expiringDrivers.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                {expiringDrivers.length}
+              </span>
+            )}
+          </button>
+        </div>
+        
+        {/* INLINE EXPANDABLE DISPATCHER (Toggled from the header button) */}
+        {showReminderCenter && (
+          <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-300 shadow-2xs space-y-4 animate-fadeIn">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-slate-700">Filter Target Drivers:</span>
+                  <div className="flex items-center space-x-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setReminderFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reminderFilter === 'all'
+                          ? 'bg-amber-500 text-slate-950'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      All Expiring ({filterExpiringDrivers(franchises, 'all').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReminderFilter('urgent7')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reminderFilter === 'urgent7'
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Urgent ≤7 Days ({filterExpiringDrivers(franchises, 'urgent7').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReminderFilter('soon30')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        reminderFilter === 'soon30'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Within 30 Days ({filterExpiringDrivers(franchises, 'soon30').length})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowLogs(!showLogs)}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <History className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{showLogs ? 'Hide Logs' : 'Dispatch Audit Logs'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Batch Dispatch Trigger */}
+              <div className="bg-amber-50/70 rounded-xl p-3.5 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Batch Notice Dispatch ({targetedDrivers.length} Target Drivers Selected)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-4 text-xs text-slate-600">
+                    <label className="inline-flex items-center space-x-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={batchSendSms}
+                        onChange={(e) => setBatchSendSms(e.target.checked)}
+                        className="rounded text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="font-medium">SMS Mobile Dispatch</span>
+                    </label>
+                    <label className="inline-flex items-center space-x-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={batchSendGmail}
+                        onChange={(e) => setBatchSendGmail(e.target.checked)}
+                        className="rounded text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="font-medium">Gmail Address Dispatch</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isBatchSending || targetedDrivers.length === 0 || (!batchSendSms && !batchSendGmail)}
+                  onClick={handleBatchSend}
+                  className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isBatchSending ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Sending {batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Send Batch Reminders to All ({targetedDrivers.length})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Progress Bar when Sending */}
+              {isBatchSending && batchProgress && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span>Dispatching: {batchProgress.name || 'Driver'}</span>
+                    <span>{Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full transition-all duration-300"
+                      style={{ width: `${(batchProgress.current / (batchProgress.total || 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Batch Summary Report */}
+              {batchSummary && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-900 flex items-center justify-between">
+                  <span>
+                    Batch Complete! Targeted: {batchSummary.totalTargeted} • SMS: {batchSummary.smsSucceeded} sent • Gmail: {batchSummary.emailSucceeded} sent
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBatchSummary(null)}
+                    className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Audit Logs Table */}
+              {showLogs && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800">Recent Reminder Logs</span>
+                    {reminderLogs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearReminderLogs();
+                          setReminderLogs([]);
+                        }}
+                        className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                      >
+                        Clear History
+                      </button>
+                    )}
+                  </div>
+
+                  {reminderLogs.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No reminder activity recorded yet.</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="px-3 py-2">Time</th>
+                            <th className="px-3 py-2">Unit</th>
+                            <th className="px-3 py-2">Driver</th>
+                            <th className="px-3 py-2">Channel</th>
+                            <th className="px-3 py-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {reminderLogs.slice(0, 15).map((log) => (
+                            <tr key={log.id} className="hover:bg-slate-50/60">
+                              <td className="px-3 py-1.5 font-mono text-[11px] text-slate-500">
+                                {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="px-3 py-1.5 font-mono font-bold text-slate-800">
+                                {log.cityPlateNumber}
+                              </td>
+                              <td className="px-3 py-1.5 font-semibold text-slate-700">
+                                {log.driverName}
+                              </td>
+                              <td className="px-3 py-1.5 text-slate-600 uppercase font-bold text-[10px]">
+                                {log.channels}
+                              </td>
+                              <td className="px-3 py-1.5">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  Sent
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
         {/* Search bar */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -315,14 +899,18 @@ export const ProcessRenewalModal: React.FC = () => {
               ) : (
                 categoryFranchises.map((item) => {
                   const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
-                  const isSelected = selectedForRenewal?.id === item.id;
+                  const isSelectedRenewal = selectedForRenewal?.id === item.id;
+                  const isSelectedReminder = selectedForReminder?.id === item.id;
+                  const lastLog = getLastReminderForRecord(item.cityPlateNumber || item.mtopNumber);
 
                   return (
                     <tr
                       key={item.id}
                       className={
-                        isSelected
-                          ? 'bg-blue-50/70'
+                        isSelectedReminder
+                          ? 'bg-amber-50/80 border-l-4 border-amber-500'
+                          : isSelectedRenewal
+                          ? 'bg-blue-50/70 border-l-4 border-blue-500'
                           : isExpired
                           ? 'bg-rose-50/40 hover:bg-rose-50/70 transition-colors'
                           : 'hover:bg-slate-50/80 transition-colors'
@@ -347,7 +935,14 @@ export const ProcessRenewalModal: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-800">
                         {item.operatorName}
-                        <p className="text-[11px] text-slate-500 font-normal">Driver: {item.driverName}</p>
+                        <p className="text-[11px] text-slate-500 font-normal">
+                          Driver: {item.driverName}
+                          {lastLog && (
+                            <span className="ml-2 text-[10px] text-amber-700 font-medium">
+                              • Reminded {new Date(lastLog.timestamp).toLocaleDateString()}
+                            </span>
+                          )}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">
                         <div className="flex items-center space-x-1">
@@ -370,19 +965,38 @@ export const ProcessRenewalModal: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleOpenRenewalDialog(item)}
-                          className={`px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all inline-flex items-center space-x-1.5 ml-auto cursor-pointer ${
-                            isSelected
-                              ? 'bg-slate-900 text-white'
-                              : isExpired
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                              : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
-                          }`}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          <span>{isSelected ? 'Editing Above' : isExpired ? 'Renew Permit' : 'Renew / Update'}</span>
-                        </button>
+                        <div className="flex items-center justify-end space-x-1.5">
+                          {/* REMIND BUTTON (EXCLUSIVELY IN PROCESS RENEWAL, DIRECTLY ON PAGE) */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReminder(item)}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all inline-flex items-center space-x-1 cursor-pointer ${
+                              isSelectedReminder
+                                ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                                : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
+                            }`}
+                            title={`Send SMS & Gmail Expiration Reminder to ${item.driverName}`}
+                          >
+                            <Send className="h-3 w-3 text-amber-600" />
+                            <span className="hidden sm:inline">{isSelectedReminder ? 'Reminding...' : 'Remind'}</span>
+                          </button>
+
+                          {/* RENEW / UPDATE BUTTON */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRenewalDialog(item)}
+                            className={`px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all inline-flex items-center space-x-1.5 cursor-pointer ${
+                              isSelectedRenewal
+                                ? 'bg-slate-900 text-white'
+                                : isExpired
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                            }`}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            <span>{isSelectedRenewal ? 'Editing Above' : isExpired ? 'Renew Permit' : 'Renew / Update'}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

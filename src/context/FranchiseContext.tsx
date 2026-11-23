@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { 
-  VehicleCategory, 
-  FranchiseRecord, 
-  PendingReview, 
-  ViolationRecord, 
-  PassengerComplaint, 
+import type {
+  VehicleCategory,
+  FranchiseStatus,
+  FareMatrixItem,
+  FranchiseRecord,
+  PendingReview,
+  ViolationRecord,
+  PassengerComplaint,
   ComplaintChatMessage,
   ActiveModule,
   AdminUser,
@@ -14,9 +16,9 @@ import type {
 import { initialFranchises } from '../data/mockData';
 import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus, isRecordExpired } from '../utils/fareUtils';
 import type { DateFilterState } from '../utils/dateFilter';
-import { 
-  fetchFranchiseRecordsFromSupabase, 
-  saveFranchiseRecordInSupabase, 
+import {
+  fetchFranchiseRecordsFromSupabase,
+  saveFranchiseRecordInSupabase,
   savePermanentQRCodeInSupabase,
   updateFranchiseQrInSupabase,
   saveFranchiseRenewalInSupabase,
@@ -73,12 +75,12 @@ interface FranchiseContextType {
   setSelectedReview: (review: PendingReview | null) => void;
   selectedFranchiseId: string | null;
   setSelectedFranchiseId: (id: string | null) => void;
-  
+
   // Dashboard Date Filter
   dateFilter: DateFilterState;
   setDateFilter: React.Dispatch<React.SetStateAction<DateFilterState>>;
   resetDateFilter: () => void;
-  
+
   // Real-time Database Sync status & triggers
   isSyncing: boolean;
   lastSyncedAt: Date | null;
@@ -112,18 +114,51 @@ interface FranchiseContextType {
   updateDriver: (
     mtopNumber: string,
     driverData: {
+      ownerLastName?: string;
+      ownerFirstName?: string;
+      ownerMiddleName?: string;
+      ownerName?: string;
+      ownerContact?: string;
+      ownerAddress?: string;
+      residentialAddress?: string;
+      age?: string;
+      beneficiaryName?: string;
+      beneficiaryAddress?: string;
+
+      operatorLastName?: string;
+      operatorFirstName?: string;
+      operatorMiddleName?: string;
       operatorName?: string;
       operatorContact?: string;
       operatorAddress?: string;
+
+      driverLastName?: string;
+      driverFirstName?: string;
+      driverMiddleName?: string;
       driverName: string;
       driverAddress?: string;
       licenseNo?: string;
       contact?: string;
       address?: string;
       availability?: string;
+
+      applicationNo?: string;
+      vehicleCategory?: VehicleCategory;
       routeParada?: string;
+      cityPlateNumber?: string;
       makeModel?: string;
+      modelMake?: string;
       color?: string;
+      touristGuide?: string;
+      status?: FranchiseStatus;
+      expirationDate?: string;
+
+      receiptNumber?: string;
+      orNumber?: string;
+      paymentDate?: string;
+      amountPaid?: string | number;
+
+      fareMatrix?: FareMatrixItem[];
       engineNumber?: string;
       chassisNumber?: string;
       email?: string;
@@ -132,6 +167,13 @@ interface FranchiseContextType {
   ) => Promise<void>;
   approveReview: (reviewId: string) => Promise<void>;
   rejectReview: (reviewId: string, notes: string) => Promise<void>;
+
+  // Driver Expiration Reminders (SMS & Gmail)
+  isReminderModalOpen: boolean;
+  setIsReminderModalOpen: (open: boolean) => void;
+  reminderTargetRecord: FranchiseRecord | null;
+  openExpiryReminderModal: (record?: FranchiseRecord | null) => void;
+  closeExpiryReminderModal: () => void;
 }
 
 const FranchiseContext = createContext<FranchiseContextType | undefined>(undefined);
@@ -168,6 +210,20 @@ const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202
 export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>('Tricycle');
   const [activeModule, setActiveModuleState] = useState<ActiveModule>('overview');
+
+  // Driver Expiration Reminders (SMS & Gmail) Modal State
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [reminderTargetRecord, setReminderTargetRecord] = useState<FranchiseRecord | null>(null);
+
+  const openExpiryReminderModal = useCallback((record?: FranchiseRecord | null) => {
+    setReminderTargetRecord(record || null);
+    setIsReminderModalOpen(true);
+  }, []);
+
+  const closeExpiryReminderModal = useCallback(() => {
+    setIsReminderModalOpen(false);
+    setReminderTargetRecord(null);
+  }, []);
 
   // Unseen change counters for view-clears modules (only appear when changes like adding a record or generating QR occur)
   const [unseenChanges, setUnseenChanges] = useState<Record<ActiveModule, number>>({
@@ -250,7 +306,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       localStorage.removeItem('tabaco_trd_violations_v2');
       localStorage.removeItem('tabaco_trd_franchises_v4');
       localStorage.removeItem('tabaco_trd_deletion_logs_v2');
-    } catch {}
+    } catch { }
   }, []);
 
   // Franchise records with local persistence + cloud sync (empty by default, strictly submitted drivers)
@@ -312,7 +368,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
           try {
             localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-          } catch {}
+          } catch { }
           return merged;
         });
       }
@@ -395,7 +451,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setDeletionLogs([]);
     try {
       localStorage.removeItem(STORAGE_KEY_DELETION_LOGS);
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -444,7 +500,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
           try {
             localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-          } catch {}
+          } catch { }
           return merged;
         });
       }
@@ -455,23 +511,23 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
 
     // 2. Strict exact match on Admin ID or Email against database
-    const matched = allAdmins.find(a => 
-      a.adminId.trim().toLowerCase() === cleanId || 
+    const matched = allAdmins.find(a =>
+      a.adminId.trim().toLowerCase() === cleanId ||
       (a.email && a.email.trim().toLowerCase() === cleanId)
     );
 
     if (!matched) {
-      return { 
-        success: false, 
-        error: 'Incorrect email or Admin ID. No registered account found with these credentials.' 
+      return {
+        success: false,
+        error: 'Incorrect email or Admin ID. No registered account found with these credentials.'
       };
     }
 
     // 3. Strict password match against the database
     if (matched.password !== cleanPass) {
-      return { 
-        success: false, 
-        error: 'Incorrect password for this administrator account. Please check your password.' 
+      return {
+        success: false,
+        error: 'Incorrect password for this administrator account. Please check your password.'
       };
     }
 
@@ -505,8 +561,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
 
     // Strict exact match against the database
-    const matched = allAdmins.find(a => 
-      a.adminId.trim().toLowerCase() === clean || 
+    const matched = allAdmins.find(a =>
+      a.adminId.trim().toLowerCase() === clean ||
       (a.email && a.email.trim().toLowerCase() === clean)
     );
 
@@ -619,7 +675,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
           try {
             localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-          } catch {}
+          } catch { }
           return merged;
         });
       }
@@ -716,11 +772,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const targetCategory = data.vehicleCategory || vehicleCategory;
     const catDefaultMatrix = getDefaultFareMatrix(targetCategory);
     const resolvedMatrix = data.fareMatrix && data.fareMatrix.length > 0 ? data.fareMatrix : catDefaultMatrix;
-    const baseFare = resolvedMatrix[0]?.regularFare 
-      ? cleanFare(resolvedMatrix[0].regularFare, targetCategory === 'Pedicab' ? '15.00' : '20.00') 
+    const baseFare = resolvedMatrix[0]?.regularFare
+      ? cleanFare(resolvedMatrix[0].regularFare, targetCategory === 'Pedicab' ? '15.00' : '20.00')
       : (targetCategory === 'Pedicab' ? '15.00' : '20.00');
     const resolvedStandardFare = data.standardFare && !data.standardFare.includes('50.00 Minimum')
-      ? data.standardFare 
+      ? data.standardFare
       : `₱${baseFare} Minimum`;
 
     const initialStatus = resolveFranchiseStatus('Active', data.expirationDate);
@@ -758,7 +814,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const updatedList = [newRecord, ...filtered];
       try {
         localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
-      } catch {}
+      } catch { }
       return updatedList;
     });
     setSelectedFranchiseId(id);
@@ -817,7 +873,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         qrGeneratedDate: today,
       };
       const fullQrPayload = buildPermanentQrPayload(updatedTarget);
-      
+
       await savePermanentQRCodeInSupabase({
         franchise_id: target.id,
         mtop_number: target.mtopNumber,
@@ -845,7 +901,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       try {
         localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
-      } catch {}
+      } catch { }
       return updatedList;
     });
 
@@ -889,7 +945,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       try {
         localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
-      } catch {}
+      } catch { }
       return updatedList;
     });
 
@@ -1027,18 +1083,51 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const updateDriver = async (
     mtopNumber: string,
     driverData: {
+      ownerLastName?: string;
+      ownerFirstName?: string;
+      ownerMiddleName?: string;
+      ownerName?: string;
+      ownerContact?: string;
+      ownerAddress?: string;
+      residentialAddress?: string;
+      age?: string;
+      beneficiaryName?: string;
+      beneficiaryAddress?: string;
+
+      operatorLastName?: string;
+      operatorFirstName?: string;
+      operatorMiddleName?: string;
       operatorName?: string;
       operatorContact?: string;
       operatorAddress?: string;
+
+      driverLastName?: string;
+      driverFirstName?: string;
+      driverMiddleName?: string;
       driverName: string;
       driverAddress?: string;
       licenseNo?: string;
       contact?: string;
       address?: string;
       availability?: string;
+
+      applicationNo?: string;
+      vehicleCategory?: VehicleCategory;
       routeParada?: string;
+      cityPlateNumber?: string;
       makeModel?: string;
+      modelMake?: string;
       color?: string;
+      touristGuide?: string;
+      status?: FranchiseStatus;
+      expirationDate?: string;
+
+      receiptNumber?: string;
+      orNumber?: string;
+      paymentDate?: string;
+      amountPaid?: string | number;
+
+      fareMatrix?: FareMatrixItem[];
       engineNumber?: string;
       chassisNumber?: string;
       email?: string;
@@ -1046,25 +1135,30 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   ) => {
     const target = franchises.find(f => f.mtopNumber === mtopNumber || f.cityPlateNumber === mtopNumber);
-    const cat = target?.vehicleCategory || vehicleCategory;
+    const cat = driverData.vehicleCategory || target?.vehicleCategory || vehicleCategory;
 
-    const newOperatorName = driverData.operatorName?.trim() || target?.operatorName || '';
+    const newOperatorName = driverData.operatorName?.trim() || driverData.ownerName?.trim() || target?.operatorName || target?.ownerName || '';
     const newDriverName = driverData.driverName?.trim() || target?.driverName || '';
-    const newOperatorContact = driverData.operatorContact ?? driverData.contact ?? target?.operatorContact;
-    const newOperatorAddress = driverData.operatorAddress ?? driverData.address ?? target?.operatorAddress;
+    const newOperatorContact = driverData.operatorContact ?? driverData.ownerContact ?? driverData.contact ?? target?.operatorContact;
+    const newOperatorAddress = driverData.operatorAddress ?? driverData.residentialAddress ?? driverData.ownerAddress ?? driverData.address ?? target?.operatorAddress;
     const newDriverAddress = driverData.driverAddress ?? target?.driverAddress;
 
     const updatedQrPayload = target
       ? buildPermanentQrPayload({
-          ...target,
-          operatorName: newOperatorName,
-          driverName: newDriverName,
-        })
+        ...target,
+        operatorName: newOperatorName,
+        driverName: newDriverName,
+        fareMatrix: driverData.fareMatrix ?? target.fareMatrix,
+        vehicleCategory: cat,
+        routeParada: driverData.routeParada ?? target.routeParada,
+        cityPlateNumber: driverData.cityPlateNumber || target.cityPlateNumber,
+        mtopNumber: driverData.cityPlateNumber || target.mtopNumber,
+      })
       : undefined;
 
     await saveDriverRegistryUpdateInSupabase({
       mtop_number: mtopNumber,
-      city_plate_number: target?.cityPlateNumber || mtopNumber,
+      city_plate_number: driverData.cityPlateNumber || target?.cityPlateNumber || mtopNumber,
       operator_name: newOperatorName,
       operator_contact: newOperatorContact,
       operator_address: newOperatorAddress,
@@ -1085,14 +1179,14 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const newHistoryEntry = nameChanged
           ? {
-              id: `nc-${Date.now()}`,
-              previousOperatorName: item.operatorName || '—',
-              newOperatorName: newOperatorName || item.operatorName || '—',
-              previousDriverName: item.driverName || '—',
-              newDriverName: newDriverName || item.driverName || '—',
-              changedAt: new Date().toISOString(),
-              changedBy: currentAdmin?.name || 'TRD Admin',
-            }
+            id: `nc-${Date.now()}`,
+            previousOperatorName: item.operatorName || '—',
+            newOperatorName: newOperatorName || item.operatorName || '—',
+            previousDriverName: item.driverName || '—',
+            newDriverName: newDriverName || item.driverName || '—',
+            changedAt: new Date().toISOString(),
+            changedBy: currentAdmin?.name || 'TRD Admin',
+          }
           : null;
 
         const newTxEntry = {
@@ -1116,19 +1210,53 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const updatedItem: FranchiseRecord = {
           ...item,
-          operatorName: newOperatorName || item.operatorName,
+          ownerLastName: driverData.ownerLastName ?? item.ownerLastName,
+          ownerFirstName: driverData.ownerFirstName ?? item.ownerFirstName,
+          ownerMiddleName: driverData.ownerMiddleName ?? item.ownerMiddleName,
+          ownerName: driverData.ownerName || newOperatorName || item.ownerName,
+          ownerContact: newOperatorContact ?? item.ownerContact,
+          ownerAddress: newOperatorAddress ?? item.ownerAddress,
+          residentialAddress: newOperatorAddress ?? item.residentialAddress,
+          age: driverData.age ?? item.age,
+          beneficiaryName: driverData.beneficiaryName ?? item.beneficiaryName,
+          beneficiaryAddress: driverData.beneficiaryAddress ?? item.beneficiaryAddress,
+
+          operatorLastName: driverData.operatorLastName ?? driverData.ownerLastName ?? item.operatorLastName,
+          operatorFirstName: driverData.operatorFirstName ?? driverData.ownerFirstName ?? item.operatorFirstName,
+          operatorMiddleName: driverData.operatorMiddleName ?? driverData.ownerMiddleName ?? item.operatorMiddleName,
+          operatorName: newOperatorName || driverData.ownerName || item.operatorName,
           operatorContact: newOperatorContact ?? item.operatorContact,
           operatorAddress: newOperatorAddress ?? item.operatorAddress,
+
+          driverLastName: driverData.driverLastName ?? item.driverLastName,
+          driverFirstName: driverData.driverFirstName ?? item.driverFirstName,
+          driverMiddleName: driverData.driverMiddleName ?? item.driverMiddleName,
           driverName: newDriverName || item.driverName,
           driverAddress: newDriverAddress ?? item.driverAddress,
           driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
-          availability: driverData.availability || item.availability,
+
+          applicationNo: driverData.applicationNo ?? item.applicationNo,
+          vehicleCategory: driverData.vehicleCategory ?? item.vehicleCategory,
+          cityPlateNumber: driverData.cityPlateNumber || item.cityPlateNumber,
+          mtopNumber: driverData.cityPlateNumber || item.mtopNumber,
           routeParada: driverData.routeParada || item.routeParada,
-          makeModel: driverData.makeModel || item.makeModel,
-          modelMake: driverData.makeModel || item.modelMake,
+          makeModel: driverData.makeModel || driverData.modelMake || item.makeModel,
+          modelMake: driverData.modelMake || driverData.makeModel || item.modelMake,
           color: driverData.color || item.color,
+          touristGuide: driverData.touristGuide ?? item.touristGuide,
+          status: driverData.status ?? item.status,
+          expirationDate: driverData.expirationDate || item.expirationDate,
+
+          receiptNumber: driverData.receiptNumber || driverData.orNumber || item.receiptNumber,
+          orNumber: driverData.orNumber || driverData.receiptNumber || item.orNumber,
+          paymentDate: driverData.paymentDate || item.paymentDate,
+          amountPaid: driverData.amountPaid ?? item.amountPaid,
+
+          fareMatrix: driverData.fareMatrix ?? item.fareMatrix,
+          availability: driverData.availability || item.availability,
           engineNumber: driverData.engineNumber || item.engineNumber,
           chassisNumber: driverData.chassisNumber || item.chassisNumber,
+          driverContact: driverData.contact ?? item.driverContact,
           email: driverData.email ?? driverData.gmail ?? item.email ?? item.gmail,
           gmail: driverData.gmail ?? driverData.email ?? item.gmail ?? item.email,
           nameChangeHistory: newHistoryEntry
@@ -1154,7 +1282,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const target = pendingReviews.find(r => r.id === reviewId);
     if (!target) return;
 
-    setPendingReviews(prev => prev.map(r => 
+    setPendingReviews(prev => prev.map(r =>
       r.id === reviewId ? { ...r, status: 'Approved' as const } : r
     ));
 
@@ -1189,7 +1317,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const rejectReview = async (reviewId: string, notes: string) => {
     const target = pendingReviews.find(r => r.id === reviewId);
-    setPendingReviews(prev => prev.map(r => 
+    setPendingReviews(prev => prev.map(r =>
       r.id === reviewId ? { ...r, status: 'Rejected' as const, reviewNotes: notes } : r
     ));
 
@@ -1235,12 +1363,12 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateComplaintStatus = async (
-    id: string, 
-    status: 'Under Investigation' | 'Resolved' | 'Escalated', 
+    id: string,
+    status: 'Under Investigation' | 'Resolved' | 'Escalated',
     adminRemarks?: string
   ) => {
     const target = complaints.find(c => c.id === id);
-    setComplaints(prev => prev.map(c => 
+    setComplaints(prev => prev.map(c =>
       c.id === id ? { ...c, status, adminRemarks: adminRemarks || c.adminRemarks } : c
     ));
     await updatePassengerComplaintStatusInSupabase(id, status, {
@@ -1308,7 +1436,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Compute live Notification Badges per module across all unified records (Tricycle & Pedicab):
   // 1. Process Renewal ('renewal'): Persistent badge for drivers with expired franchises until renewed
   // 2. Violations & Reports ('violation_entry'): Persistent badge until all violations are settled and complaints are resolved
-  // 3. Other modules ('franchise_records', 'qr_scanner', 'driver_registry', 'reports', 'deactivation', 'register'):
+  // 3. Other modules ('franchise_records', 'qr_scanner', 'reports', 'deactivation', 'register'):
   //    Do NOT show badges once viewed; ONLY show badges when unseen changes (like adding records or generating QR) occur
   // 4. Dashboard Overview ('overview'): Shows ALL notifications from all notification badges
   const expiredDriversCount = franchises.filter(
@@ -1354,8 +1482,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     isPersistent: boolean;
     badgeStyle: string;
   }[] = [
-    ...(expiredDriversCount > 0
-      ? [
+      ...(expiredDriversCount > 0
+        ? [
           {
             module: 'renewal' as ActiveModule,
             moduleTitle: 'Process Renewal',
@@ -1365,9 +1493,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             badgeStyle: 'bg-blue-600 text-white',
           },
         ]
-      : []),
-    ...(totalUnfinishedViolationsAndReports > 0
-      ? [
+        : []),
+      ...(totalUnfinishedViolationsAndReports > 0
+        ? [
           {
             module: 'violation_entry' as ActiveModule,
             moduleTitle: 'Violations & Reports',
@@ -1377,9 +1505,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             badgeStyle: 'bg-rose-600 text-white',
           },
         ]
-      : []),
-    ...(unseenChanges.franchise_records > 0
-      ? [
+        : []),
+      ...(unseenChanges.franchise_records > 0
+        ? [
           {
             module: 'franchise_records' as ActiveModule,
             moduleTitle: 'Franchise Records',
@@ -1389,9 +1517,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             badgeStyle: 'bg-emerald-600 text-white',
           },
         ]
-      : []),
-    ...(unseenChanges.qr_scanner > 0
-      ? [
+        : []),
+      ...(unseenChanges.qr_scanner > 0
+        ? [
           {
             module: 'qr_scanner' as ActiveModule,
             moduleTitle: 'QR Code Scanner',
@@ -1401,21 +1529,21 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             badgeStyle: 'bg-emerald-600 text-white',
           },
         ]
-      : []),
-    ...(unseenChanges.driver_registry > 0
-      ? [
+        : []),
+      ...(unseenChanges.driver_registry > 0
+        ? [
           {
             module: 'driver_registry' as ActiveModule,
-            moduleTitle: 'Driver & Operator Registry',
+            moduleTitle: 'Driver & Operator Management',
             count: unseenChanges.driver_registry,
             description: changeReasons.driver_registry || `${unseenChanges.driver_registry} registry update(s)`,
             isPersistent: false,
             badgeStyle: 'bg-indigo-600 text-white',
           },
         ]
-      : []),
-    ...(unseenChanges.reports > 0
-      ? [
+        : []),
+      ...(unseenChanges.reports > 0
+        ? [
           {
             module: 'reports' as ActiveModule,
             moduleTitle: 'Reports & Analytics',
@@ -1425,8 +1553,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             badgeStyle: 'bg-amber-500 text-slate-950',
           },
         ]
-      : []),
-  ];
+        : []),
+    ];
 
   return (
     <FranchiseContext.Provider
@@ -1482,6 +1610,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateDriver,
         approveReview,
         rejectReview,
+        isReminderModalOpen,
+        setIsReminderModalOpen,
+        reminderTargetRecord,
+        openExpiryReminderModal,
+        closeExpiryReminderModal,
       }}
     >
       {children}

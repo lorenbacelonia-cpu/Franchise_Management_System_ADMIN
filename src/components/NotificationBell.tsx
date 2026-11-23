@@ -10,7 +10,7 @@ import {
   X,
   ChevronRight,
   Volume2,
-  VolumeX
+  VolumeX,
 } from 'lucide-react';
 import { isRecordExpired } from '../utils/fareUtils';
 

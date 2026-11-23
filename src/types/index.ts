@@ -1,3 +1,4 @@
+
 export type VehicleCategory = 'Tricycle' | 'Pedicab';
 
 export type FranchiseStatus = 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review' | 'Expired';
@@ -18,7 +19,7 @@ export interface FranchiseRecord {
   mtopNumber: string; // alias
   plateNumber: string;
   vehicleCategory: VehicleCategory;
-  
+
   // Owner fields from form
   ownerLastName?: string;
   ownerFirstName?: string;
@@ -52,6 +53,8 @@ export interface FranchiseRecord {
   driverAddress?: string;
   driverLicenseNo?: string;
   licenseExpiry?: string;
+  driverContact?: string;
+  driverEmail?: string;
 
   // Vehicle unit fields
   makeModel?: string;
@@ -227,7 +230,7 @@ export interface DeletionLog {
   reason?: string;
 }
 
-export type ActiveModule = 
+export type ActiveModule =
   | 'overview'
   | 'register'
   | 'renewal'

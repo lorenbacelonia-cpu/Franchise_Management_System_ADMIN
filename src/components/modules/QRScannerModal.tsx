@@ -145,21 +145,6 @@ export const QRScannerModal: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Top Header Card */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center space-x-4">
-        <div className="h-11 w-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
-          <QrCode className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-base font-bold text-slate-900 leading-tight">
-            QR Code Scanner &amp; Badge Generator (Tricycle &amp; Pedicab)
-          </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Select any registered unit, generate its permanent QR badge, and download Word (.docx) or 1-page PDF all on one page
-          </p>
-        </div>
-      </div>
-
       {notification && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />

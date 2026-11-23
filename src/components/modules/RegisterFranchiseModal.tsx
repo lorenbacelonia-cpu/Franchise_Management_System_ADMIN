@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { FranchiseStatus } from '../../types';
 import {
-  UserPlus,
   CheckCircle2,
   QrCode,
   Lock,
@@ -15,7 +14,6 @@ import {
   FileDown,
   Globe,
   ExternalLink,
-  RotateCcw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
@@ -325,34 +323,6 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Module Top Header Card */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
-            <UserPlus className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              Register {vehicleCategory} Franchise
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Complete registration, generate permanent QR badge, and download/print all on this single page
-            </p>
-          </div>
-        </div>
-
-        {createdId && (
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all cursor-pointer"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Register Another {vehicleCategory}</span>
-          </button>
-        )}
-      </div>
-
       {toastMessage && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />

@@ -19,7 +19,7 @@ const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> =
   },
   franchise_records: {
     title: 'Franchise Records',
-    subtitle: 'Complete unit registry with inline QR preview, renewal, and editing',
+    subtitle: 'Complete unit registry with inline QR preview, document download, and renewal',
   },
   renewal: {
     title: 'Process Renewal',
@@ -30,7 +30,7 @@ const MODULE_TITLES: Record<ActiveModule, { title: string; subtitle: string }> =
     subtitle: 'Generate, preview, download Word (.docx) or print 1-page QR badges',
   },
   driver_registry: {
-    title: 'Driver and Operator Registry',
+    title: 'Driver and Operator Management',
     subtitle: 'Manage and review operator and authorized driver assignments inline',
   },
   violation_entry: {
@@ -84,9 +84,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
             </button>
           )}
 
-          <div className="min-w-0">
+          <div className="min-w-0 shrink-0 sm:shrink">
             <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
-              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
+              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight whitespace-normal">
                 {currentMeta.title}
               </h1>
               <span className="hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">

@@ -19,7 +19,6 @@ import {
   FileDown,
   ExternalLink,
   Globe,
-  Edit3,
   Receipt,
   Eye,
   History,
@@ -33,7 +32,6 @@ import confetti from 'canvas-confetti';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { isRecordExpired, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-import { formatTitleCase } from '../../utils/formatters';
 
 function computeDefaultNextExpiry(currentExpiry?: string): string {
   const today = new Date();
@@ -66,8 +64,7 @@ export const FranchiseRecordsModal: React.FC = () => {
     generatePermanentQr,
     generateAllPermanentQr,
     renewFranchise,
-    updateDriver,
-    deleteFranchise
+    deleteFranchise,
   } = useFranchise();
 
   const [search, setSearch] = useState('');
@@ -92,19 +89,6 @@ export const FranchiseRecordsModal: React.FC = () => {
   const [renewalApplicationNo, setRenewalApplicationNo] = useState('');
   const [renewalOrNumber, setRenewalOrNumber] = useState('');
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
-
-  // Comprehensive Edit Form States
-  const [franchiseToEdit, setFranchiseToEdit] = useState<FranchiseRecord | null>(null);
-  const [editOperatorName, setEditOperatorName] = useState('');
-  const [editOperatorAddress, setEditOperatorAddress] = useState('');
-  const [editDriverName, setEditDriverName] = useState('');
-  const [editDriverAddress, setEditDriverAddress] = useState('');
-  const [editDriverLicense, setEditDriverLicense] = useState('');
-  const [editContact, setEditContact] = useState('');
-  const [editGmail, setEditGmail] = useState('');
-  const [editRouteParada, setEditRouteParada] = useState('');
-  const [editMakeModel, setEditMakeModel] = useState('');
-  const [editColor, setEditColor] = useState('');
 
   if (activeModule !== 'franchise_records') return null;
 
@@ -538,7 +522,6 @@ export const FranchiseRecordsModal: React.FC = () => {
 
   const handleToggleInlineQr = (franchiseId: string) => {
     setFranchiseToRenew(null);
-    setFranchiseToEdit(null);
     setInlineQrUnitId(prev => (prev === franchiseId ? null : franchiseId));
   };
 
@@ -559,7 +542,6 @@ export const FranchiseRecordsModal: React.FC = () => {
 
   const handleOpenRenewInline = (item: FranchiseRecord) => {
     setInlineQrUnitId(null);
-    setFranchiseToEdit(null);
     setFranchiseToRenew(item);
     setRenewalExpiryDate(computeDefaultNextExpiry(item.expirationDate));
     setRenewalApplicationNo(item.applicationNo || generateNewApplicationNo());
@@ -592,88 +574,8 @@ export const FranchiseRecordsModal: React.FC = () => {
     setFranchiseToRenew(null);
   };
 
-  const handleOpenEditInline = (item: FranchiseRecord) => {
-    setInlineQrUnitId(null);
-    setFranchiseToRenew(null);
-    setViewDetailsRecord(null);
-    setFranchiseToEdit(item);
-    setEditOperatorName(item.operatorName || item.ownerName || '');
-    setEditOperatorAddress(item.operatorAddress || item.residentialAddress || item.ownerAddress || '');
-    setEditDriverName(item.driverName || '');
-    setEditDriverAddress(item.driverAddress || '');
-    setEditDriverLicense(item.driverLicenseNo || '');
-    setEditContact(item.operatorContact || item.ownerContact || '');
-    setEditGmail(item.gmail || item.email || item.operatorEmail || '');
-    setEditRouteParada(item.routeParada || '');
-    setEditMakeModel(item.modelMake || item.makeModel || '');
-    setEditColor(item.color || '');
-  };
-
-  const handleConfirmEditInline = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!franchiseToEdit || !editDriverName.trim()) return;
-    await updateDriver(franchiseToEdit.cityPlateNumber || franchiseToEdit.mtopNumber, {
-      operatorName: editOperatorName.trim(),
-      operatorAddress: editOperatorAddress.trim(),
-      operatorContact: editContact.trim(),
-      email: editGmail.trim(),
-      gmail: editGmail.trim(),
-      driverName: editDriverName.trim(),
-      driverAddress: editDriverAddress.trim(),
-      licenseNo: editDriverLicense.trim(),
-      contact: editContact.trim(),
-      routeParada: editRouteParada.trim(),
-      makeModel: editMakeModel.trim(),
-      color: editColor.trim(),
-    });
-    confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
-    setNotification(`Successfully updated registration details & saved transaction history for Unit ${franchiseToEdit.mtopNumber}.`);
-    setTimeout(() => setNotification(null), 4000);
-    setFranchiseToEdit(null);
-  };
-
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner Card with Totals (Total of All, Separated for Pedicab and Tricycle) */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <div className="h-11 w-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Franchise Records (Tricycle &amp; Pedicab)</h2>
-            <p className="text-xs text-slate-500 font-medium">
-              All unit actions — QR generation, live QR preview &amp; print, permit renewal, name editing, and deletion
-            </p>
-          </div>
-        </div>
-
-        {/* Feature Total of All But Separate From Pedicab and Tricycle */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center space-x-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase">Total All:</span>
-            <span className="font-mono text-slate-950 font-black">{totalAll}</span>
-          </div>
-          <div className="flex items-center space-x-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800">
-            <span className="text-[10px] text-emerald-600 uppercase">Tricycle:</span>
-            <span className="font-mono text-emerald-950 font-black">{totalTricycles}</span>
-          </div>
-          <div className="flex items-center space-x-1.5 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-xl text-xs font-bold text-sky-800">
-            <span className="text-[10px] text-sky-600 uppercase">Pedicab:</span>
-            <span className="font-mono text-sky-950 font-black">{totalPedicabs}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handlePrintFranchiseRecords}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
-            title="Print Official Master Franchise Directory (Total of All and Separated Pedicab & Tricycle)"
-          >
-            <Printer className="h-4 w-4 text-emerald-400" />
-            <span>Print Records</span>
-          </button>
-        </div>
-      </div>
-
       {notification && (
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -884,222 +786,6 @@ export const FranchiseRecordsModal: React.FC = () => {
         </div>
       )}
 
-      {/* INLINE PANEL 3: Comprehensive Edit Driver, Operator & Unit Details */}
-      {franchiseToEdit && (
-        <div className="bg-white rounded-3xl shadow-lg border-2 border-indigo-500/40 overflow-hidden animate-fadeIn">
-          <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <Edit3 className="h-5 w-5 text-indigo-400" />
-              <div>
-                <h4 className="text-sm font-bold">
-                  Edit Registration Details — Unit {franchiseToEdit.mtopNumber} ({franchiseToEdit.vehicleCategory})
-                </h4>
-                <p className="text-[11px] text-slate-300">
-                  Update driver profile, operator information, and vehicle details • Updates are saved in transaction history
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setFranchiseToEdit(null)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <form onSubmit={handleConfirmEditInline} className="p-6 space-y-5">
-            {/* Driver Profile Section */}
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-indigo-100">
-                <Users className="h-3.5 w-3.5" />
-                <span>Authorized Driver Information</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Driver Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editDriverName}
-                    onChange={(e) => setEditDriverName(formatTitleCase(e.target.value))}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="First, Middle, Last"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Driver Residential Address
-                  </label>
-                  <input
-                    type="text"
-                    value={editDriverAddress}
-                    onChange={(e) => setEditDriverAddress(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="Barangay / Street, Tabaco City"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Driver's License No.
-                  </label>
-                  <input
-                    type="text"
-                    value={editDriverLicense}
-                    onChange={(e) => setEditDriverLicense(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="e.g. N01-12-345678"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Operator Profile Section */}
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-slate-200">
-                <Users className="h-3.5 w-3.5" />
-                <span>Franchise Owner / Operator Information</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Operator / Owner Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editOperatorName}
-                    onChange={(e) => setEditOperatorName(formatTitleCase(e.target.value))}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="Full registered name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Operator Address
-                  </label>
-                  <input
-                    type="text"
-                    value={editOperatorAddress}
-                    onChange={(e) => setEditOperatorAddress(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="Address in Tabaco City"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Contact Number &amp; Gmail (Optional)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      maxLength={11}
-                      value={editContact}
-                      onKeyDown={(e) => {
-                        if (
-                          ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
-                          e.ctrlKey ||
-                          e.metaKey
-                        ) {
-                          return;
-                        }
-                        if (/^[0-9]/.test(editContact.trimStart())) {
-                          if (!/[0-9]/.test(e.key)) {
-                            e.preventDefault();
-                          }
-                        }
-                      }}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (/^[0-9]/.test(raw.trimStart())) {
-                          setEditContact(raw.replace(/\D/g, '').slice(0, 11));
-                        } else {
-                          setEditContact(raw);
-                        }
-                      }}
-                      placeholder="Mobile: 09..."
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                    <input
-                      type="email"
-                      value={editGmail}
-                      onChange={(e) => setEditGmail(e.target.value)}
-                      placeholder="Gmail: name@gmail.com"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Vehicle & Route Section */}
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5 pb-1 border-b border-slate-200">
-                <Car className="h-3.5 w-3.5" />
-                <span>Vehicle &amp; Route Information</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Route / Parada Line
-                  </label>
-                  <input
-                    type="text"
-                    value={editRouteParada}
-                    onChange={(e) => setEditRouteParada(e.target.value)}
-                    placeholder="e.g. Tabaco City - San Roque"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Vehicle Make / Model
-                  </label>
-                  <input
-                    type="text"
-                    value={editMakeModel}
-                    onChange={(e) => setEditMakeModel(e.target.value)}
-                    placeholder="e.g. Honda TMX 125 / Pedicab"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Body Color
-                  </label>
-                  <input
-                    type="text"
-                    value={editColor}
-                    onChange={(e) => setEditColor(e.target.value)}
-                    placeholder="e.g. Blue & White"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setFranchiseToEdit(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Save Registration Details</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* VIEW DETAILS MODAL: Full Driver/Operator Profile & Previous Transaction History */}
       {viewDetailsRecord && (
         <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-fadeIn space-y-4">
@@ -1132,14 +818,6 @@ export const FranchiseRecordsModal: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={() => handleOpenEditInline(viewDetailsRecord)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center space-x-1.5 transition-colors cursor-pointer"
-              >
-                <Edit3 className="h-3.5 w-3.5" />
-                <span>Edit Detail</span>
-              </button>
               <button
                 type="button"
                 onClick={() => setViewDetailsRecord(null)}
@@ -1375,6 +1053,16 @@ export const FranchiseRecordsModal: React.FC = () => {
 
             <button
               type="button"
+              onClick={handlePrintFranchiseRecords}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              title="Print Official Master Franchise Directory"
+            >
+              <Printer className="h-4 w-4 text-emerald-400" />
+              <span>Print Records</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleGenerateAllQrCodes}
               className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0 ${allGenerated
                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
@@ -1471,7 +1159,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                 paginatedRecords.map((item) => (
                   <tr
                     key={item.id}
-                    className={`transition-colors ${inlineQrUnitId === item.id || franchiseToRenew?.id === item.id || franchiseToEdit?.id === item.id || viewDetailsRecord?.id === item.id
+                    className={`transition-colors ${inlineQrUnitId === item.id || franchiseToRenew?.id === item.id || viewDetailsRecord?.id === item.id
                       ? 'bg-emerald-50/40'
                       : 'hover:bg-slate-50'
                       }`}
@@ -1534,20 +1222,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                         >
                           <Eye className="h-3.5 w-3.5 text-slate-700 shrink-0" />
                           <span>View</span>
-                        </button>
-
-                        {/* EDIT DETAIL BUTTON */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditInline(item)}
-                          className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${franchiseToEdit?.id === item.id
-                            ? 'bg-slate-900 text-white'
-                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
-                            }`}
-                          title="Edit driver, operator, and unit registration details"
-                        >
-                          <Edit3 className="h-3.5 w-3.5 shrink-0" />
-                          <span>Edit</span>
                         </button>
 
                         {item.hasPermanentQr ? (

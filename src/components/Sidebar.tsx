@@ -93,8 +93,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'driver_registry',
-          title: 'Driver and Operator Registry',
-          subtitle: 'Directory & assignments',
+          title: 'Driver and Operator Management',
+          subtitle: 'Assignments & directory',
           icon: UserCheck,
           badge: moduleBadges.driver_registry > 0 ? moduleBadges.driver_registry : undefined,
           badgeColor: 'bg-indigo-500 text-white',
@@ -225,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <div
                       className={`p-1.5 rounded-lg shrink-0 transition-colors ${
                         isActive
@@ -236,8 +236,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Icon className="h-4 w-4" />
                     </div>
                     {!collapsed && (
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold leading-tight truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold leading-tight whitespace-normal break-words">
                           {item.title}
                         </p>
                         <p
@@ -332,7 +332,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Desktop Sticky Sidebar */}
       <aside
         className={`hidden lg:block shrink-0 transition-all duration-200 no-print ${
-          collapsed ? 'w-20' : 'w-68'
+          collapsed ? 'w-20' : 'w-72'
         }`}
       >
         <div className="sticky top-0 h-screen">{sidebarContent}</div>
