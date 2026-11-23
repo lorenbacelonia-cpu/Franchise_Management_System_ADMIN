@@ -7,10 +7,6 @@
 -- https://supabase.com/dashboard/project/ynyjkwcjjfswcfzwgumv/sql
 -- ==============================================================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 -- ==============================================================================
 -- 1. AUTHENTICATION & ACCESS CONTROL (ADMINS & TRAFFIC ENFORCERS)
 -- ==============================================================================
