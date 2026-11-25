@@ -32,7 +32,7 @@ const ComplaintChatPanel: React.FC<{
   complaint: PassengerComplaint;
   onClose: () => void;
   onDeleteRequest: (complaint: PassengerComplaint) => void;
-  onStatusUpdate?: (status: 'Under Investigation' | 'Resolved' | 'Escalated') => void;
+  onStatusUpdate?: (status: 'Pending' | 'Resolved' | 'Escalated') => void;
 }> = ({ complaint, onClose, onDeleteRequest, onStatusUpdate }) => {
   const { updateComplaintStatus } = useFranchise();
   const [syncFeedback, setSyncFeedback] = useState<{ type: 'loading' | 'success'; message: string } | null>(null);
@@ -44,12 +44,12 @@ const ComplaintChatPanel: React.FC<{
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [complaint.chatMessages]);
 
-  const handleStatusChange = async (s: 'Under Investigation' | 'Resolved' | 'Escalated') => {
+  const handleStatusChange = async (s: 'Pending' | 'Resolved' | 'Escalated') => {
     if (isUpdatingStatus) return;
     setIsUpdatingStatus(s);
     setSyncFeedback({
       type: 'loading',
-      message: `Updating status to ${s === 'Under Investigation' ? 'Investigate' : s} & syncing to DB...`
+      message: `Updating status to ${s} & syncing to DB...`
     });
 
     try {
@@ -82,7 +82,7 @@ const ComplaintChatPanel: React.FC<{
   };
 
   const statusColors: Record<string, string> = {
-    'Under Investigation': 'bg-amber-100 text-amber-800 border-amber-300',
+    'Pending': 'bg-amber-100 text-amber-800 border-amber-300',
     'Resolved': 'bg-emerald-100 text-emerald-800 border-emerald-300',
     'Escalated': 'bg-rose-100 text-rose-800 border-rose-300',
   };
@@ -166,7 +166,7 @@ const ComplaintChatPanel: React.FC<{
           <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
             <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status:</span>
-              {(['Under Investigation', 'Resolved', 'Escalated'] as const).map(s => {
+              {(['Pending', 'Resolved', 'Escalated'] as const).map(s => {
                 const isLoadingThis = isUpdatingStatus === s;
                 const isCurrent = complaint.status === s;
                 return (
@@ -186,7 +186,7 @@ const ComplaintChatPanel: React.FC<{
                     }`}
                   >
                     {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
-                    <span>{s === 'Under Investigation' ? 'Investigate' : s}</span>
+                    <span>{s}</span>
                   </button>
                 );
               })}
@@ -343,7 +343,7 @@ const ViolationDetailPanel: React.FC<{
   category: VehicleCategory;
   onClose: () => void;
   onDeleteRequest: (violation: ViolationRecord) => void;
-  onStatusUpdate?: (status: 'Pending' | 'Settled' | 'Under Investigation') => void;
+  onStatusUpdate?: (status: 'Pending' | 'Settled') => void;
 }> = ({ violation, category, onClose, onDeleteRequest, onStatusUpdate }) => {
   const { updateViolationStatus } = useFranchise();
   const [syncFeedback, setSyncFeedback] = useState<{ type: 'loading' | 'success'; message: string } | null>(null);
@@ -351,7 +351,7 @@ const ViolationDetailPanel: React.FC<{
   const [adminRemarks, setAdminRemarks] = useState(violation.remarks || '');
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
-  const handleStatusChange = async (s: 'Pending' | 'Settled' | 'Under Investigation') => {
+  const handleStatusChange = async (s: 'Pending' | 'Settled') => {
     if (isUpdatingStatus) return;
     setIsUpdatingStatus(s);
     setSyncFeedback({
@@ -394,7 +394,6 @@ const ViolationDetailPanel: React.FC<{
 
   const statusColors: Record<string, string> = {
     'Pending': 'bg-amber-100 text-amber-800 border-amber-300',
-    'Under Investigation': 'bg-sky-100 text-sky-800 border-sky-300',
     'Settled': 'bg-emerald-100 text-emerald-800 border-emerald-300',
   };
 
@@ -508,7 +507,7 @@ const ViolationDetailPanel: React.FC<{
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
               <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Status:</span>
-                {(['Pending', 'Under Investigation', 'Settled'] as const).map(s => {
+                {(['Pending', 'Settled'] as const).map(s => {
                   const isLoadingThis = isUpdatingStatus === s;
                   const isCurrent = violation.status === s;
                   return (
@@ -932,11 +931,11 @@ export const PendingReviewsTable: React.FC = () => {
             >
               <MessageSquare className="h-3.5 w-3.5" />
               <span>Passenger Complaints</span>
-              {filteredComplaints.filter(c => c.status === 'Under Investigation').length > 0 && (
+              {filteredComplaints.filter(c => c.status === 'Pending').length > 0 && (
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                   activeTab === 'complaints' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
                 }`}>
-                  {filteredComplaints.filter(c => c.status === 'Under Investigation').length}
+                  {filteredComplaints.filter(c => c.status === 'Pending').length}
                 </span>
               )}
             </button>
@@ -952,11 +951,11 @@ export const PendingReviewsTable: React.FC = () => {
             >
               <ShieldAlert className="h-3.5 w-3.5" />
               <span>Enforcer Violations</span>
-              {filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length > 0 && (
+              {filteredViolations.filter(v => v.status === 'Pending').length > 0 && (
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
                   activeTab === 'violations' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
                 }`}>
-                  {filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length}
+                  {filteredViolations.filter(v => v.status === 'Pending').length}
                 </span>
               )}
             </button>
@@ -1230,8 +1229,12 @@ export const PendingReviewsTable: React.FC = () => {
               ) : (
                 filteredComplaints.map((c) => {
                   const msgCount = c.chatMessages?.length || 0;
-                  const hasUnread = c.status === 'Under Investigation' && msgCount > 0;
+                  const hasUnread = c.status === 'Pending' && msgCount > 0;
                   const category = getComplaintCategory(c);
+                  const rawCompImg = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image || (c as any).evidence_image || (c as any).evidence_url || (c as any).photo_url || (c as any).image_url || (c as any).attachment_url || (c as any).proof_image || (c as any).photo || (c as any).image;
+                  const evidenceImg = (rawCompImg && typeof rawCompImg === 'string' && !rawCompImg.startsWith('http') && !rawCompImg.startsWith('data:') && !rawCompImg.startsWith('blob:'))
+                    ? (rawCompImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawCompImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
+                    : rawCompImg;
                   return (
                     <div
                       key={c.id}
@@ -1239,15 +1242,42 @@ export const PendingReviewsTable: React.FC = () => {
                     >
                       <div className="flex items-center justify-between px-4 py-3.5">
                         {/* Left: info */}
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <div className="relative shrink-0">
-                            <div className="h-9 w-9 rounded-full bg-sky-100 flex items-center justify-center text-sky-700 border border-sky-200 font-bold text-sm">
-                              <ShieldCheck className="h-4 w-4" />
+                        <div className="flex items-center space-x-3.5 min-w-0">
+                          {evidenceImg ? (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCardLightboxImage({
+                                  url: evidenceImg,
+                                  title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}`
+                                });
+                              }}
+                              className="group relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-xl overflow-hidden border-2 border-sky-300 bg-slate-900 cursor-pointer shadow-xs hover:shadow-md hover:ring-2 hover:ring-sky-500 transition-all"
+                              title="Click to view full photo evidence"
+                            >
+                              <img
+                                src={evidenceImg}
+                                alt="Report evidence"
+                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <ZoomIn className="h-4 w-4" />
+                              </div>
+                              {c.status === 'Pending' && (
+                                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
+                              )}
                             </div>
-                            {hasUnread && (
-                              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-white" />
-                            )}
-                          </div>
+                          ) : (
+                            <div className="relative shrink-0">
+                              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-sky-100 flex items-center justify-center text-sky-700 border border-sky-200 font-bold text-sm">
+                                <ShieldCheck className="h-5 w-5" />
+                              </div>
+                              {hasUnread && (
+                                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-white" />
+                              )}
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <div className="flex items-center space-x-2">
                               <p className="text-xs font-bold text-slate-900 font-mono truncate">{maskName(c.complainantName)}</p>
@@ -1255,24 +1285,21 @@ export const PendingReviewsTable: React.FC = () => {
                                 {statusIcon(c.status)}
                                 <span>{c.status}</span>
                               </span>
-                              {(c.evidenceImage || c.chatMessages?.some(m => m.image)) && (
+                              {evidenceImg && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const img = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image;
-                                    if (img) {
-                                      setCardLightboxImage({
-                                        url: img,
-                                        title: `Passenger Report Evidence — Plate ${c.cityPlateNumber}`
-                                      });
-                                    }
+                                    setCardLightboxImage({
+                                      url: evidenceImg,
+                                      title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber}`
+                                    });
                                   }}
                                   className="inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 hover:text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
                                   title="Click to preview attached photo evidence"
                                 >
-                                  <ImageIcon className="h-2.5 w-2.5" />
-                                  <span>Photo Attached</span>
+                                  <ImageIcon className="h-2.5 w-2.5 text-sky-600" />
+                                  <span>View Photo Evidence</span>
                                 </button>
                               )}
                             </div>
@@ -1377,7 +1404,7 @@ export const PendingReviewsTable: React.FC = () => {
                                   title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
                                 });
                               }}
-                              className="group relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:shadow-md hover:ring-2 hover:ring-emerald-500 transition-all"
+                              className="group relative h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-xl overflow-hidden border-2 border-emerald-300 bg-slate-900 cursor-pointer shadow-xs hover:shadow-md hover:ring-2 hover:ring-emerald-500 transition-all"
                               title="Click to view full photo evidence"
                             >
                               <img
@@ -1389,16 +1416,16 @@ export const PendingReviewsTable: React.FC = () => {
                               <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                 <ZoomIn className="h-4 w-4" />
                               </div>
-                              {(v.status === 'Pending' || v.status === 'Under Investigation') && (
+                              {v.status === 'Pending' && (
                                 <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
                               )}
                             </div>
                           ) : (
                             <div className="relative shrink-0">
-                              <div className="h-9 w-9 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200 font-bold text-sm">
-                                <ShieldAlert className="h-4 w-4" />
+                              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-rose-100 flex items-center justify-center text-rose-700 border border-rose-200 font-bold text-sm">
+                                <ShieldAlert className="h-5 w-5" />
                               </div>
-                              {(v.status === 'Pending' || v.status === 'Under Investigation') && (
+                              {v.status === 'Pending' && (
                                 <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-amber-500 rounded-full border-2 border-white" />
                               )}
                             </div>

@@ -117,9 +117,9 @@ interface FranchiseContextType {
   renewFranchise: (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => Promise<void>;
   deactivateFranchise: (id: string, reason?: string) => Promise<void>;
   addViolation: (newViol: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => Promise<void>;
-  updateViolationStatus: (id: string, status: 'Pending' | 'Settled' | 'Under Investigation', remarks?: string) => Promise<void>;
+  updateViolationStatus: (id: string, status: 'Pending' | 'Settled', remarks?: string) => Promise<void>;
   deleteViolation: (id: string, customReason?: string) => Promise<void>;
-  updateComplaintStatus: (id: string, status: 'Under Investigation' | 'Resolved' | 'Escalated', adminRemarks?: string) => Promise<void>;
+  updateComplaintStatus: (id: string, status: 'Pending' | 'Resolved' | 'Escalated', adminRemarks?: string) => Promise<void>;
   deleteComplaint: (id: string, customReason?: string) => Promise<void>;
   addComplaintReply: (complaintId: string, message: string) => Promise<void>;
   updateDriver: (
@@ -1036,10 +1036,10 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (existing) {
               const existingIds = new Set((existing.chatMessages || []).map(m => m.id));
               const newMsgs = (incoming.chatMessages || []).filter(m => !existingIds.has(m.id));
-              // Ensure an active Escalated or Resolved admin decision is NEVER overwritten with stale Under Investigation
-              const resolvedStatus = (incoming.status === 'Under Investigation' && (existing.status === 'Resolved' || existing.status === 'Escalated'))
+              // Ensure an active Escalated or Resolved admin decision is NEVER overwritten with stale Pending/Under Investigation
+              const resolvedStatus = (((incoming.status as any) === 'Under Investigation' || incoming.status === 'Pending') && (existing.status === 'Resolved' || existing.status === 'Escalated'))
                 ? existing.status
-                : (incoming.status || existing.status);
+                : ((incoming.status as any) === 'Under Investigation' ? 'Pending' : (incoming.status || existing.status));
 
               return {
                 ...incoming,
@@ -1373,7 +1373,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
-  const updateViolationStatus = async (id: string, status: 'Pending' | 'Settled' | 'Under Investigation', remarks?: string) => {
+  const updateViolationStatus = async (id: string, status: 'Pending' | 'Settled', remarks?: string) => {
     const targetViol = violations.find(v => v.id === id);
     if (targetViol) {
       const targetFranchise = franchises.find(f => f.mtopNumber === targetViol.cityPlateNumber || f.id === targetViol.franchiseId);
@@ -1673,7 +1673,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateComplaintStatus = async (
     id: string,
-    status: 'Under Investigation' | 'Resolved' | 'Escalated',
+    status: 'Pending' | 'Resolved' | 'Escalated',
     adminRemarks?: string
   ) => {
     const target = complaints.find(c => c.id === id);

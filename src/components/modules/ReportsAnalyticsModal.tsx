@@ -61,7 +61,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
   // 2. UNIFIED VIOLATIONS
   const filteredViolations = violations;
   const totalCitations = filteredViolations.length;
-  const pendingCitations = filteredViolations.filter(v => v.status === 'Pending' || v.status === 'Under Investigation').length;
+  const pendingCitations = filteredViolations.filter(v => v.status === 'Pending').length;
   const totalFines = filteredViolations.reduce((acc, curr) => acc + (Number(curr.fineAmount) || 0), 0);
 
   // Helper to extract month index (0-11) from date string

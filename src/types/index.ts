@@ -128,7 +128,7 @@ export interface ViolationRecord {
   reportedBy?: string; // Citizen reporter username e.g. "andrie30311"
   dateSubmitted: string;
   remarks: string;
-  status: 'Pending' | 'Settled' | 'Under Investigation';
+  status: 'Pending' | 'Settled';
   evidenceImage?: string;
   evidenceFilename?: string;
   vehicleCategory?: VehicleCategory;
@@ -181,7 +181,7 @@ export interface PassengerComplaint {
   description: string;
   evidenceImage?: string;
   evidenceFilename?: string;
-  status: 'Under Investigation' | 'Resolved' | 'Escalated';
+  status: 'Pending' | 'Resolved' | 'Escalated';
   adminRemarks?: string;
   adminResponse?: string;
   chatMessages?: ComplaintChatMessage[];

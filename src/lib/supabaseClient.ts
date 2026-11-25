@@ -641,7 +641,7 @@ export async function fetchViolationsFromSupabase(_category: VehicleCategory = '
                 reportedBy: v.reported_by || v.enforcer_name || v.complainant_name || 'Traffic Enforcer',
                 dateSubmitted: v.incident_date || v.date_submitted || (v.created_at ? v.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
                 remarks: v.remarks || v.description || '',
-                status: v.status === 'Pending TRD Review' ? 'Pending' : (v.status || 'Pending'),
+                status: v.status === 'Settled' ? 'Settled' : 'Pending',
                 evidenceImage: rawImg,
                 evidenceFilename: evidenceFile,
                 vehicleCategory: tblCategory as VehicleCategory
@@ -761,7 +761,7 @@ export async function sendMobileNotificationInSupabase(data: {
 /** Update violation status in Supabase and sync with mobile */
 export async function updateViolationStatusInSupabase(
   violationId: string,
-  status: 'Pending' | 'Settled' | 'Under Investigation',
+  status: 'Pending' | 'Settled',
   category: VehicleCategory = 'Tricycle',
   details?: { enforcerName?: string; reportedBy?: string; plateNumber?: string; violationType?: string; remarks?: string }
 ) {
@@ -1061,11 +1061,11 @@ export async function fetchPassengerComplaintsFromSupabase(): Promise<PassengerC
         filename: evidenceFile,
       };
       // Resolve status: if admin_decision or status is Escalated or Resolved, honor it
-      const rawStatus = (c.admin_decision || c.status || 'Under Investigation').toString().trim();
+      const rawStatus = (c.admin_decision || c.status || 'Pending').toString().trim();
       const resolvedStatus = (
         rawStatus.toLowerCase().includes('resolve') ? 'Resolved' :
           rawStatus.toLowerCase().includes('escalat') ? 'Escalated' :
-            'Under Investigation'
+            'Pending'
       );
 
       return {
@@ -1094,7 +1094,7 @@ export async function fetchPassengerComplaintsFromSupabase(): Promise<PassengerC
 /** 11. Update status of passenger complaint in Supabase and notify the reporter */
 export async function updatePassengerComplaintStatusInSupabase(
   id: string,
-  status: 'Under Investigation' | 'Resolved' | 'Escalated',
+  status: 'Pending' | 'Resolved' | 'Escalated',
   details?: { complainantName?: string; cityPlateNumber?: string; issueType?: string; adminRemarks?: string }
 ) {
   try {

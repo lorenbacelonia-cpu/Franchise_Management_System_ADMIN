@@ -22,7 +22,9 @@ import {
   PauseCircle,
   FileEdit,
   Gavel,
-  AlertCircle
+  AlertCircle,
+  Image as ImageIcon,
+  ZoomIn
 } from 'lucide-react';
 import { maskName } from '../../utils/formatters';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
@@ -116,6 +118,7 @@ export const ViolationEntryModal: React.FC = () => {
   const [syncFeedback, setSyncFeedback] = useState<{ type: 'loading' | 'success'; message: string } | null>(null);
   const [deletingViolation, setDeletingViolation] = useState<any | null>(null);
   const [deletingComplaint, setDeletingComplaint] = useState<any | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
   // ── Persistent Sanction & Investigation state ──────────────────────────────
   const [sanctionsMap, setSanctionsMap] = useState<Record<string, SanctionDetail>>(() => {
@@ -393,7 +396,7 @@ export const ViolationEntryModal: React.FC = () => {
     setReplyInput('');
   };
 
-  const handleReportStatusUpdate = async (complaintId: string, status: 'Under Investigation' | 'Resolved' | 'Escalated') => {
+  const handleReportStatusUpdate = async (complaintId: string, status: 'Pending' | 'Resolved' | 'Escalated') => {
     const remark = adminNotes[complaintId] || replyInput.trim() || undefined;
     setSyncFeedback({
       type: 'loading',
@@ -415,7 +418,7 @@ export const ViolationEntryModal: React.FC = () => {
     }
   };
 
-  const handleViolationStatusUpdate = async (violationId: string, status: 'Pending' | 'Settled' | 'Under Investigation') => {
+  const handleViolationStatusUpdate = async (violationId: string, status: 'Pending' | 'Settled') => {
     const remark = adminNotes[violationId] || undefined;
     setSyncFeedback({
       type: 'loading',
@@ -576,13 +579,12 @@ export const ViolationEntryModal: React.FC = () => {
     setSelectedOffenderForDetails(null);
   };
 
-  const violationStatusOptions = ['Pending', 'Under Investigation', 'Settled'] as const;
-  const reportStatusOptions = ['Under Investigation', 'Resolved', 'Escalated'] as const;
+  const violationStatusOptions = ['Pending', 'Settled'] as const;
+  const reportStatusOptions = ['Pending', 'Resolved', 'Escalated'] as const;
 
   const getViolationStatusStyle = (s: string) => {
     if (s === 'Settled') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (s === 'Under Investigation') return 'bg-amber-100 text-amber-800 border-amber-200';
-    return 'bg-rose-100 text-rose-800 border-rose-200';
+    return 'bg-amber-100 text-amber-800 border-amber-200';
   };
 
   const getComplaintStatusStyle = (s: string) => {
@@ -609,9 +611,8 @@ export const ViolationEntryModal: React.FC = () => {
 
   const pendingViolations = categoryViolations.filter(v => v.status === 'Pending').length;
   const settledViolations = categoryViolations.filter(v => v.status === 'Settled').length;
-  const underInvestigationViolations = categoryViolations.filter(v => v.status === 'Under Investigation').length;
+  const pendingComplaints = (complaints || []).filter(c => c.status === 'Pending').length;
   const resolvedComplaints = (complaints || []).filter(c => c.status === 'Resolved').length;
-  const underInvestigationComplaints = (complaints || []).filter(c => c.status === 'Under Investigation').length;
 
   const underInvestigationMultipleCount = multipleOffenders.filter(o => o.sanction.investigationStatus === 'Under Investigation').length;
   const sanctionedMultipleCount = multipleOffenders.filter(o => o.sanction.sanctionStatus === 'Suspended' || o.sanction.sanctionStatus === 'Deactivated').length;
@@ -763,7 +764,6 @@ export const ViolationEntryModal: React.FC = () => {
             <div className="bg-rose-50/80 p-3.5 rounded-2xl border border-rose-200 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-rose-600">Pending Violations</span>
               <p className="text-xl font-black text-rose-700">{pendingViolations}</p>
-              <p className="text-[10px] text-amber-600 font-medium">{underInvestigationViolations} Under Investigation</p>
             </div>
             <div className="bg-emerald-50/80 p-3.5 rounded-2xl border border-emerald-200 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-emerald-600">Settled Violations</span>
@@ -779,8 +779,8 @@ export const ViolationEntryModal: React.FC = () => {
               <p className="text-xl font-black text-slate-900">{(complaints || []).length}</p>
             </div>
             <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-amber-600">Under Investigation</span>
-              <p className="text-xl font-black text-amber-700">{underInvestigationComplaints}</p>
+              <span className="text-[10px] uppercase font-bold text-amber-600">Pending Reports</span>
+              <p className="text-xl font-black text-amber-700">{pendingComplaints}</p>
             </div>
             <div className="bg-emerald-50/80 p-3.5 rounded-2xl border border-emerald-200 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-emerald-600">Resolved</span>
@@ -819,7 +819,7 @@ export const ViolationEntryModal: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             {activeTab === 'violations' && (
               <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs">
-                {(['All', 'Pending', 'Under Investigation', 'Settled'] as const).map(s => (
+                {(['All', 'Pending', 'Settled'] as const).map(s => (
                   <button
                     key={s}
                     type="button"
@@ -838,7 +838,7 @@ export const ViolationEntryModal: React.FC = () => {
 
             {activeTab === 'reports' && (
               <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs">
-                {(['All', 'Under Investigation', 'Resolved', 'Escalated'] as const).map(s => (
+                {(['All', 'Pending', 'Resolved', 'Escalated'] as const).map(s => (
                   <button
                     key={s}
                     type="button"
@@ -956,15 +956,37 @@ export const ViolationEntryModal: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredViolations.map(v => (
+                    filteredViolations.map(v => {
+                      const rawImg = v.evidenceImage || (v as any).evidence_image || (v as any).evidence_url || (v as any).photo_url || (v as any).image_url || (v as any).attachment_url || (v as any).proof_image || (v as any).photo || (v as any).image;
+                      const evidenceImg = (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('http') && !rawImg.startsWith('data:') && !rawImg.startsWith('blob:'))
+                        ? (rawImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
+                        : rawImg;
+                      return (
                       <React.Fragment key={v.id}>
                         <tr
                           className={`hover:bg-slate-50 transition-colors ${
                             expandedId === v.id ? 'bg-slate-50/80' : ''
                           }`}
                         >
-                          <td className="px-4 py-3 font-bold font-mono text-slate-900 whitespace-nowrap">
-                            {v.cityPlateNumber || v.mtopNumber || 'N/A'}
+                          <td className="px-4 py-3 font-mono whitespace-nowrap">
+                            <div className="font-bold text-slate-900">{v.cityPlateNumber || v.mtopNumber || 'N/A'}</div>
+                            {evidenceImg && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLightboxImage({
+                                    url: evidenceImg,
+                                    title: `Enforcer Violation Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
+                                  });
+                                }}
+                                className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
+                                title="Click to view attached evidence photo"
+                              >
+                                <ImageIcon className="h-2.5 w-2.5 text-emerald-600" />
+                                <span>Evidence Photo</span>
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-semibold text-slate-900">{v.operatorName || '—'}</div>
@@ -991,7 +1013,6 @@ export const ViolationEntryModal: React.FC = () => {
                             >
                               {v.status === 'Settled' && <CheckCircle2 className="h-3 w-3" />}
                               {v.status === 'Pending' && <Clock className="h-3 w-3" />}
-                              {v.status === 'Under Investigation' && <AlertTriangle className="h-3 w-3" />}
                               <span>{v.status}</span>
                             </span>
                           </td>
@@ -1052,7 +1073,6 @@ export const ViolationEntryModal: React.FC = () => {
                                       >
                                         {s === 'Settled' && <CheckCircle2 className="h-3.5 w-3.5" />}
                                         {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
-                                        {s === 'Under Investigation' && <AlertTriangle className="h-3.5 w-3.5" />}
                                         <span>{s}</span>
                                       </button>
                                     ))}
@@ -1066,6 +1086,26 @@ export const ViolationEntryModal: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
+
+                                {/* Evidence photo preview */}
+                                {evidenceImg && (
+                                  <div className="bg-white p-4 rounded-xl border border-slate-200 shrink-0">
+                                    <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                      <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
+                                      <span>Attached Photo Evidence</span>
+                                    </p>
+                                    <div
+                                      onClick={() => setLightboxImage({ url: evidenceImg, title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}` })}
+                                      className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all"
+                                    >
+                                      <img src={evidenceImg} alt="Proof" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                        <ZoomIn className="h-4 w-4" />
+                                        <span>Click to Zoom</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Admin notes */}
                                 <div className="flex-1 bg-white p-4 rounded-xl border border-slate-200 space-y-3">
@@ -1091,7 +1131,8 @@ export const ViolationEntryModal: React.FC = () => {
                           </tr>
                         )}
                       </React.Fragment>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1128,7 +1169,12 @@ export const ViolationEntryModal: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredComplaints.map(c => (
+                    filteredComplaints.map(c => {
+                      const rawCompImg = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image || (c as any).evidence_image || (c as any).evidence_url || (c as any).photo_url || (c as any).image_url || (c as any).attachment_url || (c as any).proof_image || (c as any).photo || (c as any).image;
+                      const compEvidenceImg = (rawCompImg && typeof rawCompImg === 'string' && !rawCompImg.startsWith('http') && !rawCompImg.startsWith('data:') && !rawCompImg.startsWith('blob:'))
+                        ? (rawCompImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawCompImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
+                        : rawCompImg;
+                      return (
                       <React.Fragment key={c.id}>
                         <tr
                           className={`hover:bg-slate-50 transition-colors ${
@@ -1143,8 +1189,25 @@ export const ViolationEntryModal: React.FC = () => {
                               {c.contactNumber || 'No phone'}
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-bold font-mono text-slate-900 whitespace-nowrap">
-                            {c.cityPlateNumber || c.mtopNumber || 'N/A'}
+                          <td className="px-4 py-3 font-mono whitespace-nowrap">
+                            <div className="font-bold text-slate-900">{c.cityPlateNumber || c.mtopNumber || 'N/A'}</div>
+                            {compEvidenceImg && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLightboxImage({
+                                    url: compEvidenceImg,
+                                    title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}`
+                                  });
+                                }}
+                                className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
+                                title="Click to view attached citizen photo evidence"
+                              >
+                                <ImageIcon className="h-2.5 w-2.5 text-sky-600" />
+                                <span>Report Photo</span>
+                              </button>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-bold text-sky-700">{c.issueType}</div>
@@ -1160,7 +1223,7 @@ export const ViolationEntryModal: React.FC = () => {
                               className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getComplaintStatusStyle(c.status)}`}
                             >
                               {c.status === 'Resolved' && <CheckCircle2 className="h-3 w-3" />}
-                              {c.status === 'Under Investigation' && <AlertTriangle className="h-3 w-3" />}
+                              {c.status === 'Pending' && <Clock className="h-3 w-3" />}
                               {c.status === 'Escalated' && <ShieldAlert className="h-3 w-3" />}
                               <span>{c.status}</span>
                             </span>
@@ -1200,6 +1263,26 @@ export const ViolationEntryModal: React.FC = () => {
                           <tr className="bg-slate-50/60">
                             <td colSpan={6} className="px-6 py-4">
                               <div className="flex flex-col lg:flex-row gap-4">
+                                {/* Complainant attached photo preview */}
+                                {compEvidenceImg && (
+                                  <div className="bg-white p-4 rounded-xl border border-slate-200 shrink-0">
+                                    <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                      <ImageIcon className="h-3.5 w-3.5 text-sky-600" />
+                                      <span>Attached Citizen Photo</span>
+                                    </p>
+                                    <div
+                                      onClick={() => setLightboxImage({ url: compEvidenceImg, title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}` })}
+                                      className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-sky-500 transition-all"
+                                    >
+                                      <img src={compEvidenceImg} alt="Report evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                        <ZoomIn className="h-4 w-4" />
+                                        <span>Click to Zoom</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* Status update options */}
                                 <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[220px]">
                                   <p className="text-xs font-bold text-slate-700 mb-3">
@@ -1218,7 +1301,7 @@ export const ViolationEntryModal: React.FC = () => {
                                         }`}
                                       >
                                         {s === 'Resolved' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                        {s === 'Under Investigation' && <AlertTriangle className="h-3.5 w-3.5" />}
+                                        {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
                                         {s === 'Escalated' && <ShieldAlert className="h-3.5 w-3.5" />}
                                         <span>{s}</span>
                                       </button>
@@ -1311,7 +1394,8 @@ export const ViolationEntryModal: React.FC = () => {
                           </tr>
                         )}
                       </React.Fragment>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1943,6 +2027,39 @@ export const ViolationEntryModal: React.FC = () => {
         }}
         onClose={() => setDeletingComplaint(null)}
       />
+
+      {/* Lightbox Modal for Attached Evidence Photos */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-800 text-white border-b border-slate-700">
+              <div className="flex items-center space-x-2">
+                <ImageIcon className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold truncate">{lightboxImage.title}</span>
+              </div>
+              <button
+                onClick={() => setLightboxImage(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-2 flex items-center justify-center bg-black/50 overflow-auto">
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.title}
+                className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-md"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
