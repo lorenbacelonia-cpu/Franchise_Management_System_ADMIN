@@ -380,12 +380,16 @@ export const RegisterFranchiseModal: React.FC = () => {
                     <span className="font-mono font-semibold text-slate-800">{createdFranchise.applicationNo}</span>
                   </div>
                   <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Owner / Operator:</span>
+                    <span className="text-slate-500 font-medium">Operator:</span>
                     <span className="font-bold text-slate-900">{createdFranchise.operatorName}</span>
                   </div>
                   <div className="flex justify-between pt-2">
                     <span className="text-slate-500 font-medium">Authorized Driver:</span>
                     <span className="font-bold text-slate-900">{createdFranchise.driverName}</span>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <span className="text-slate-500 font-medium">Accredited Tourist Guide:</span>
+                    <span className="font-bold text-emerald-800">{createdFranchise.touristGuide || 'Yes'}</span>
                   </div>
                   <div className="flex justify-between pt-2">
                     <span className="text-slate-500 font-medium">Route / Parada:</span>
@@ -530,7 +534,7 @@ export const RegisterFranchiseModal: React.FC = () => {
               {vehicleCategory} Registration Form
             </h3>
             <p className="text-xs text-slate-400 font-medium italic mt-0.5">
-              Enter owner, driver, vehicle, official receipt, and fare matrix details
+              Enter operator, driver, vehicle, official receipt, and fare matrix details
             </p>
           </div>
           <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
@@ -542,10 +546,10 @@ export const RegisterFranchiseModal: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5 items-start">
           {/* ================= LEFT COLUMN ================= */}
           <div className="space-y-4">
-            {/* Owner: Last Name, First Name, Middlename */}
+            {/* Operator: Last Name, First Name, Middlename */}
             <div>
               <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                Owner
+                Operator
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <input
@@ -1097,14 +1101,18 @@ export const RegisterFranchiseModal: React.FC = () => {
               <span className="font-black text-slate-900 text-xs truncate block">{createdFranchise.driverName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Owner / Operator</span>
-              <span className="font-bold text-slate-900 text-xs truncate block">{createdFranchise.ownerName || createdFranchise.operatorName || '—'}</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Operator</span>
+              <span className="font-bold text-slate-900 text-xs truncate block">{createdFranchise.operatorName || createdFranchise.ownerName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
               <span className="font-bold text-slate-900 text-[11px] truncate block">{createdFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>
+              <span className="font-bold text-emerald-800 text-[11px] truncate block">{createdFranchise.touristGuide || 'Yes'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300 col-span-2">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
               <span className="font-mono font-bold text-slate-900 text-[11px] block">{formatExpDate(createdFranchise.expirationDate)}</span>
             </div>

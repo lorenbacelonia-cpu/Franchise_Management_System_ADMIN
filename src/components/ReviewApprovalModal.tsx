@@ -69,7 +69,7 @@ export const ReviewApprovalModal: React.FC = () => {
           <div className="flex items-start space-x-3">
             <User className="h-5 w-5 text-emerald-600 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-slate-400">Applicant / Owner</p>
+              <p className="text-xs font-semibold text-slate-400">Applicant / Operator</p>
               <p className="text-sm font-bold text-slate-900">{selectedReview.applicantName}</p>
             </div>
           </div>

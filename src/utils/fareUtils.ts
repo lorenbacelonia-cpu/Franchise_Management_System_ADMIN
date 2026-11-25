@@ -177,7 +177,9 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     url.searchParams.set('route', f.routeParada || 'Sua-Igot 24 Tabaco');
     url.searchParams.set('exp', expDateStr);
     url.searchParams.set('status', resolvedStatus);
+    url.searchParams.set('tourist_guide', f.touristGuide || 'Yes');
     url.searchParams.set('tg', f.touristGuide || 'Yes');
+    url.searchParams.set('tourist', f.touristGuide || 'Yes');
     url.searchParams.set('fare', standardFareText);
     return url.toString();
   } catch (err) {

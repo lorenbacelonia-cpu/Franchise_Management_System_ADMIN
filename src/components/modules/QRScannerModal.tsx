@@ -320,6 +320,12 @@ export const QRScannerModal: React.FC = () => {
                       <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24'}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
+                      <span className="font-medium text-slate-700">• Tourist Guide:</span>
+                      <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                        {currentFranchise.touristGuide || 'Yes'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Standard Fare:</span>
                       <span className="font-bold text-slate-900">
                         {currentFranchise.standardFare && !currentFranchise.standardFare.includes('50.00 Minimum')
@@ -460,7 +466,7 @@ export const QRScannerModal: React.FC = () => {
                           UNIT ID: {currentFranchise.mtopNumber}
                         </p>
                         <p className="text-[11px] font-semibold text-slate-500">
-                          Driver: {currentFranchise.driverName}
+                          Driver: {currentFranchise.driverName} • Tourist Guide: {currentFranchise.touristGuide || 'Yes'}
                         </p>
                       </div>
 
@@ -621,14 +627,18 @@ export const QRScannerModal: React.FC = () => {
               <span className="font-black text-slate-900 text-xs truncate block">{currentFranchise.driverName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Owner / Operator</span>
-              <span className="font-bold text-slate-900 text-xs truncate block">{currentFranchise.ownerName || currentFranchise.operatorName || '—'}</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Operator</span>
+              <span className="font-bold text-slate-900 text-xs truncate block">{currentFranchise.operatorName || currentFranchise.ownerName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
               <span className="font-bold text-slate-900 text-[11px] truncate block">{currentFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>
+              <span className="font-bold text-emerald-800 text-[11px] truncate block">{currentFranchise.touristGuide || 'Yes'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300 col-span-2">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
               <span className="font-mono font-bold text-slate-900 text-[11px] block">{formatExpDate(currentFranchise.expirationDate)}</span>
             </div>

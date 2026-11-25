@@ -356,7 +356,7 @@ export const RegisterRenewTable: React.FC = () => {
             <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
               <th className="py-3 px-4">Vehicle Category</th>
               <th className="py-3 px-4">City Plate / MTOP</th>
-              <th className="py-3 px-4">Operator / Owner</th>
+              <th className="py-3 px-4">Operator</th>
               <th className="py-3 px-4">Assigned Driver</th>
               <th className="py-3 px-4">Transaction Type</th>
               <th className="py-3 px-4">Reg / Renewal Date</th>

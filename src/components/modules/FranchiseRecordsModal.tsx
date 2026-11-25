@@ -204,11 +204,11 @@ export const FranchiseRecordsModal: React.FC = () => {
     // Pure plain text table row with all driver registration fields
     const formatTableRow = (f: FranchiseRecord, index: number) => {
       const driverFullName = [f.driverFirstName, f.driverMiddleName, f.driverLastName].filter(Boolean).join(' ') || f.driverName || '—';
-      const ownerFullName = [f.ownerFirstName, f.ownerMiddleName, f.ownerLastName].filter(Boolean).join(' ') || f.operatorName || f.ownerName || '—';
+      const operatorFullName = [f.operatorFirstName || f.ownerFirstName, f.operatorMiddleName || f.ownerMiddleName, f.operatorLastName || f.ownerLastName].filter(Boolean).join(' ') || f.operatorName || f.ownerName || '—';
       const driverAddr = f.driverAddress || 'Tabaco City';
       const licenseNo = f.driverLicenseNo || 'On File';
-      const contact = [f.ownerContact || f.operatorContact, f.gmail || f.email].filter(Boolean).join(' / ') || '—';
-      const ownerAddr = f.residentialAddress || f.operatorAddress || f.ownerAddress || 'Tabaco City';
+      const contact = [f.operatorContact || f.ownerContact, f.gmail || f.email].filter(Boolean).join(' / ') || '—';
+      const operatorAddr = f.operatorAddress || f.residentialAddress || f.ownerAddress || 'Tabaco City';
       const modelColor = `${f.modelMake || f.makeModel || (f.vehicleCategory === 'Pedicab' ? 'Pedicab' : 'TMX 125')} / ${f.color || 'Standard'}`;
       const route = f.routeParada || 'Tabaco City Line';
       const orNo = f.receiptNumber || f.orNumber || '—';
@@ -225,9 +225,9 @@ export const FranchiseRecordsModal: React.FC = () => {
           <td style="border: 1px solid #000; padding: 2px; font-weight: bold;">${driverFullName}</td>
           <td style="border: 1px solid #000; padding: 2px;">${driverAddr}</td>
           <td style="border: 1px solid #000; padding: 2px; font-family: monospace; text-align: center;">${licenseNo}</td>
-          <td style="border: 1px solid #000; padding: 2px;">${ownerFullName}</td>
+          <td style="border: 1px solid #000; padding: 2px;">${operatorFullName}</td>
           <td style="border: 1px solid #000; padding: 2px; font-family: monospace;">${contact}</td>
-          <td style="border: 1px solid #000; padding: 2px;">${ownerAddr}</td>
+          <td style="border: 1px solid #000; padding: 2px;">${operatorAddr}</td>
           <td style="border: 1px solid #000; padding: 2px;">${modelColor}</td>
           <td style="border: 1px solid #000; padding: 2px;">${route}</td>
           <td style="border: 1px solid #000; padding: 2px; font-family: monospace; text-align: center;">${orNo}</td>
@@ -410,7 +410,7 @@ export const FranchiseRecordsModal: React.FC = () => {
               <th style="width: 10%;">Driver Name</th>
               <th style="width: 9%;">Driver Address</th>
               <th style="width: 7%; text-align: center;">License</th>
-              <th style="width: 10%;">Operator/Owner</th>
+              <th style="width: 10%;">Operator</th>
               <th style="width: 7%;">Contact</th>
               <th style="width: 9%;">Operator Address</th>
               <th style="width: 8%;">Make/Model/Color</th>
@@ -444,7 +444,7 @@ export const FranchiseRecordsModal: React.FC = () => {
               <th style="width: 10%;">Driver Name</th>
               <th style="width: 9%;">Driver Address</th>
               <th style="width: 7%; text-align: center;">License</th>
-              <th style="width: 10%;">Operator/Owner</th>
+              <th style="width: 10%;">Operator</th>
               <th style="width: 7%;">Contact</th>
               <th style="width: 9%;">Operator Address</th>
               <th style="width: 8%;">Make/Model/Color</th>
@@ -679,7 +679,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                   Inline Renew Franchise Permit — Unit {franchiseToRenew.mtopNumber}
                 </h4>
                 <p className="text-[11px] text-slate-300">
-                  Owner: {franchiseToRenew.ownerName || franchiseToRenew.operatorName} • Driver: {franchiseToRenew.driverName} • Current Expiry: {franchiseToRenew.expirationDate}
+                  Operator: {franchiseToRenew.operatorName || franchiseToRenew.ownerName} • Driver: {franchiseToRenew.driverName} • Current Expiry: {franchiseToRenew.expirationDate}
                 </p>
               </div>
             </div>
@@ -861,7 +861,7 @@ export const FranchiseRecordsModal: React.FC = () => {
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
                 <div className="text-xs font-black uppercase text-emerald-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
                   <Users className="h-3.5 w-3.5" />
-                  <span>Franchise Operator / Owner</span>
+                  <span>Franchise Operator</span>
                 </div>
                 <div className="space-y-1.5 text-xs">
                   <div>
@@ -897,6 +897,12 @@ export const FranchiseRecordsModal: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Authorized Route / Parada</span>
                     <span className="font-semibold text-slate-800">{viewDetailsRecord.routeParada || 'Tabaco City Line'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Accredited Tourist Guide</span>
+                    <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] inline-block">
+                      {viewDetailsRecord.touristGuide || 'Yes'}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
                     <div>
@@ -1136,7 +1142,7 @@ export const FranchiseRecordsModal: React.FC = () => {
             <thead className="bg-slate-900 text-white font-bold border-b border-slate-900">
               <tr className="whitespace-nowrap">
                 <th className="px-4 py-3">City Plate No.</th>
-                <th className="px-4 py-3">Owner / Operator</th>
+                <th className="px-4 py-3">Operator</th>
                 <th className="px-4 py-3">Driver Name</th>
                 <th className="px-4 py-3">Route/Parada</th>
                 <th className="px-4 py-3">Permit Status</th>
@@ -1455,14 +1461,18 @@ export const FranchiseRecordsModal: React.FC = () => {
               <span className="font-black text-slate-900 text-xs truncate block">{inlineQrUnit.driverName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Owner / Operator</span>
-              <span className="font-bold text-slate-900 text-xs truncate block">{inlineQrUnit.ownerName || inlineQrUnit.operatorName || '—'}</span>
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Franchise Operator</span>
+              <span className="font-bold text-slate-900 text-xs truncate block">{inlineQrUnit.operatorName || inlineQrUnit.ownerName || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
               <span className="font-bold text-slate-900 text-[11px] truncate block">{inlineQrUnit.routeParada || 'Sua-Igot 24 Tabaco'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
+              <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>
+              <span className="font-bold text-emerald-800 text-[11px] truncate block">{inlineQrUnit.touristGuide || 'Yes'}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg border border-slate-300 col-span-2">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Expiration Date</span>
               <span className="font-mono font-bold text-slate-900 text-[11px] block">{formatExpDate(inlineQrUnit.expirationDate)}</span>
             </div>

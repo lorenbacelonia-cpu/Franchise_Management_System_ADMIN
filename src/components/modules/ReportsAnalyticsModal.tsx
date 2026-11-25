@@ -391,7 +391,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
             <tr>
               <th>Plate / Body No.</th>
               <th style="text-align: center;">Application No.</th>
-              <th>Operator / Owner</th>
+              <th>Operator</th>
               <th>Authorized Driver</th>
               <th>Authorized Route</th>
               <th style="text-align: center;">Status</th>
@@ -735,7 +735,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                   <th className="px-4 py-3">Vehicle</th>
                   <th className="px-4 py-3">City Plate / MTOP</th>
                   <th className="px-4 py-3">Application No.</th>
-                  <th className="px-4 py-3">Owner / Operator</th>
+                  <th className="px-4 py-3">Operator</th>
                   <th className="px-4 py-3">Authorized Driver</th>
                   <th className="px-4 py-3">Route / Parada</th>
                   <th className="px-4 py-3 text-center">Registration Date</th>
@@ -1008,7 +1008,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                     <th className="px-4 py-3">Registration Month &amp; Date</th>
                     <th className="px-4 py-3">City Plate No.</th>
                     <th className="px-4 py-3">Application No.</th>
-                    <th className="px-4 py-3">Owner / Operator</th>
+                    <th className="px-4 py-3">Operator</th>
                     <th className="px-4 py-3">Authorized Driver</th>
                     <th className="px-4 py-3">Route / Parada</th>
                     <th className="px-4 py-3 text-center">Permit Status</th>

@@ -239,13 +239,13 @@ export const DriverRegistryModal: React.FC = () => {
     e.preventDefault();
     if (!editingUnit) return;
 
-    const opRes = validateName(ownerLastName, 'Owner Last Name', true);
+    const opRes = validateName(ownerLastName, 'Operator Last Name', true);
     if (!opRes.isValid) {
       setFormError(opRes.error!);
       return;
     }
 
-    const opFirstRes = validateName(ownerFirstName, 'Owner First Name', true);
+    const opFirstRes = validateName(ownerFirstName, 'Operator First Name', true);
     if (!opFirstRes.isValid) {
       setFormError(opFirstRes.error!);
       return;
@@ -405,10 +405,10 @@ export const DriverRegistryModal: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5 items-start">
             {/* ================= LEFT COLUMN ================= */}
             <div className="space-y-4">
-              {/* Owner: Last Name, First Name, Middlename */}
+              {/* Operator: Last Name, First Name, Middlename */}
               <div>
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Owner
+                  Operator
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <input
@@ -956,7 +956,7 @@ export const DriverRegistryModal: React.FC = () => {
                   <div className="flex items-center justify-between gap-4">
                     <span className="font-semibold text-slate-500 flex items-center space-x-1 shrink-0">
                       <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-                      <span>Owner / Operator:</span>
+                      <span>Operator:</span>
                     </span>
                     <span className="font-bold text-slate-900 text-right truncate">
                       {[ownerFirstName, ownerMiddleName, ownerLastName].filter(Boolean).join(' ') || '—'}
