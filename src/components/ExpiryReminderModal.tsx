@@ -22,7 +22,6 @@ import {
   Sparkles,
   ShieldAlert
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import {
   getFranchiseExpiryInfo,
   getDriverContactNumber,
@@ -212,7 +211,6 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
               ? 'Simulated SMS dispatch recorded. Message logged to console and device SMS link ready.'
               : 'Direct SMS delivery submitted via gateway.',
           });
-          confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
         } else {
           setFeedback({
             type: 'error',
@@ -231,7 +229,6 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
               ? 'Official email delivered via lorenbacelonia@gmail.com.'
               : 'Dispatched through system cloud notification gateway.',
           });
-          confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
         } else {
           setFeedback({
             type: 'error',
@@ -248,7 +245,6 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
             message: `Dispatched SMS & Gmail reminder to ${driverName} for Unit ${plate}!`,
             details: `SMS: ${sms.success ? 'Delivered' : sms.error} • Gmail: ${email.success ? 'Delivered' : email.error}`,
           });
-          confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
         } else {
           setFeedback({
             type: 'error',
@@ -306,12 +302,6 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
 
       setBatchSummary(summary);
       refreshLogs();
-
-      confetti({
-        particleCount: 80,
-        spread: 80,
-        origin: { y: 0.5 },
-      });
 
       setFeedback({
         type: 'success',

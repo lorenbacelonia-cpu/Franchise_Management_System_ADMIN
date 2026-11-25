@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Receipt
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { formatSentenceCase } from '../utils/formatters';
 
 export const ReviewApprovalModal: React.FC = () => {
@@ -24,11 +23,6 @@ export const ReviewApprovalModal: React.FC = () => {
 
   const handleApprove = () => {
     approveReview(selectedReview.id);
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
     setSelectedReview(null);
   };
 

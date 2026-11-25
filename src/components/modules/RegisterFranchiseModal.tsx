@@ -15,7 +15,6 @@ import {
   Globe,
   ExternalLink,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
@@ -277,12 +276,6 @@ export const RegisterFranchiseModal: React.FC = () => {
 
     setCreatedId(newId);
     setSelectedFranchiseId(newId);
-
-    confetti({
-      particleCount: 90,
-      spread: 75,
-      origin: { y: 0.5 }
-    });
   };
 
   const createdFranchise = franchises.find(f => f.id === createdId);
@@ -295,12 +288,6 @@ export const RegisterFranchiseModal: React.FC = () => {
   const handleGenerateQrInline = async () => {
     if (!createdId) return;
     await generatePermanentQr(createdId);
-    confetti({
-      particleCount: 90,
-      spread: 75,
-      origin: { y: 0.6 },
-      colors: ['#05b875', '#10b981', '#049d63']
-    });
     setToastMessage('Unique Permanent QR Code generated and locked on this page!');
     setTimeout(() => setToastMessage(null), 4000);
   };

@@ -28,7 +28,6 @@ import {
   ChevronsRight,
   Car
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { isRecordExpired, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
@@ -488,12 +487,6 @@ export const FranchiseRecordsModal: React.FC = () => {
   const handleGenerateAllQrCodes = async () => {
     try {
       await generateAllPermanentQr();
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#05b875', '#10b981', '#049d63']
-      });
       setNotification('Success! Unique Permanent QR Codes have been generated and locked for all registered franchises.');
     } catch (err: any) {
       setNotification(`Error generating QR codes: ${err?.message || 'Please retry.'}`);
@@ -506,12 +499,6 @@ export const FranchiseRecordsModal: React.FC = () => {
     try {
       await generatePermanentQr(franchiseId);
       setInlineQrUnitId(franchiseId);
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#05b875', '#10b981', '#049d63']
-      });
       setNotification(`Success! Unique Permanent QR Code generated & locked for unit ${mtopNumber}.`);
     } catch (err: any) {
       setNotification(`Error generating QR code for unit ${mtopNumber}: ${err?.message || 'Please retry.'}`);
@@ -561,12 +548,6 @@ export const FranchiseRecordsModal: React.FC = () => {
       amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
     });
 
-    confetti({
-      particleCount: 70,
-      spread: 60,
-      origin: { y: 0.6 },
-      colors: ['#2563eb', '#10b981', '#3b82f6']
-    });
     setNotification(
       `Success! Franchise permit for unit ${franchiseToRenew.mtopNumber} (${franchiseToRenew.driverName}) renewed • App No: ${cleanAppNo} • Next Expiry: ${renewalExpiryDate}.`
     );

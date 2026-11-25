@@ -18,7 +18,6 @@ import {
   Calendar,
   X
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { 
   cleanFare, 
   formatExpDate, 
@@ -87,13 +86,6 @@ export const QRScannerModal: React.FC = () => {
     if (!currentFranchise) return;
     try {
       await generatePermanentQr(currentFranchise.id);
-      
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#05b875', '#10b981', '#049d63']
-      });
 
       setNotification(`Success! Unique Permanent QR Code generated & locked for driver ${currentFranchise.driverName} (${currentFranchise.mtopNumber}).`);
     } catch (err: any) {
@@ -108,7 +100,6 @@ export const QRScannerModal: React.FC = () => {
     if (!currentFranchise || !inlineExpiry) return;
     await renewFranchise(currentFranchise.id, { newExpiry: inlineExpiry });
     setShowInlineRenew(false);
-    confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
     setNotification(`Renewed Unit ${currentFranchise.mtopNumber} inline • New Expiration: ${inlineExpiry}`);
     setTimeout(() => setNotification(null), 4000);
   };

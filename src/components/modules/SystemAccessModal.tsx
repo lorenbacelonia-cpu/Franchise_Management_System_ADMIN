@@ -28,7 +28,6 @@ import {
   Check,
   UserCheck
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import {
   validateName,
   validateCode,
@@ -462,12 +461,6 @@ City Government of Tabaco, Albay`;
         return;
       }
 
-      confetti({
-        particleCount: 75,
-        spread: 65,
-        origin: { y: 0.6 }
-      });
-
       // Save to issued credentials to pop up the credential slip / card immediately!
       const newCred = {
         badgeNumber: enfBadgeNumber.trim().toUpperCase(),
@@ -636,12 +629,6 @@ City Government of Tabaco, Albay`;
         setError(res.error || 'Could not create administrator account.');
         return;
       }
-
-      confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
 
       setSuccess(`Admin account ${adminId.trim().toUpperCase()} (${fullName.trim()}) has been created and synced to the system.`);
       setFullName('');

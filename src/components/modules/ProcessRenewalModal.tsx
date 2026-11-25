@@ -18,7 +18,6 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
   filterExpiringDrivers,
@@ -148,12 +147,6 @@ export const ProcessRenewalModal: React.FC = () => {
       applicationNo: renewalApplicationNo.trim().toUpperCase(),
       orNumber: renewalOrNumber.trim().toUpperCase(),
       amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
-    });
-
-    confetti({
-      particleCount: 70,
-      spread: 60,
-      origin: { y: 0.6 }
     });
 
     setNotification(

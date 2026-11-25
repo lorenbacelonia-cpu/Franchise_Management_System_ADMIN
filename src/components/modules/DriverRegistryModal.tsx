@@ -22,7 +22,6 @@ import {
   UserCheck,
   ShieldCheck
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix } from '../../utils/fareUtils';
 import {
@@ -331,13 +330,6 @@ export const DriverRegistryModal: React.FC = () => {
           studentFare: cleanFare(row.studentFare),
           seniorPwdFare: cleanFare(row.seniorPwdFare),
         }))
-      });
-
-      confetti({
-        particleCount: 75,
-        spread: 65,
-        origin: { y: 0.6 },
-        colors: ['#00ba7c', '#10b981', '#2563eb', '#f59e0b']
       });
 
       setNotification(
