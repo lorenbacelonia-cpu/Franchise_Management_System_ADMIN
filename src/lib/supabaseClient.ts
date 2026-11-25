@@ -590,8 +590,12 @@ export async function saveViolationInSupabase(violation: ViolationRecord, catego
 }
 
 /** 7. Fetch violations across active violation tables */
-export async function fetchViolationsFromSupabase(_category: VehicleCategory = 'Tricycle'): Promise<ViolationRecord[]> {
-  const targetTables = ['violations_tricycle_admin', 'violations_pedicab_admin', 'enforcer_violations', 'violations'];
+export async function fetchViolationsFromSupabase(category?: VehicleCategory): Promise<ViolationRecord[]> {
+  const targetTables = category === 'Pedicab'
+    ? ['violations_pedicab_admin']
+    : category === 'Tricycle'
+      ? ['violations_tricycle_admin']
+      : ['violations_tricycle_admin', 'violations_pedicab_admin'];
   const allViolations: ViolationRecord[] = [];
   const seenIds = new Set<string>();
 

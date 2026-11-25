@@ -147,11 +147,10 @@ const ComplaintChatPanel: React.FC<{
           {/* Real-time Sync Feedback Toast */}
           {syncFeedback && (
             <div
-              className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${
-                syncFeedback.type === 'loading'
+              className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${syncFeedback.type === 'loading'
                   ? 'bg-sky-50 border border-sky-200 text-sky-800'
                   : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-              }`}
+                }`}
             >
               {syncFeedback.type === 'loading' ? (
                 <Loader2 className="h-3.5 w-3.5 text-sky-600 animate-spin shrink-0" />
@@ -175,15 +174,14 @@ const ComplaintChatPanel: React.FC<{
                     type="button"
                     onClick={() => handleStatusChange(s)}
                     disabled={isCurrent || !!isUpdatingStatus}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${
-                      isLoadingThis
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${isLoadingThis
                         ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
                         : isCurrent
-                        ? statusColors[s] + ' opacity-70 cursor-default ring-1 ring-slate-400'
-                        : isUpdatingStatus
-                        ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
-                    }`}
+                          ? statusColors[s] + ' opacity-70 cursor-default ring-1 ring-slate-400'
+                          : isUpdatingStatus
+                            ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
+                      }`}
                   >
                     {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
                     <span>{s}</span>
@@ -229,9 +227,8 @@ const ComplaintChatPanel: React.FC<{
                   <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[88%] space-y-1 ${isAdmin ? 'items-end' : 'items-start'} flex flex-col`}>
                       <div className={`flex items-center space-x-1.5 ${isAdmin ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                        <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold border ${
-                          isAdmin ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-sky-100 text-sky-700 border-sky-200'
-                        }`}>
+                        <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold border ${isAdmin ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-sky-100 text-sky-700 border-sky-200'
+                          }`}>
                           {isAdmin ? 'A' : '?'}
                         </div>
                         <span className="text-[10px] font-bold text-slate-600">
@@ -239,11 +236,10 @@ const ComplaintChatPanel: React.FC<{
                         </span>
                       </div>
 
-                      <div className={`p-3 rounded-2xl text-xs leading-relaxed space-y-2.5 ${
-                        isAdmin
+                      <div className={`p-3 rounded-2xl text-xs leading-relaxed space-y-2.5 ${isAdmin
                           ? 'bg-indigo-600 text-white rounded-tr-sm shadow-sm shadow-indigo-200'
                           : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm shadow-xs'
-                      }`}>
+                        }`}>
                         {/* Text Message Content */}
                         <div className="whitespace-pre-wrap">{msg.message}</div>
 
@@ -399,7 +395,7 @@ const ViolationDetailPanel: React.FC<{
 
   const rawEvidence = violation.evidenceImage || (violation as any).evidence_image || (violation as any).evidence_url || (violation as any).photo_url || (violation as any).image_url || (violation as any).attachment_url || (violation as any).proof_image || (violation as any).photo || (violation as any).image;
   const evidenceImg = (rawEvidence && typeof rawEvidence === 'string' && !rawEvidence.startsWith('http') && !rawEvidence.startsWith('data:') && !rawEvidence.startsWith('blob:'))
-    ? (rawEvidence.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawEvidence}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawEvidence}`)
+    ? (rawEvidence.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawEvidence}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawEvidence}`)
     : rawEvidence;
 
   return (
@@ -459,9 +455,8 @@ const ViolationDetailPanel: React.FC<{
               </div>
               <div className="flex items-center space-x-1.5 text-slate-600">
                 <span className="font-semibold text-slate-500">Category:</span>
-                <span className={`inline-flex items-center px-2 py-0.2 rounded font-bold text-[10px] ${
-                  category === 'Pedicab' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                }`}>
+                <span className={`inline-flex items-center px-2 py-0.2 rounded font-bold text-[10px] ${category === 'Pedicab' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
                   {category}
                 </span>
               </div>
@@ -488,11 +483,10 @@ const ViolationDetailPanel: React.FC<{
             {/* Real-time Sync Feedback Toast */}
             {syncFeedback && (
               <div
-                className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${
-                  syncFeedback.type === 'loading'
+                className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${syncFeedback.type === 'loading'
                     ? 'bg-sky-50 border border-sky-200 text-sky-800'
                     : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                }`}
+                  }`}
               >
                 {syncFeedback.type === 'loading' ? (
                   <Loader2 className="h-3.5 w-3.5 text-sky-600 animate-spin shrink-0" />
@@ -516,15 +510,14 @@ const ViolationDetailPanel: React.FC<{
                       type="button"
                       onClick={() => handleStatusChange(s)}
                       disabled={isCurrent || !!isUpdatingStatus}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${
-                        isLoadingThis
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${isLoadingThis
                           ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
                           : isCurrent
-                          ? statusColors[s] + ' opacity-80 cursor-default ring-1 ring-slate-400'
-                          : isUpdatingStatus
-                          ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
-                      }`}
+                            ? statusColors[s] + ' opacity-80 cursor-default ring-1 ring-slate-400'
+                            : isUpdatingStatus
+                              ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
+                        }`}
                     >
                       {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
                       <span>{s}</span>
@@ -698,11 +691,42 @@ export const PendingReviewsTable: React.FC = () => {
     return 'Tricycle';
   };
 
-  // Base date-filtered lists
-  const dateFilteredReviews = pendingReviews.filter(r => isDateMatchingFilter(r.dateSubmitted, dateFilter));
-  const dateFilteredComplaints = complaints.filter(c => isDateMatchingFilter(c.incidentDate, dateFilter));
-  const dateFilteredViolations = (violations || []).filter(v => isDateMatchingFilter(v.dateSubmitted, dateFilter));
-  const dateFilteredLogs = deletionLogs.filter(l => isDateMatchingFilter(l.deletedAt, dateFilter));
+  // Base date-filtered lists (strictly deduplicated by ID)
+  const dateFilteredReviews = useMemo(() => {
+    const seen = new Set<string>();
+    return (pendingReviews || []).filter(r => {
+      if (!r || !r.id || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return isDateMatchingFilter(r.dateSubmitted, dateFilter);
+    });
+  }, [pendingReviews, dateFilter]);
+
+  const dateFilteredComplaints = useMemo(() => {
+    const seen = new Set<string>();
+    return (complaints || []).filter(c => {
+      if (!c || !c.id || seen.has(c.id)) return false;
+      seen.add(c.id);
+      return isDateMatchingFilter(c.incidentDate, dateFilter);
+    });
+  }, [complaints, dateFilter]);
+
+  const dateFilteredViolations = useMemo(() => {
+    const seen = new Set<string>();
+    return (violations || []).filter(v => {
+      if (!v || !v.id || seen.has(v.id)) return false;
+      seen.add(v.id);
+      return isDateMatchingFilter(v.dateSubmitted, dateFilter);
+    });
+  }, [violations, dateFilter]);
+
+  const dateFilteredLogs = useMemo(() => {
+    const seen = new Set<string>();
+    return (deletionLogs || []).filter(l => {
+      if (!l || !l.id || seen.has(l.id)) return false;
+      seen.add(l.id);
+      return isDateMatchingFilter(l.deletedAt, dateFilter);
+    });
+  }, [deletionLogs, dateFilter]);
 
   // Search match predicates
   const reviewMatchesSearch = (r: PendingReview) => {
@@ -911,11 +935,10 @@ export const PendingReviewsTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('reviews')}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'reviews'
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${activeTab === 'reviews'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700 bg-transparent'
-              }`}
+                }`}
             >
               Pending Reviews
             </button>
@@ -923,18 +946,16 @@ export const PendingReviewsTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('complaints')}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                activeTab === 'complaints'
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'complaints'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700 bg-transparent'
-              }`}
+                }`}
             >
               <MessageSquare className="h-3.5 w-3.5" />
               <span>Passenger Complaints</span>
               {filteredComplaints.filter(c => c.status === 'Pending').length > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'complaints' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                }`}>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${activeTab === 'complaints' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                  }`}>
                   {filteredComplaints.filter(c => c.status === 'Pending').length}
                 </span>
               )}
@@ -943,18 +964,16 @@ export const PendingReviewsTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('violations')}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                activeTab === 'violations'
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'violations'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700 bg-transparent'
-              }`}
+                }`}
             >
               <ShieldAlert className="h-3.5 w-3.5" />
               <span>Enforcer Violations</span>
               {filteredViolations.filter(v => v.status === 'Pending').length > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'violations' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                }`}>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${activeTab === 'violations' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                  }`}>
                   {filteredViolations.filter(v => v.status === 'Pending').length}
                 </span>
               )}
@@ -963,18 +982,16 @@ export const PendingReviewsTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('logs')}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                activeTab === 'logs'
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'logs'
                   ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
                   : 'text-slate-400 hover:text-slate-700 bg-transparent'
-              }`}
+                }`}
             >
               <History className="h-3.5 w-3.5" />
               <span>Removal &amp; Audit Trail</span>
               {filteredLogs.length > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
-                }`}>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                  }`}>
                   {filteredLogs.length}
                 </span>
               )}
@@ -1000,10 +1017,10 @@ export const PendingReviewsTable: React.FC = () => {
                     activeTab === 'reviews'
                       ? 'Search applicant, plate...'
                       : activeTab === 'complaints'
-                      ? 'Search complainant, plate...'
-                      : activeTab === 'violations'
-                      ? 'Search plate, driver, enforcer...'
-                      : 'Search plate, remover...'
+                        ? 'Search complainant, plate...'
+                        : activeTab === 'violations'
+                          ? 'Search plate, driver, enforcer...'
+                          : 'Search plate, remover...'
                   }
                   className="w-full pl-8 pr-7 py-1.5 bg-slate-100 border border-slate-200 rounded-l-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 />
@@ -1035,16 +1052,14 @@ export const PendingReviewsTable: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setVehicleCategoryFilter('all')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
-                  vehicleCategoryFilter === 'all'
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'all'
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <span>All</span>
-                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                  vehicleCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${vehicleCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
                   {countsForTab.all}
                 </span>
               </button>
@@ -1052,16 +1067,14 @@ export const PendingReviewsTable: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setVehicleCategoryFilter('Tricycle')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
-                  vehicleCategoryFilter === 'Tricycle'
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'Tricycle'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <span>Tricycle</span>
-                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                  vehicleCategoryFilter === 'Tricycle' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-                }`}>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${vehicleCategoryFilter === 'Tricycle' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
                   {countsForTab.tricycle}
                 </span>
               </button>
@@ -1069,16 +1082,14 @@ export const PendingReviewsTable: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setVehicleCategoryFilter('Pedicab')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${
-                  vehicleCategoryFilter === 'Pedicab'
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'Pedicab'
                     ? 'bg-amber-500 text-slate-950 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <span>Pedicab</span>
-                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                  vehicleCategoryFilter === 'Pedicab' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-100 text-amber-800'
-                }`}>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${vehicleCategoryFilter === 'Pedicab' ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-100 text-amber-800'
+                  }`}>
                   {countsForTab.pedicab}
                 </span>
               </button>
@@ -1110,10 +1121,10 @@ export const PendingReviewsTable: React.FC = () => {
           {activeTab === 'reviews'
             ? 'Franchise waiting document review and approval'
             : activeTab === 'complaints'
-            ? 'Community reports submitted via mobile web — click "View Chat" to read the complainant\'s messages.'
-            : activeTab === 'violations'
-            ? 'Official traffic citations issued by enforcers on mobile web — click "Manage Citation" to review details or update settlement status.'
-            : 'Official audit log displaying the exact administrator who authorized and removed each complaint or violation citation from the system.'
+              ? 'Community reports submitted via mobile web — click "View Chat" to read the complainant\'s messages.'
+              : activeTab === 'violations'
+                ? 'Official traffic citations issued by enforcers on mobile web — click "Manage Citation" to review details or update settlement status.'
+                : 'Official audit log displaying the exact administrator who authorized and removed each complaint or violation citation from the system.'
           }
         </p>
 
@@ -1139,10 +1150,10 @@ export const PendingReviewsTable: React.FC = () => {
                           {searchQuery.trim()
                             ? `No pending reviews matching "${searchQuery}".`
                             : dateFilter.preset !== 'all'
-                            ? `No pending reviews found for the selected date (${getFilterDisplayLabel(dateFilter)}).`
-                            : vehicleCategoryFilter !== 'all'
-                            ? `No pending reviews found for ${vehicleCategoryFilter} units.`
-                            : 'No pending reviews available.'}
+                              ? `No pending reviews found for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                              : vehicleCategoryFilter !== 'all'
+                                ? `No pending reviews found for ${vehicleCategoryFilter} units.`
+                                : 'No pending reviews available.'}
                         </p>
                         {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
                           <button
@@ -1169,11 +1180,10 @@ export const PendingReviewsTable: React.FC = () => {
                           {review.applicantName}
                         </td>
                         <td className="px-6 py-3.5 text-slate-700">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                            review.vehicleCategory === 'Pedicab'
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${review.vehicleCategory === 'Pedicab'
                               ? 'bg-amber-100 text-amber-800 border border-amber-200'
                               : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}>
+                            }`}>
                             {review.vehicleCategory}
                           </span>
                         </td>
@@ -1207,10 +1217,10 @@ export const PendingReviewsTable: React.FC = () => {
                     {searchQuery.trim()
                       ? `No passenger complaints matching "${searchQuery}".`
                       : dateFilter.preset !== 'all'
-                      ? `No passenger complaints recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
-                      : vehicleCategoryFilter !== 'all'
-                      ? `No passenger complaints recorded for ${vehicleCategoryFilter} units.`
-                      : 'No passenger complaints recorded.'}
+                        ? `No passenger complaints recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                        : vehicleCategoryFilter !== 'all'
+                          ? `No passenger complaints recorded for ${vehicleCategoryFilter} units.`
+                          : 'No passenger complaints recorded.'}
                   </p>
                   {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
                     <button
@@ -1233,7 +1243,7 @@ export const PendingReviewsTable: React.FC = () => {
                   const category = getComplaintCategory(c);
                   const rawCompImg = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image || (c as any).evidence_image || (c as any).evidence_url || (c as any).photo_url || (c as any).image_url || (c as any).attachment_url || (c as any).proof_image || (c as any).photo || (c as any).image;
                   const evidenceImg = (rawCompImg && typeof rawCompImg === 'string' && !rawCompImg.startsWith('http') && !rawCompImg.startsWith('data:') && !rawCompImg.startsWith('blob:'))
-                    ? (rawCompImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawCompImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
+                    ? (rawCompImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawCompImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
                     : rawCompImg;
                   return (
                     <div
@@ -1306,11 +1316,10 @@ export const PendingReviewsTable: React.FC = () => {
                             <div className="flex items-center space-x-3 mt-0.5">
                               <span className="text-[11px] text-slate-500 font-mono">
                                 <span className="font-bold text-slate-700">{c.cityPlateNumber}</span> ·{' '}
-                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${
-                                  category === 'Pedicab'
+                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${category === 'Pedicab'
                                     ? 'bg-amber-100 text-amber-800'
                                     : 'bg-emerald-100 text-emerald-800'
-                                }`}>
+                                  }`}>
                                   {category}
                                 </span>
                               </span>
@@ -1361,10 +1370,10 @@ export const PendingReviewsTable: React.FC = () => {
                     {searchQuery.trim()
                       ? `No enforcer violations matching "${searchQuery}".`
                       : dateFilter.preset !== 'all'
-                      ? `No enforcer violations recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
-                      : vehicleCategoryFilter !== 'all'
-                      ? `No enforcer violations recorded for ${vehicleCategoryFilter} units.`
-                      : 'No enforcer violations recorded.'}
+                        ? `No enforcer violations recorded for the selected date (${getFilterDisplayLabel(dateFilter)}).`
+                        : vehicleCategoryFilter !== 'all'
+                          ? `No enforcer violations recorded for ${vehicleCategoryFilter} units.`
+                          : 'No enforcer violations recorded.'}
                   </p>
                   {(dateFilter.preset !== 'all' || vehicleCategoryFilter !== 'all' || searchQuery.trim()) && (
                     <button
@@ -1385,7 +1394,7 @@ export const PendingReviewsTable: React.FC = () => {
                   const category = getViolationCategory(v);
                   const rawImg = v.evidenceImage || (v as any).evidence_image || (v as any).evidence_url || (v as any).photo_url || (v as any).image_url || (v as any).attachment_url || (v as any).proof_image || (v as any).photo || (v as any).image;
                   const evidenceImg = (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('http') && !rawImg.startsWith('data:') && !rawImg.startsWith('blob:'))
-                    ? (rawImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
+                    ? (rawImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
                     : rawImg;
                   return (
                     <div
@@ -1463,11 +1472,10 @@ export const PendingReviewsTable: React.FC = () => {
                             <div className="flex items-center space-x-3 mt-0.5 flex-wrap gap-y-1">
                               <span className="text-[11px] text-slate-500 font-mono">
                                 <span className="font-bold text-slate-700">{v.cityPlateNumber || v.mtopNumber}</span> ·{' '}
-                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${
-                                  category === 'Pedicab'
+                                <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${category === 'Pedicab'
                                     ? 'bg-amber-100 text-amber-800'
                                     : 'bg-emerald-100 text-emerald-800'
-                                }`}>
+                                  }`}>
                                   {category}
                                 </span>
                               </span>
@@ -1579,21 +1587,19 @@ export const PendingReviewsTable: React.FC = () => {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                         <div className="flex items-center space-x-2.5">
-                          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                            log.recordType === 'Passenger Complaint'
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${log.recordType === 'Passenger Complaint'
                               ? 'bg-sky-50 text-sky-700 border-sky-200'
                               : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}>
+                            }`}>
                             {log.recordType}
                           </span>
                           <span className="font-mono text-xs font-bold text-slate-900">
                             Plate: {log.cityPlateNumber}
                           </span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold ${
-                            log.vehicleCategory === 'Pedicab'
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold ${log.vehicleCategory === 'Pedicab'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
+                            }`}>
                             {log.vehicleCategory}
                           </span>
                         </div>

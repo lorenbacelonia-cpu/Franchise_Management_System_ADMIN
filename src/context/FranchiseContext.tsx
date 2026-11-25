@@ -202,63 +202,7 @@ const STORAGE_KEY_REGISTERED_ADMINS = 'tabaco_trd_registered_admins_v1';
 const STORAGE_KEY_ENFORCERS = 'tabaco_trd_enforcers_v2';
 const STORAGE_KEY_ACTIVITY_LOGS = 'tabaco_trd_activity_logs_v1';
 
-const DEFAULT_ENFORCERS: EnforcerAccount[] = [
-  {
-    badgeNumber: 'ENF-2026-001',
-    name: 'Officer Jaime Ramos',
-    email: 'jaime.ramos@gmail.com',
-    contactNumber: '0917-111-2233',
-    assignedArea: 'Poblacion District',
-    password: 'enforcer123',
-    createdAt: '2026-01-10T08:00:00.000Z',
-    status: 'Active',
-    createdBy: 'TRD Head Admin'
-  },
-  {
-    badgeNumber: 'ENF-2026-002',
-    name: 'Officer Ronald Santos',
-    email: 'ronald.santos@gmail.com',
-    contactNumber: '0918-222-3344',
-    assignedArea: 'San Carlos & Terminal',
-    password: 'enforcer123',
-    createdAt: '2026-01-12T08:00:00.000Z',
-    status: 'Active',
-    createdBy: 'TRD Head Admin'
-  },
-  {
-    badgeNumber: 'ENF-2026-003',
-    name: 'Officer Mark Anthony Lopez',
-    email: 'mark.lopez@gmail.com',
-    contactNumber: '0920-333-4455',
-    assignedArea: 'Public Market & Port Area',
-    password: 'enforcer123',
-    createdAt: '2026-01-15T08:00:00.000Z',
-    status: 'Active',
-    createdBy: 'TRD Head Admin'
-  },
-  {
-    badgeNumber: 'ENF-2026-101',
-    name: 'Officer Roberto Gomez',
-    email: 'roberto.gomez@tabaco.gov.ph',
-    contactNumber: '09171234567',
-    assignedArea: 'Poblacion / Centro District',
-    password: 'enforcer123',
-    createdAt: '2026-01-15T08:00:00.000Z',
-    status: 'Active',
-    createdBy: 'TRD Head Admin'
-  },
-  {
-    badgeNumber: 'ENF-2026-102',
-    name: 'Officer Manuel Reyes',
-    email: 'manuel.reyes@tabaco.gov.ph',
-    contactNumber: '09289876543',
-    assignedArea: 'Tabaco Port & Ferry Terminal',
-    password: 'enforcer123',
-    createdAt: '2026-02-01T08:00:00.000Z',
-    status: 'Active',
-    createdBy: 'TRD Head Admin'
-  }
-];
+const DEFAULT_ENFORCERS: EnforcerAccount[] = [];
 
 const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
   {
@@ -1013,18 +957,28 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
 
-      const combinedDbViolations = [
-        ...(Array.isArray(dbViolTricycles) ? dbViolTricycles : []),
-        ...(Array.isArray(dbViolPedicabs) ? dbViolPedicabs : [])
-      ];
-      if (combinedDbViolations.length > 0 || (Array.isArray(dbViolTricycles) && Array.isArray(dbViolPedicabs))) {
-        setViolations(combinedDbViolations);
+      // Strictly deduplicate violations by ID from database
+      const seenViolIds = new Set<string>();
+      const combinedDbViolations: ViolationRecord[] = [];
+      for (const v of [...(Array.isArray(dbViolTricycles) ? dbViolTricycles : []), ...(Array.isArray(dbViolPedicabs) ? dbViolPedicabs : [])]) {
+        if (v && v.id && !seenViolIds.has(v.id)) {
+          seenViolIds.add(v.id);
+          combinedDbViolations.push(v);
+        }
       }
+      setViolations(combinedDbViolations);
+
       if (Array.isArray(dbReviews)) {
         setPendingReviews(dbReviews);
       }
       if (Array.isArray(dbComplaints)) {
-        setComplaints(dbComplaints);
+        const seenCompIds = new Set<string>();
+        const uniqueComplaints = dbComplaints.filter(c => {
+          if (!c || !c.id || seenCompIds.has(c.id)) return false;
+          seenCompIds.add(c.id);
+          return true;
+        });
+        setComplaints(uniqueComplaints);
       }
 
       // For complaints, preserve local chat replies if present

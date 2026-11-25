@@ -188,7 +188,7 @@ export const RegisterFranchiseModal: React.FC = () => {
     const ownerFullName = [ownerFirstName, ownerMiddleName, ownerLastName]
       .map(s => s.trim())
       .filter(Boolean)
-      .join(' ') || 'Andrie B. Barosana';
+      .join(' ') || 'Registered Operator';
 
     const driverFullName = [driverFirstName, driverMiddleName, driverLastName]
       .map(s => s.trim())
@@ -199,7 +199,7 @@ export const RegisterFranchiseModal: React.FC = () => {
       ? cleanFare(fareMatrix[0].regularFare, vehicleCategory === 'Pedicab' ? '15.00' : '20.00')
       : (vehicleCategory === 'Pedicab' ? '15.00' : '20.00');
     const primaryFare = `₱${baseFareAmount} Minimum`;
-    const targetPlate = cityPlateNo.trim() || (vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
+    const targetPlate = cityPlateNo.trim() || '—';
 
     const sanitizedFareMatrix = fareMatrix.map(row => {
       const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';

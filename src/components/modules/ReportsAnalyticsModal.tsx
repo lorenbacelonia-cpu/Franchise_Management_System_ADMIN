@@ -58,8 +58,15 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
   const activeTricycleCount = filteredFranchises.filter(f => f.vehicleCategory === 'Tricycle' && f.status === 'Active').length;
   const activePedicabCount = filteredFranchises.filter(f => f.vehicleCategory === 'Pedicab' && f.status === 'Active').length;
 
-  // 2. UNIFIED VIOLATIONS
-  const filteredViolations = violations;
+  // 2. UNIFIED VIOLATIONS (strictly deduplicated by ID)
+  const filteredViolations = useMemo(() => {
+    const seen = new Set<string>();
+    return (violations || []).filter(v => {
+      if (!v || !v.id || seen.has(v.id)) return false;
+      seen.add(v.id);
+      return true;
+    });
+  }, [violations]);
   const totalCitations = filteredViolations.length;
   const pendingCitations = filteredViolations.filter(v => v.status === 'Pending').length;
   const totalFines = filteredViolations.reduce((acc, curr) => acc + (Number(curr.fineAmount) || 0), 0);

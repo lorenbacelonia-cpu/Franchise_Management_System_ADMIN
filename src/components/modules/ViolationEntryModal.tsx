@@ -59,36 +59,6 @@ interface MultipleOffenderRow {
 
 const STORAGE_KEY_SANCTIONS = 'tabaco_trd_multiple_violation_sanctions_v2';
 
-const SEED_SANCTIONS: Record<string, Partial<SanctionDetail>> = {
-  '0412': {
-    investigationStatus: 'Under Investigation',
-    sanctionStatus: 'Active',
-    resolutionNo: 'TRD-RES-2026-031',
-    hearingDate: '2026-11-25',
-    hearingTime: '10:00 AM',
-    assignedOfficer: 'Officer B. Martinez',
-    investigatorNotes: 'Repeated overcharging complaints along Ziga Ave and 2 citations for reckless driving. Scheduled for legal board inquiry.',
-  },
-  'PED-088': {
-    investigationStatus: 'Under Investigation',
-    sanctionStatus: 'Suspended',
-    suspensionDuration: '15 Days Suspension',
-    suspensionEndDate: '2026-12-05',
-    resolutionNo: 'TRD-RES-2026-024',
-    hearingDate: '2026-11-20',
-    assignedOfficer: 'Officer J. Ramos',
-    investigatorNotes: 'Multiple refusal to convey senior citizen passengers in Poblacion commercial district. 15-day suspension imposed.',
-  },
-  '1055': {
-    investigationStatus: 'Under Investigation',
-    sanctionStatus: 'Active',
-    resolutionNo: 'TRD-RES-2026-049',
-    hearingDate: '2026-11-28',
-    assignedOfficer: 'Officer M. De Chavez',
-    investigatorNotes: 'Accumulated 3 separate citations (Colorum operation outside zone, refusal of student discount, illegal terminal).',
-  }
-};
-
 export const ViolationEntryModal: React.FC = () => {
   const {
     activeModule,
@@ -120,7 +90,7 @@ export const ViolationEntryModal: React.FC = () => {
   const [deletingComplaint, setDeletingComplaint] = useState<any | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
-  // ── Persistent Sanction & Investigation state ──────────────────────────────
+  // ── Persistent Sanction state (strictly user/admin records from database & actions) ──
   const [sanctionsMap, setSanctionsMap] = useState<Record<string, SanctionDetail>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SANCTIONS);
@@ -130,23 +100,7 @@ export const ViolationEntryModal: React.FC = () => {
     } catch (e) {
       console.warn('Could not read sanctions storage:', e);
     }
-    const initial: Record<string, SanctionDetail> = {};
-    for (const [plate, detail] of Object.entries(SEED_SANCTIONS)) {
-      initial[plate] = {
-        investigationStatus: detail.investigationStatus || 'Under Investigation',
-        sanctionStatus: detail.sanctionStatus || 'Active',
-        suspensionDuration: detail.suspensionDuration,
-        suspensionEndDate: detail.suspensionEndDate,
-        resolutionNo: detail.resolutionNo,
-        hearingDate: detail.hearingDate,
-        hearingTime: detail.hearingTime,
-        investigatorNotes: detail.investigatorNotes,
-        assignedOfficer: detail.assignedOfficer,
-        lastUpdated: new Date().toISOString(),
-        updatedBy: 'System Administrator'
-      };
-    }
-    return initial;
+    return {};
   });
 
   const saveSanctionsMap = (updated: Record<string, SanctionDetail>) => {
@@ -184,8 +138,15 @@ export const ViolationEntryModal: React.FC = () => {
 
   if (activeModule !== 'violation_entry') return null;
 
-  // ── Unified violations for both Tricycle & Pedicab ──────────────────────────
-  const categoryViolations = (violations || []).filter(Boolean);
+  // ── Unified violations for both Tricycle & Pedicab (strictly deduplicated by ID) ──
+  const categoryViolations = useMemo(() => {
+    const seen = new Set<string>();
+    return (violations || []).filter(v => {
+      if (!v || !v.id || seen.has(v.id)) return false;
+      seen.add(v.id);
+      return true;
+    });
+  }, [violations]);
 
   const filteredViolations = categoryViolations
     .filter(v => {
@@ -202,7 +163,16 @@ export const ViolationEntryModal: React.FC = () => {
     })
     .filter(v => statusFilter === 'All' || v.status === statusFilter);
 
-  const filteredComplaints = (complaints || [])
+  const uniqueComplaints = useMemo(() => {
+    const seen = new Set<string>();
+    return (complaints || []).filter(c => {
+      if (!c || !c.id || seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  }, [complaints]);
+
+  const filteredComplaints = uniqueComplaints
     .filter(c => {
       const term = searchTerm.toLowerCase();
       if (!term) return true;
@@ -315,34 +285,7 @@ export const ViolationEntryModal: React.FC = () => {
       }
     }
 
-    // 4. Ingest seed / recorded sanctions
-    for (const [key, sanction] of Object.entries(sanctionsMap)) {
-      const normKey = key.trim().toUpperCase();
-      if (!buckets.has(normKey)) {
-        const isPed = normKey.startsWith('PED');
-        buckets.set(normKey, {
-          id: normKey,
-          vehicleCategory: isPed ? 'Pedicab' : 'Tricycle',
-          cityPlateNumber: normKey,
-          mtopNumber: normKey,
-          operatorName: isPed ? 'Manuel Garcia' : 'Rodolfo Santos',
-          driverName: isPed ? 'Romeo Cruz' : 'Danilo Reyes',
-          offenses: isPed
-            ? [
-                { type: 'Refusal to Convey Senior Citizen', date: '2026-11-14', source: 'Report' },
-                { type: 'Counter-flow along Ziga Avenue', date: '2026-11-10', source: 'Citation', fine: 500 }
-              ]
-            : [
-                { type: 'Overcharging Passenger Fare', date: '2026-11-16', source: 'Report' },
-                { type: 'Reckless Driving & Overtaking', date: '2026-11-12', source: 'Citation', fine: 1000 },
-                { type: 'No Official Fare Taripa Display', date: '2026-11-05', source: 'Citation', fine: 500 }
-              ],
-          franchiseStatus: sanction.sanctionStatus === 'Deactivated' ? 'Deactivated' : sanction.sanctionStatus === 'Suspended' ? 'Under Review' : 'Active'
-        });
-      }
-    }
-
-    // Convert to list & filter for units with multiple infractions (>= 2) or active sanction records
+    // Convert to list & filter for units with multiple infractions (>= 2 real database offenses)
     const list: MultipleOffenderRow[] = [];
     buckets.forEach((bucket, key) => {
       const sanction = sanctionsMap[key] || {
@@ -352,8 +295,8 @@ export const ViolationEntryModal: React.FC = () => {
         updatedBy: 'System'
       };
 
-      const totalCount = Math.max(bucket.offenses.length, 2);
-      if (bucket.offenses.length >= 2 || sanctionsMap[key] || sanctionsMap[bucket.cityPlateNumber] || sanctionsMap[bucket.mtopNumber]) {
+      const totalCount = bucket.offenses.length;
+      if (totalCount >= 2 || (sanctionsMap[key] && sanctionsMap[key].sanctionStatus !== 'Active')) {
         list.push({
           ...bucket,
           totalCount,
@@ -959,7 +902,7 @@ export const ViolationEntryModal: React.FC = () => {
                     filteredViolations.map(v => {
                       const rawImg = v.evidenceImage || (v as any).evidence_image || (v as any).evidence_url || (v as any).photo_url || (v as any).image_url || (v as any).attachment_url || (v as any).proof_image || (v as any).photo || (v as any).image;
                       const evidenceImg = (rawImg && typeof rawImg === 'string' && !rawImg.startsWith('http') && !rawImg.startsWith('data:') && !rawImg.startsWith('blob:'))
-                        ? (rawImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
+                        ? (rawImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
                         : rawImg;
                       return (
                       <React.Fragment key={v.id}>
@@ -1172,7 +1115,7 @@ export const ViolationEntryModal: React.FC = () => {
                     filteredComplaints.map(c => {
                       const rawCompImg = c.evidenceImage || c.chatMessages?.find(m => m.image)?.image || (c as any).evidence_image || (c as any).evidence_url || (c as any).photo_url || (c as any).image_url || (c as any).attachment_url || (c as any).proof_image || (c as any).photo || (c as any).image;
                       const compEvidenceImg = (rawCompImg && typeof rawCompImg === 'string' && !rawCompImg.startsWith('http') && !rawCompImg.startsWith('data:') && !rawCompImg.startsWith('blob:'))
-                        ? (rawCompImg.startsWith('/storage/') ? `https://cqfnvmsyqndvxooykcfb.supabase.co${rawCompImg}` : `https://cqfnvmsyqndvxooykcfb.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
+                        ? (rawCompImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawCompImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
                         : rawCompImg;
                       return (
                       <React.Fragment key={c.id}>
