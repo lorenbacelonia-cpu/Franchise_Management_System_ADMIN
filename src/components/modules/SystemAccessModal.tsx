@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
-import type { EnforcerAccount } from '../../types';
+import type { EnforcerAccount, AdminAccount } from '../../types';
 import { DEFAULT_MOBILE_VERIFIER_URL } from '../../utils/fareUtils';
 import {
   UserPlus,
@@ -25,7 +25,8 @@ import {
   Copy,
   Printer,
   Smartphone,
-  Check
+  Check,
+  UserCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -43,9 +44,11 @@ export const SystemAccessModal: React.FC = () => {
     currentAdmin,
     registeredAdmins,
     registerAdmin,
+    deleteAdmin,
     enforcers,
     registerEnforcer,
     deleteEnforcer,
+    passengerAccounts,
   } = useFranchise();
 
   // Helper to generate a secure, readable system-provided password
@@ -58,8 +61,8 @@ export const SystemAccessModal: React.FC = () => {
     return `TRD-ENF-${rand}`;
   };
 
-  // Active Tab: 'admins' (Admin Users) first by default, or 'enforcers' (Traffic Enforcers)
-  const [activeTab, setActiveTab] = useState<'admins' | 'enforcers'>('admins');
+  // Active Tab: 'admins' (Admin Users), 'enforcers' (Traffic Enforcers), or 'citizens' (Passenger Accounts)
+  const [activeTab, setActiveTab] = useState<'admins' | 'enforcers' | 'citizens'>('admins');
 
   // ── TRAFFIC ENFORCER FORM STATE (System-Provided Credentials) ──
   const [enfFullName, setEnfFullName] = useState('');
@@ -88,10 +91,19 @@ export const SystemAccessModal: React.FC = () => {
   // Copy feedback notification
   const [copyNotification, setCopyNotification] = useState<string | null>(null);
 
-  // Deletion state
+  // Enforcer deletion state
   const [enforcerToDelete, setEnforcerToDelete] = useState<EnforcerAccount | null>(null);
   const [deletePasscode, setDeletePasscode] = useState('');
   const [isDeletingEnforcer, setIsDeletingEnforcer] = useState(false);
+
+  // Admin deletion state
+  const [adminToDelete, setAdminToDelete] = useState<AdminAccount | null>(null);
+  const [deleteAdminPasscode, setDeleteAdminPasscode] = useState('');
+  const [isDeletingAdmin, setIsDeletingAdmin] = useState(false);
+  const [adminSearch, setAdminSearch] = useState('');
+
+  // Citizen search state
+  const [citizenSearch, setCitizenSearch] = useState('');
 
   // ── ADMIN USER FORM STATE ──
   const [fullName, setFullName] = useState('');
@@ -523,6 +535,42 @@ City Government of Tabaco, Albay`;
     }
   };
 
+  // ── 2b. DELETE ADMIN ACCOUNT (Admin Only) ──
+  const handleConfirmDeleteAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminToDelete) return;
+    setError(null);
+    setSuccess(null);
+
+    const validCreationPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'admin', 'admin123', 'trdadmin', '123456', '2004'];
+    const cleanPasscode = deleteAdminPasscode.trim().toUpperCase();
+    const isAdminAuthed = validCreationPasscodes.map(p => p.toUpperCase()).includes(cleanPasscode) ||
+      (currentAdmin?.password && currentAdmin.password.toUpperCase() === cleanPasscode);
+
+    if (!isAdminAuthed) {
+      setError('Invalid Administrator Passcode. Authorization denied.');
+      return;
+    }
+
+    setIsDeletingAdmin(true);
+    try {
+      const res = await deleteAdmin(adminToDelete.adminId, { adminPasscode: cleanPasscode });
+      setIsDeletingAdmin(false);
+
+      if (!res.success) {
+        setError(res.error || 'Could not remove administrator account.');
+        return;
+      }
+
+      setSuccess(`Administrator account ${adminToDelete.adminId} (${adminToDelete.name}) has been removed.`);
+      setAdminToDelete(null);
+      setDeleteAdminPasscode('');
+    } catch (err: any) {
+      setIsDeletingAdmin(false);
+      setError(err?.message || 'Failed to remove administrator account.');
+    }
+  };
+
   // ── 3. SUBMIT ADMIN ACCOUNT ──
   const handleCreateAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -621,11 +669,34 @@ City Government of Tabaco, Albay`;
     );
   });
 
+  // Filter admins by search
+  const filteredAdmins = registeredAdmins.filter(a => {
+    if (!adminSearch.trim()) return true;
+    const term = adminSearch.toLowerCase();
+    return (
+      a.adminId.toLowerCase().includes(term) ||
+      a.name.toLowerCase().includes(term) ||
+      (a.email || '').toLowerCase().includes(term) ||
+      (a.role || '').toLowerCase().includes(term) ||
+      (a.department || '').toLowerCase().includes(term)
+    );
+  });
+
+  // Filter citizens by search
+  const filteredCitizens = (passengerAccounts || []).filter(c => {
+    if (!citizenSearch.trim()) return true;
+    const term = citizenSearch.toLowerCase();
+    return (
+      c.username.toLowerCase().includes(term) ||
+      (c.fullname || '').toLowerCase().includes(term)
+    );
+  });
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* ── TOP ROLE TAB SELECTOR & MOBILE WEB PORTAL LINK ── */}
       <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Tab 1: Admin Users (First) */}
           <button
             type="button"
@@ -673,6 +744,31 @@ City Government of Tabaco, Albay`;
                 : 'bg-slate-300 text-slate-800'
             }`}>
               {enforcers.length}
+            </span>
+          </button>
+
+          {/* Tab 3: Citizen / Passenger Mobile Accounts (Third) */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('citizens');
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-2 ${
+              activeTab === 'citizens'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Users className="h-4 w-4 text-violet-400" />
+            <span>Passenger / Commuter Users</span>
+            <span className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-bold ${
+              activeTab === 'citizens'
+                ? 'bg-violet-500 text-slate-950'
+                : 'bg-slate-300 text-slate-800'
+            }`}>
+              {passengerAccounts.length}
             </span>
           </button>
         </div>
@@ -1311,7 +1407,7 @@ City Government of Tabaco, Albay`;
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-sky-600" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  Authorized Admin Accounts ({registeredAdmins.length})
+                  Authorized Admin Accounts ({filteredAdmins.length})
                 </h3>
               </div>
               <span className="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full">
@@ -1319,8 +1415,22 @@ City Government of Tabaco, Albay`;
               </span>
             </div>
 
+            {/* Search Admins */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <Search className="w-3.5 h-3.5" />
+              </div>
+              <input
+                type="text"
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+                placeholder="Search admin by name or ID..."
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+              />
+            </div>
+
             <div className="space-y-2.5 max-h-[540px] overflow-y-auto pr-1">
-              {registeredAdmins.map((adm) => {
+              {filteredAdmins.map((adm) => {
                 const isCurrent = adm.adminId.toUpperCase() === currentAdmin.adminId.toUpperCase();
                 return (
                   <div
@@ -1345,9 +1455,25 @@ City Government of Tabaco, Albay`;
                           </p>
                         </div>
                       </div>
-                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-900 text-white shrink-0">
-                        {adm.adminId}
-                      </span>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-lg bg-slate-900 text-white shrink-0">
+                          {adm.adminId}
+                        </span>
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdminToDelete(adm);
+                              setDeleteAdminPasscode('');
+                              setError(null);
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Remove administrator account"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200/70 text-[10px]">
@@ -1369,6 +1495,92 @@ City Government of Tabaco, Albay`;
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* ── TAB 3: PASSENGER / COMMUTER MOBILE ACCOUNTS ── */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'citizens' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5 animate-fadeIn">
+          <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-xl bg-violet-50 text-violet-700 border border-violet-200">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Registered Commuter &amp; Citizen Mobile Accounts ({filteredCitizens.length})
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Accounts created by commuters and passengers via the Tabaco City Commuter Mobile Web App
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-violet-700 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full flex items-center gap-1 self-start sm:self-auto">
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>Live Database Synced</span>
+            </span>
+          </div>
+
+          {/* Search Commuters */}
+          <div className="relative max-w-md">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Search className="w-3.5 h-3.5" />
+            </div>
+            <input
+              type="text"
+              value={citizenSearch}
+              onChange={(e) => setCitizenSearch(e.target.value)}
+              placeholder="Search commuter by username or full name..."
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            />
+          </div>
+
+          {/* Grid of Commuter Accounts */}
+          {filteredCitizens.length === 0 ? (
+            <div className="p-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+              <Users className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-700">No commuter accounts found</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Commuters register when submitting fare inquiries or complaints via the mobile web portal.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filteredCitizens.map((citizen) => (
+                <div
+                  key={citizen.id || citizen.username}
+                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-slate-100/80 transition-all space-y-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="h-9 w-9 rounded-xl bg-violet-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                        {(citizen.fullname || citizen.username).charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {citizen.fullname || citizen.username}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono truncate">
+                          @{citizen.username}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] font-bold px-2 py-0.5 rounded-md bg-violet-100 text-violet-800 shrink-0">
+                      Commuter
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 text-[10px] text-slate-500 font-medium">
+                    <span>Registered: {citizen.createdAt ? new Date(citizen.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Verified User'}</span>
+                    <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      Active Mobile
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1567,6 +1779,69 @@ City Government of Tabaco, Albay`;
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>{isDeletingEnforcer ? 'Removing...' : 'Confirm Remove'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADMIN REMOVAL CONFIRMATION MODAL (Admin Passcode Protected) ── */}
+      {adminToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2.5 text-rose-700">
+                <div className="p-2 rounded-xl bg-rose-50 border border-rose-200">
+                  <Trash2 className="h-4 w-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">
+                  Remove Administrator Account
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdminToDelete(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer text-xs font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Are you sure you want to remove Administrator account <strong className="text-slate-900 font-bold">{adminToDelete.adminId} ({adminToDelete.name})</strong>? This will revoke administrative access across all browsers.
+            </p>
+
+            <form onSubmit={handleConfirmDeleteAdmin} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Enter Administrator Passcode to Confirm *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={deleteAdminPasscode}
+                  onChange={(e) => setDeleteAdminPasscode(e.target.value)}
+                  placeholder="Enter administrator passcode"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAdminToDelete(null)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeletingAdmin}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>{isDeletingAdmin ? 'Removing...' : 'Confirm Remove'}</span>
                 </button>
               </div>
             </form>

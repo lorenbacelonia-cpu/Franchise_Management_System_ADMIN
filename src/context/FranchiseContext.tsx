@@ -12,10 +12,10 @@ import type {
   AdminUser,
   AdminAccount,
   EnforcerAccount,
+  PassengerAccount,
   DeletionLog,
   AdminActivityLog
 } from '../types';
-import { initialFranchises } from '../data/mockData';
 import { buildPermanentQrPayload, cleanFare, getDefaultFareMatrix, resolveFranchiseStatus, isRecordExpired } from '../utils/fareUtils';
 import type { DateFilterState } from '../utils/dateFilter';
 import {
@@ -40,9 +40,11 @@ import {
   updatePendingReviewStatusInSupabase,
   fetchAdminAccountsFromSupabase,
   saveAdminAccountInSupabase,
+  deleteAdminAccountInSupabase,
   fetchEnforcersFromSupabase,
   saveEnforcerAccountInSupabase,
   deleteEnforcerAccountInSupabase,
+  fetchPassengerAccountsFromSupabase,
   fetchAdminActivityLogsFromSupabase,
   saveAdminActivityLogInSupabase
 } from '../lib/supabaseClient';
@@ -73,10 +75,13 @@ interface FranchiseContextType {
   setIsAuthenticated: (auth: boolean, remember?: boolean) => void;
   registeredAdmins: AdminAccount[];
   registerAdmin: (account: Omit<AdminAccount, 'createdAt'>, options?: { switchSession?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  deleteAdmin: (adminId: string, options?: { adminPasscode?: string }) => Promise<{ success: boolean; error?: string }>;
   enforcers: EnforcerAccount[];
   registerEnforcer: (account: Omit<EnforcerAccount, 'createdAt'>, options?: { adminPasscode?: string }) => Promise<{ success: boolean; error?: string }>;
   deleteEnforcer: (badgeNumber: string, options?: { adminPasscode?: string }) => Promise<{ success: boolean; error?: string }>;
   syncEnforcersFromDatabase: () => Promise<void>;
+  passengerAccounts: PassengerAccount[];
+  syncPassengerAccountsFromDatabase: () => Promise<void>;
   loginAdmin: (identifier: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   loginWithEmailVerification: (emailOrId: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; admin?: AdminUser }>;
   logoutAdmin: () => void;
@@ -204,27 +209,6 @@ const STORAGE_KEY_ACTIVITY_LOGS = 'tabaco_trd_activity_logs_v1';
 
 const DEFAULT_ENFORCERS: EnforcerAccount[] = [];
 
-const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
-  {
-    adminId: 'ADM-2026-001',
-    name: 'TRD Chief Administrator',
-    email: 'admin@franchise.gov.ph',
-    role: 'Head Administrator',
-    department: 'Transportation Regulation Division',
-    password: 'admin',
-    createdAt: '2026-01-01T00:00:00.000Z'
-  },
-  {
-    adminId: 'ADM-2026-002',
-    name: 'Maria Santos',
-    email: 'licensing@tabaco.gov.ph',
-    role: 'Staff',
-    department: 'Franchise & Permits Section',
-    password: 'admin',
-    createdAt: '2026-01-01T00:00:00.000Z'
-  }
-];
-
 const LEGACY_MOCK_IDS = new Set(['fr-101', 'fr-102', 'fr-103', 'fr-201', 'fr-202']);
 
 export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -347,12 +331,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       console.warn('Error reading franchises from localStorage:', e);
     }
-    return []; // Clean slate
-    return initialFranchises.map(f => {
-      const resolvedStatus = resolveFranchiseStatus(f.status, f.expirationDate);
-      const updated = { ...f, status: resolvedStatus };
-      return { ...updated, qrCodeData: buildPermanentQrPayload(updated) };
-    });
+    return []; // Clean slate strictly from database
   });
 
   const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
@@ -361,41 +340,36 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  // Registered administrator accounts from storage
+  // Registered administrator accounts strictly from database
   const [registeredAdmins, setRegisteredAdmins] = useState<AdminAccount[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_REGISTERED_ADMINS);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Strictly purge any legacy mock accounts
+          return parsed.filter(a => a.name !== 'Maria Santos' && a.adminId !== 'ADM-2026-001' && a.adminId !== 'ADM-2026-002');
+        }
       }
     } catch (e) {
       console.warn('Error reading registered admins from storage:', e);
     }
-    return DEFAULT_ADMIN_ACCOUNTS;
+    return [];
   });
 
-  // Cross-browser synchronization: fetch all registered admin accounts from Supabase on mount
+  // Cross-browser synchronization: fetch all registered admin accounts strictly from Supabase on mount
   useEffect(() => {
     fetchAdminAccountsFromSupabase().then(dbAdmins => {
       if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
-        setRegisteredAdmins(prev => {
-          const merged = [...dbAdmins];
-          for (const p of prev) {
-            if (!merged.some(m => m.adminId.toLowerCase() === p.adminId.toLowerCase() || m.email.toLowerCase() === p.email.toLowerCase())) {
-              merged.push(p);
-            }
-          }
-          try {
-            localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-          } catch { }
-          return merged;
-        });
+        setRegisteredAdmins(dbAdmins);
+        try {
+          localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(dbAdmins));
+        } catch { }
       }
     }).catch(e => console.warn('Could not sync admin accounts on mount:', e));
   }, []);
 
-  // Registered Traffic Enforcer accounts from storage
+  // Registered Traffic Enforcer accounts from storage & Supabase
   const [enforcers, setEnforcers] = useState<EnforcerAccount[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_ENFORCERS);
@@ -412,7 +386,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const syncEnforcersFromDatabase = useCallback(async () => {
     try {
       const dbEnforcers = await fetchEnforcersFromSupabase();
-      if (Array.isArray(dbEnforcers) && dbEnforcers.length > 0) {
+      if (Array.isArray(dbEnforcers)) {
         setEnforcers(dbEnforcers);
         try {
           localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(dbEnforcers));
@@ -426,6 +400,24 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     syncEnforcersFromDatabase();
   }, [syncEnforcersFromDatabase]);
+
+  // Registered Passenger / Citizen mobile user accounts from database
+  const [passengerAccounts, setPassengerAccounts] = useState<PassengerAccount[]>([]);
+
+  const syncPassengerAccountsFromDatabase = useCallback(async () => {
+    try {
+      const dbPassengers = await fetchPassengerAccountsFromSupabase();
+      if (Array.isArray(dbPassengers)) {
+        setPassengerAccounts(dbPassengers);
+      }
+    } catch (e) {
+      console.warn('Error syncing passenger accounts from Supabase:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    syncPassengerAccountsFromDatabase();
+  }, [syncPassengerAccountsFromDatabase]);
 
   // Authentication session state (default: FALSE so user MUST log in or sign up!)
   const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
@@ -629,7 +621,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.warn('Real-time database admin lookup notice:', err);
     }
 
-    const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+    const adminMap = new Map<string, AdminAccount>();
+    for (const a of [...dbAdmins, ...registeredAdmins]) {
+      if (a && a.adminId) adminMap.set(a.adminId.toUpperCase(), a);
+    }
+    const allAdmins = Array.from(adminMap.values());
 
     // 2. Strict exact match on Admin ID or Email against database
     const matched = allAdmins.find(a =>
@@ -685,7 +681,11 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.warn('Real-time database lookup notice:', err);
     }
 
-    const allAdmins = [...dbAdmins, ...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+    const adminMap = new Map<string, AdminAccount>();
+    for (const a of [...dbAdmins, ...registeredAdmins]) {
+      if (a && a.adminId) adminMap.set(a.adminId.toUpperCase(), a);
+    }
+    const allAdmins = Array.from(adminMap.values());
 
     // Strict exact match against the database
     const matched = allAdmins.find(a =>
@@ -728,7 +728,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false, error: 'All fields are required to register an administrator.' };
     }
 
-    const allAdmins = [...registeredAdmins, ...DEFAULT_ADMIN_ACCOUNTS];
+    const allAdmins = registeredAdmins;
     const exists = allAdmins.some(
       a => a.adminId.toUpperCase() === cleanId || a.email.toLowerCase() === cleanEmail
     );
@@ -881,6 +881,53 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return { success: true };
   }, [enforcers, currentAdmin]);
 
+  const deleteAdmin = useCallback(async (
+    adminId: string,
+    options?: { adminPasscode?: string }
+  ) => {
+    // Strict Admin Authorization Check
+    const passcode = (options?.adminPasscode || '').trim().toUpperCase();
+    const validPasscodes = ['01012005', 'TRD2026', 'ADMIN2026', 'ADMIN', 'ADMIN123', 'TRDADMIN', '123456', '2004'];
+    const isAdminAuthed = validPasscodes.includes(passcode) ||
+      (currentAdmin?.password && currentAdmin.password.toUpperCase() === passcode);
+
+    if (!isAdminAuthed) {
+      return {
+        success: false,
+        error: 'Access Restricted: Administrator Passcode required to remove an administrator account.'
+      };
+    }
+
+    const cleanId = adminId.trim().toUpperCase();
+    if (cleanId === currentAdmin?.adminId?.toUpperCase()) {
+      return {
+        success: false,
+        error: 'Security Notice: You cannot delete the currently active administrator account session.'
+      };
+    }
+
+    const updated = registeredAdmins.filter(a => a.adminId.toUpperCase() !== cleanId);
+    setRegisteredAdmins(updated);
+    try {
+      localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(updated));
+    } catch {}
+
+    try {
+      await deleteAdminAccountInSupabase(cleanId);
+    } catch (err) {
+      console.warn('Notice deleting admin from Supabase:', err);
+    }
+
+    logAdminActivity(
+      'Administrator Account Removed',
+      `Administrator account ${cleanId} removed by ${currentAdmin.name}.`,
+      'system_access',
+      'User'
+    );
+
+    return { success: true };
+  }, [registeredAdmins, currentAdmin, logAdminActivity]);
+
   // Master Synchronizer with Supabase Database (non-destructive merge of both Tricycle & Pedicab)
   const syncFromDatabase = useCallback(async () => {
     setIsSyncing(true);
@@ -893,6 +940,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dbComplaints,
         dbReviews,
         dbAdmins,
+        dbPassengers,
         dbActivityLogs
       ] = await Promise.all([
         fetchFranchiseRecordsFromSupabase('Tricycle'),
@@ -902,6 +950,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         fetchPassengerComplaintsFromSupabase(),
         fetchPendingReviewsFromSupabase(),
         fetchAdminAccountsFromSupabase(),
+        fetchPassengerAccountsFromSupabase(),
         fetchAdminActivityLogsFromSupabase()
       ]);
 
@@ -918,19 +967,16 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       // Synchronize live admin accounts from database across all browsers
-      if (Array.isArray(dbAdmins) && dbAdmins.length > 0) {
-        setRegisteredAdmins(prev => {
-          const merged = [...dbAdmins];
-          for (const p of prev) {
-            if (!merged.some(m => m.adminId.toLowerCase() === p.adminId.toLowerCase() || m.email.toLowerCase() === p.email.toLowerCase())) {
-              merged.push(p);
-            }
-          }
-          try {
-            localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(merged));
-          } catch { }
-          return merged;
-        });
+      if (Array.isArray(dbAdmins)) {
+        setRegisteredAdmins(dbAdmins);
+        try {
+          localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(dbAdmins));
+        } catch { }
+      }
+
+      // Synchronize live passenger mobile user accounts
+      if (Array.isArray(dbPassengers)) {
+        setPassengerAccounts(dbPassengers);
       }
 
       // Synchronize live database records with state (unified Tricycle + Pedicab records)
@@ -1840,10 +1886,13 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setIsAuthenticated,
         registeredAdmins,
         registerAdmin,
+        deleteAdmin,
         enforcers,
         registerEnforcer,
         deleteEnforcer,
         syncEnforcersFromDatabase,
+        passengerAccounts,
+        syncPassengerAccountsFromDatabase,
         loginAdmin,
         loginWithEmailVerification,
         logoutAdmin,

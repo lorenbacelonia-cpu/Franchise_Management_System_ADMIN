@@ -1,4 +1,4 @@
-import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount, EnforcerAccount } from '../types';
+import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount, EnforcerAccount, PassengerAccount } from '../types';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, isRecordExpired, resolveFranchiseStatus } from '../utils/fareUtils';
 
 // Supabase configuration from environment variables
@@ -1301,33 +1301,36 @@ export async function fetchMobileAccountsFromSupabase() {
   return result;
 }
 
-/** 14. Fetch registered administrator accounts across browsers from Supabase */
+/** 14. Fetch registered administrator accounts across browsers strictly from Supabase */
 export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> {
   const accounts: AdminAccount[] = [];
+  const seenAdminIds = new Set<string>();
 
   // 1. Try fetching from dedicated admin_accounts table
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_accounts?select=*`, { headers: getHeaders() });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         for (const row of data) {
+          const aId = (row.admin_id || row.adminId || '').trim().toUpperCase();
+          if (!aId || seenAdminIds.has(aId)) continue;
+          seenAdminIds.add(aId);
           accounts.push({
-            adminId: row.admin_id || row.adminId,
-            name: row.name || row.fullname,
-            email: row.email || `${(row.admin_id || 'admin').toLowerCase()}@tabaco.gov.ph`,
-            role: row.role || 'Administrator',
+            adminId: aId,
+            name: row.name || row.fullname || aId,
+            email: row.email || `${aId.toLowerCase()}@tabaco.gov.ph`,
+            role: row.role || (aId === 'ADMIN' ? 'Head Administrator' : 'Administrator'),
             department: row.department || 'Transportation Regulation Division',
             password: row.password,
             createdAt: row.created_at || new Date().toISOString()
           });
         }
-        return accounts;
       }
     }
   } catch { }
 
-  // 2. Also check account_enforcer_mobile where enforcer/admin accounts are stored in Supabase
+  // 2. Fetch admin accounts from account_enforcer_mobile (where username is ADM-* or admin or andrie)
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?select=*`, { headers: getHeaders() });
     if (res.ok) {
@@ -1335,54 +1338,38 @@ export async function fetchAdminAccountsFromSupabase(): Promise<AdminAccount[]> 
       if (Array.isArray(data)) {
         for (const row of data) {
           const uname = String(row.username || '').trim();
-          if (uname.toUpperCase().startsWith('ENF-')) continue; // Strictly traffic enforcers, handled separately
+          const unameUpper = uname.toUpperCase();
+          // Skip traffic enforcers (strictly handled separately)
+          if (unameUpper.startsWith('ENF-') || uname.toLowerCase() === 'enforcer') continue;
+          if (seenAdminIds.has(unameUpper)) continue;
+          seenAdminIds.add(unameUpper);
+
           const rawName = String(row.fullname || uname).trim();
           let parsedName = rawName;
-          let parsedEmail = uname.includes('@') ? uname.toLowerCase() : '';
+          let parsedEmail = '';
           const emailMatch = rawName.match(/\[(.*?)\]/);
           if (emailMatch && emailMatch[1]) {
             parsedEmail = emailMatch[1].trim().toLowerCase();
             parsedName = rawName.replace(/\[(.*?)\]/, '').trim();
+          } else if (uname.includes('@')) {
+            parsedEmail = uname.toLowerCase();
           }
 
-          accounts.push({
-            adminId: uname.toUpperCase(),
-            name: parsedName || uname,
-            email: parsedEmail,
-            role: 'Traffic Enforcer / Administrator',
-            department: 'Transportation Regulation Division',
-            password: row.password,
-            createdAt: row.created_at || new Date().toISOString()
-          });
-        }
-      }
-    }
-  } catch { }
-
-  // 3. Also check account_passenger_mobile so any registered user can be recognized
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_passenger_mobile?select=*`, { headers: getHeaders() });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        for (const row of data) {
-          const uname = String(row.username || '').trim();
-          if (uname.toUpperCase().startsWith('ENF-')) continue; // Strictly traffic enforcers, handled separately
-          const rawName = String(row.fullname || uname).trim();
-          let parsedName = rawName;
-          let parsedEmail = `${uname.toLowerCase()}@passenger.tabaco.gov.ph`;
-          const emailMatch = rawName.match(/\[(.*?)\]/);
-          if (emailMatch && emailMatch[1]) {
-            parsedEmail = emailMatch[1].trim().toLowerCase();
-            parsedName = rawName.replace(/\[(.*?)\]/, '').trim();
+          let dept = 'Transportation Regulation Division';
+          const deptMatch = parsedName.match(/\((.*?)\)/);
+          if (deptMatch && deptMatch[1]) {
+            dept = deptMatch[1].trim();
+            parsedName = parsedName.replace(/\((.*?)\)/, '').trim();
           }
 
+          const isHead = unameUpper === 'ADMIN' || uname.toLowerCase() === 'admin';
+
           accounts.push({
-            adminId: uname.toUpperCase(),
+            adminId: unameUpper,
             name: parsedName || uname,
-            email: parsedEmail,
-            role: 'Registered User',
-            department: 'Citizen & Commuter Portal',
+            email: parsedEmail || (row.email ? row.email.toLowerCase() : `${uname.toLowerCase()}@tabaco.gov.ph`),
+            role: isHead ? 'Head Administrator' : 'Administrator',
+            department: dept,
             password: row.password,
             createdAt: row.created_at || new Date().toISOString()
           });
@@ -1443,9 +1430,29 @@ export async function saveAdminAccountInSupabase(account: AdminAccount): Promise
   return false;
 }
 
-/** 16. Fetch Traffic Enforcer accounts from Supabase account_enforcer_mobile */
+/** 15b. Delete administrator account from Supabase */
+export async function deleteAdminAccountInSupabase(adminId: string): Promise<boolean> {
+  const cleanId = adminId.trim().toUpperCase();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?username=eq.${encodeURIComponent(cleanId)}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_accounts?admin_id=eq.${encodeURIComponent(cleanId)}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to delete admin account from Supabase:', err);
+    return false;
+  }
+}
+
+/** 16. Fetch Traffic Enforcer accounts strictly from Supabase account_enforcer_mobile */
 export async function fetchEnforcersFromSupabase(): Promise<EnforcerAccount[]> {
   const enforcers: EnforcerAccount[] = [];
+  const seenBadges = new Set<string>();
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/account_enforcer_mobile?select=*`, { headers: getHeaders() });
     if (res.ok) {
@@ -1453,6 +1460,12 @@ export async function fetchEnforcersFromSupabase(): Promise<EnforcerAccount[]> {
       if (Array.isArray(data)) {
         for (const row of data) {
           const uname = String(row.username || '').trim().toUpperCase();
+          // STRICTLY traffic enforcers only! Skip admins (ADM-*, admin, andrie)
+          const isEnforcer = uname.startsWith('ENF-') || uname.toLowerCase() === 'enforcer';
+          if (!isEnforcer) continue;
+          if (seenBadges.has(uname)) continue;
+          seenBadges.add(uname);
+
           const rawFullname = String(row.fullname || uname).trim();
           let parsedName = rawFullname;
           let parsedEmail = '';
@@ -1463,6 +1476,8 @@ export async function fetchEnforcersFromSupabase(): Promise<EnforcerAccount[]> {
           if (emailMatch && emailMatch[1]) {
             parsedEmail = emailMatch[1].trim();
             parsedName = parsedName.replace(/\[(.*?)\]/, '').trim();
+          } else if (row.email) {
+            parsedEmail = row.email;
           }
 
           const areaMatch = rawFullname.match(/\((.*?)\)/);
@@ -1496,6 +1511,34 @@ export async function fetchEnforcersFromSupabase(): Promise<EnforcerAccount[]> {
     console.warn('Could not fetch enforcers from Supabase:', e);
   }
   return enforcers;
+}
+
+/** 16b. Fetch Passenger / Commuter accounts strictly from Supabase account_passenger_mobile */
+export async function fetchPassengerAccountsFromSupabase(): Promise<PassengerAccount[]> {
+  const passengers: PassengerAccount[] = [];
+  const seenUsernames = new Set<string>();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/account_passenger_mobile?select=*&order=created_at.desc`, { headers: getHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        for (const row of data) {
+          const uname = String(row.username || '').trim();
+          if (!uname || seenUsernames.has(uname.toLowerCase())) continue;
+          seenUsernames.add(uname.toLowerCase());
+          passengers.push({
+            id: row.id,
+            username: uname,
+            fullname: row.fullname || uname,
+            createdAt: row.created_at || new Date().toISOString()
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch passenger accounts from Supabase:', e);
+  }
+  return passengers;
 }
 
 /** 17. Save Traffic Enforcer account to Supabase account_enforcer_mobile */

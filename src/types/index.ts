@@ -220,6 +220,13 @@ export interface AdminAccount {
   createdAt?: string;
 }
 
+export interface PassengerAccount {
+  id: string;
+  username: string;
+  fullname: string;
+  createdAt?: string;
+}
+
 export interface EnforcerAccount {
   id?: string;
   badgeNumber: string; // e.g. ENF-2026-101
