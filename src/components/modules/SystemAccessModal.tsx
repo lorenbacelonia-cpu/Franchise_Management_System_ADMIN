@@ -37,6 +37,7 @@ import {
   cleanName,
   cleanCode
 } from '../../utils/validation';
+import { isHeadAdmin } from '../../utils/roles';
 
 export const SystemAccessModal: React.FC = () => {
   const {
@@ -121,7 +122,7 @@ export const SystemAccessModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (activeModule !== 'system_access') return null;
+  if (activeModule !== 'system_access' || !isHeadAdmin(currentAdmin)) return null;
 
   const generateNewEnforcerBadge = () => {
     setEnfBadgeNumber(`ENF-2026-${Math.floor(100 + Math.random() * 900)}`);

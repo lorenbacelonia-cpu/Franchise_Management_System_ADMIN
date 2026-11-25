@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
 import type { ActiveModule } from '../types';
+import { isHeadAdmin } from '../utils/roles';
 import {
   LayoutDashboard,
   UserPlus,
@@ -128,14 +129,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       groupLabel: 'Administration',
       items: [
-        {
-          id: 'system_access',
-          title: 'User Managements',
-          subtitle: 'Enforcers & admin users',
-          icon: ShieldCheck,
-          badge: moduleBadges.system_access > 0 ? moduleBadges.system_access : undefined,
-          badgeColor: 'bg-emerald-500 text-slate-950',
-        },
+        ...(isHeadAdmin(currentAdmin)
+          ? [
+              {
+                id: 'system_access' as const,
+                title: 'User Managements',
+                subtitle: 'Enforcers & admin users',
+                icon: ShieldCheck,
+                badge: moduleBadges.system_access > 0 ? moduleBadges.system_access : undefined,
+                badgeColor: 'bg-emerald-500 text-slate-950',
+              },
+            ]
+          : []),
         {
           id: 'account',
           title: 'Account',

@@ -146,7 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
                 {currentAdmin.adminId}
               </p>
               <p className="text-[9px] text-emerald-400 font-semibold leading-none mt-0.5">
-                Admin In-Charge
+                {currentAdmin.role || 'Admin In-Charge'}
               </p>
             </div>
           </div>

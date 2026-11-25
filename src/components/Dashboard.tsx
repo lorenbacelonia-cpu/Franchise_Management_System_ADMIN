@@ -19,9 +19,11 @@ import { ViolationEntryModal } from './modules/ViolationEntryModal';
 import { FranchiseDeactivationModal } from './modules/FranchiseDeactivationModal';
 import { SystemAccessModal } from './modules/SystemAccessModal';
 import { AccountDashboard } from './modules/AccountDashboard';
+import { isHeadAdmin } from '../utils/roles';
+import { ShieldAlert } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { activeModule } = useFranchise();
+  const { activeModule, currentAdmin, setActiveModule } = useFranchise();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -66,7 +68,28 @@ export const Dashboard: React.FC = () => {
           {activeModule === 'reports' && <ReportsAnalyticsModal />}
           {activeModule === 'violation_entry' && <ViolationEntryModal />}
           {activeModule === 'deactivation' && <FranchiseDeactivationModal />}
-          {activeModule === 'system_access' && <SystemAccessModal />}
+          {activeModule === 'system_access' && (
+            isHeadAdmin(currentAdmin) ? (
+              <SystemAccessModal />
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center max-w-xl mx-auto my-12 shadow-sm animate-fadeIn">
+                <div className="h-16 w-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4">
+                  <ShieldAlert className="h-8 w-8" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+                <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                  The <strong>User Management</strong> module is reserved for the <strong>Head Administrator / Chief</strong>. Your current account role is <span className="font-semibold text-slate-800">[{currentAdmin.role || 'Staff'}]</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveModule('overview')}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                >
+                  Return to Dashboard Overview
+                </button>
+              </div>
+            )
+          )}
           {activeModule === 'account' && <AccountDashboard />}
         </main>
       </div>
