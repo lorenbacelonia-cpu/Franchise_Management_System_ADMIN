@@ -153,6 +153,7 @@ interface FranchiseContextType {
       driverMiddleName?: string;
       driverName: string;
       driverAddress?: string;
+      driverPhoto?: string;
       licenseNo?: string;
       contact?: string;
       address?: string;
@@ -1415,6 +1416,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       driverMiddleName?: string;
       driverName: string;
       driverAddress?: string;
+      driverPhoto?: string;
       licenseNo?: string;
       contact?: string;
       address?: string;
@@ -1473,6 +1475,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       operator_address: newOperatorAddress,
       driver_name: newDriverName,
       driver_address: newDriverAddress,
+      driver_photo: driverData.driverPhoto !== undefined ? driverData.driverPhoto : target?.driverPhoto,
+      fare_matrix: driverData.fareMatrix ?? target?.fareMatrix,
       license_no: driverData.licenseNo,
       contact_number: newOperatorContact,
       residential_address: newOperatorAddress,
@@ -1542,6 +1546,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           driverMiddleName: driverData.driverMiddleName ?? item.driverMiddleName,
           driverName: newDriverName || item.driverName,
           driverAddress: newDriverAddress ?? item.driverAddress,
+          driverPhoto: driverData.driverPhoto !== undefined ? driverData.driverPhoto : item.driverPhoto,
           driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
 
           applicationNo: driverData.applicationNo ?? item.applicationNo,

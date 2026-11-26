@@ -55,6 +55,7 @@ export interface FranchiseRecord {
   licenseExpiry?: string;
   driverContact?: string;
   driverEmail?: string;
+  driverPhoto?: string;
 
   // Vehicle unit fields
   makeModel?: string;

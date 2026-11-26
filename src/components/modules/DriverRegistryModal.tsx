@@ -21,7 +21,9 @@ import {
   Trash2,
   UserCheck,
   ShieldCheck,
-  Printer
+  Printer,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix } from '../../utils/fareUtils';
@@ -75,6 +77,7 @@ export const DriverRegistryModal: React.FC = () => {
     touristGuide: string;
     status: string;
     processedAt: string;
+    driverPhoto?: string;
   } | null>(null);
 
   // Inline Edit State — Matches Register Franchise full fields
@@ -92,6 +95,7 @@ export const DriverRegistryModal: React.FC = () => {
   const [driverFirstName, setDriverFirstName] = useState('');
   const [driverMiddleName, setDriverMiddleName] = useState('');
   const [driverAddress, setDriverAddress] = useState('');
+  const [driverPhoto, setDriverPhoto] = useState<string>('');
 
   const [applicationNo, setApplicationNo] = useState('');
   const [editVehicleCategory, setEditVehicleCategory] = useState<VehicleCategory>('Tricycle');
@@ -161,6 +165,7 @@ export const DriverRegistryModal: React.FC = () => {
     setDriverFirstName(item.driverFirstName || drvParsed.first);
     setDriverMiddleName(item.driverMiddleName || drvParsed.middle);
     setDriverAddress(item.driverAddress || '');
+    setDriverPhoto(item.driverPhoto || '');
 
     setApplicationNo(item.applicationNo || '');
     setEditVehicleCategory(item.vehicleCategory || 'Tricycle');
@@ -205,9 +210,54 @@ export const DriverRegistryModal: React.FC = () => {
 
   const handleCloseEditModal = () => {
     setEditingUnit(null);
+    setDriverPhoto('');
     setShowConfirmationModal(false);
     setIsConfirmedChecked(true);
     setFormError(null);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('Please select a valid image file (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Compress to 280x280 square avatar for lightweight Supabase sync
+        const canvas = document.createElement('canvas');
+        const maxDim = 280;
+        const width = img.width;
+        const height = img.height;
+        const minDim = Math.min(width, height);
+        const startX = (width - minDim) / 2;
+        const startY = (height - minDim) / 2;
+
+        canvas.width = maxDim;
+        canvas.height = maxDim;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, maxDim, maxDim);
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          setDriverPhoto(compressed);
+        }
+      };
+      img.onerror = () => {
+        setFormError('Could not process the selected image file.');
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      setFormError('Could not read the selected image file.');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddFareRow = () => {
@@ -321,6 +371,7 @@ export const DriverRegistryModal: React.FC = () => {
         driverMiddleName: cleanName(driverMiddleName),
         driverName: finalDriverName,
         driverAddress: cleanAddress(driverAddress),
+        driverPhoto: driverPhoto || undefined,
 
         applicationNo: applicationNo.trim(),
         vehicleCategory: editVehicleCategory,
@@ -357,6 +408,7 @@ export const DriverRegistryModal: React.FC = () => {
         routeParada: paradaRoute.trim(),
         touristGuide,
         status: editStatus,
+        driverPhoto: driverPhoto || editingUnit.driverPhoto,
         processedAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
       });
 
@@ -427,14 +479,25 @@ export const DriverRegistryModal: React.FC = () => {
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                     Driver Assignment
                   </span>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-xs text-slate-400 line-through truncate max-w-[150px]">
-                      {completedUpdateSummary.previousDriver}
-                    </span>
-                    <span className="text-slate-400 font-bold">➔</span>
-                    <span className="font-bold text-sm text-slate-900 bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded-lg truncate">
-                      {completedUpdateSummary.newDriver}
-                    </span>
+                  <div className="flex items-center space-x-3 mt-1.5">
+                    {completedUpdateSummary.driverPhoto && (
+                      <img
+                        src={completedUpdateSummary.driverPhoto}
+                        alt="Driver"
+                        className="h-10 w-10 rounded-xl object-cover border-2 border-emerald-500 shadow-2xs shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-slate-400 line-through truncate max-w-[130px]">
+                          {completedUpdateSummary.previousDriver}
+                        </span>
+                        <span className="text-slate-400 font-bold">➔</span>
+                        <span className="font-bold text-sm text-slate-900 bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded-lg truncate">
+                          {completedUpdateSummary.newDriver}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -676,10 +739,72 @@ export const DriverRegistryModal: React.FC = () => {
               </div>
 
               {/* Driver */}
-              <div>
-                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Driver
-                </label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[13px] font-bold text-slate-800">
+                    Driver Information &amp; Photo
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">Syncs with mobile web app</span>
+                </div>
+
+                {/* Driver Photo Upload & Preview Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center space-x-3.5 shadow-2xs">
+                  <div className="relative shrink-0">
+                    {driverPhoto ? (
+                      <div className="relative">
+                        <img
+                          src={driverPhoto}
+                          alt="Driver"
+                          className="h-16 w-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDriverPhoto('')}
+                          className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full p-1 hover:bg-rose-600 transition-colors shadow-xs cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="h-16 w-16 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400">
+                        <Camera className="h-5 w-5 mb-0.5 text-slate-400" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Photo</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-xs font-bold text-slate-800">
+                      {driverPhoto ? 'Official Driver Photo Loaded' : 'Upload Driver Photo'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      This photo is displayed on the public mobile web verification dashboard when commuters or enforcers scan the QR badge.
+                    </p>
+                    <div className="flex items-center space-x-2 pt-1">
+                      <label className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-2xs transition-colors">
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>{driverPhoto ? 'Change Photo' : 'Upload Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {driverPhoto && (
+                        <button
+                          type="button"
+                          onClick={() => setDriverPhoto('')}
+                          className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-rose-600 border border-slate-200 text-xs font-semibold rounded-xl cursor-pointer transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     type="text"
@@ -1111,9 +1236,18 @@ export const DriverRegistryModal: React.FC = () => {
                       <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
                       <span>Authorized Driver:</span>
                     </span>
-                    <span className="font-bold text-slate-900 text-right truncate">
-                      {[driverFirstName, driverMiddleName, driverLastName].filter(Boolean).join(' ') || 'No Driver Assigned'}
-                    </span>
+                    <div className="flex items-center space-x-2 text-right truncate">
+                      {driverPhoto && (
+                        <img
+                          src={driverPhoto}
+                          alt="Driver"
+                          className="h-6 w-6 rounded-lg object-cover border border-emerald-400 shrink-0 shadow-2xs"
+                        />
+                      )}
+                      <span className="font-bold text-slate-900 truncate">
+                        {[driverFirstName, driverMiddleName, driverLastName].filter(Boolean).join(' ') || 'No Driver Assigned'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
@@ -1351,9 +1485,17 @@ export const DriverRegistryModal: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2.5 pt-0.5">
-                        <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0">
-                          {driverInitial}
-                        </div>
+                        {item.driverPhoto ? (
+                          <img
+                            src={item.driverPhoto}
+                            alt={item.driverName}
+                            className="h-8 w-8 rounded-xl object-cover border border-emerald-300 shadow-2xs shrink-0"
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-black text-xs flex items-center justify-center shrink-0">
+                            {driverInitial}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-slate-900 truncate">
                             {item.driverName || 'No Driver Assigned'}

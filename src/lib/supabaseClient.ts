@@ -39,24 +39,32 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
   const plate = row.city_plate_number || row.mtop_number || '';
   const category: VehicleCategory = row.vehicle_category || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle');
 
-  // Normalize fare matrix items
+  // Normalize fare matrix items and extract driver photo if present (directly or packed inside fare_matrix metadata)
+  let extractedDriverPhoto = row.driver_photo || row.driver_photo_url || row.photo || row.driver_image || '';
   let mappedMatrix: FareMatrixItem[] = [];
   if (Array.isArray(row.fare_matrix) && row.fare_matrix.length > 0) {
-    mappedMatrix = row.fare_matrix.map((item: any, idx: number) => {
+    row.fare_matrix.forEach((item: any, idx: number) => {
+      if (!item) return;
+      if (item.id === '__driver_photo__' || item.destination === 'DRIVER_PHOTO' || item.photo) {
+        if (!extractedDriverPhoto && item.photo) {
+          extractedDriverPhoto = item.photo;
+        }
+        return; // Exclude metadata item from fare display
+      }
       const fallback = category === 'Pedicab' ? '15.00' : '20.00';
       const reg = cleanFare(item.regularFare || item.regular_fare, fallback);
       const regNum = parseFloat(reg);
       const defaultDiscount = (regNum * 0.8).toFixed(2);
       const stu = cleanFare(item.studentFare || item.student_fare, defaultDiscount);
       const snr = cleanFare(item.seniorPwdFare || item.senior_fare || item.discountedFare || item.discounted_fare, defaultDiscount);
-      return {
+      mappedMatrix.push({
         id: item.id || `f-${idx + 1}`,
         destination: item.destination || (category === 'Pedicab' ? 'Poblacion to Market' : 'Short Distance (Base)'),
         regularFare: reg,
         studentFare: stu,
         seniorPwdFare: snr,
         discountedFare: snr,
-      };
+      });
     });
   } else {
     mappedMatrix = getDefaultFareMatrix(category);
@@ -99,6 +107,7 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     driverName: row.driver_name || `${row.driver_first_name || ''} ${row.driver_last_name || ''}`.trim(),
     driverAddress: row.driver_address || row.residential_address || '',
     driverLicenseNo: row.driver_license_no || 'N02-18-994820',
+    driverPhoto: extractedDriverPhoto,
     licenseExpiry: row.license_expiry || '2028-11-20',
     registrationDate: row.registration_date || (row.created_at ? row.created_at.split('T')[0] : ''),
     expirationDate: row.expiration_date || '2026-12-31',
@@ -158,7 +167,20 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     expiration_date: f.expirationDate || '2027-01-15',
     route_parada: f.routeParada || 'Sua-Igot 24 Tabaco',
     standard_fare: f.standardFare || (f.vehicleCategory === 'Pedicab' ? '₱15.00 Minimum' : '₱20.00 Minimum'),
-    fare_matrix: f.fareMatrix || [],
+    fare_matrix: (() => {
+      const matrix = Array.isArray(f.fareMatrix) ? f.fareMatrix.filter(item => item && item.id !== '__driver_photo__' && (item as any).destination !== 'DRIVER_PHOTO') : [];
+      if (f.driverPhoto) {
+        matrix.push({
+          id: '__driver_photo__',
+          destination: 'DRIVER_PHOTO',
+          regularFare: '0.00',
+          studentFare: '0.00',
+          seniorPwdFare: '0.00',
+          photo: f.driverPhoto
+        } as any);
+      }
+      return matrix;
+    })(),
     tourist_guide: f.touristGuide || 'Yes',
     availability: f.availability || 'Available / On-Duty',
     status: resolveFranchiseStatus(f.status, f.expirationDate),
@@ -946,6 +968,8 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
   operator_address?: string;
   driver_name: string;
   driver_address?: string;
+  driver_photo?: string;
+  fare_matrix?: FareMatrixItem[];
   license_no?: string;
   contact_number?: string;
   residential_address?: string;
@@ -971,6 +995,23 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
   if (data.driver_address !== undefined) updateBody.driver_address = data.driver_address;
   if (data.license_no !== undefined) updateBody.driver_license_no = data.license_no;
   if (data.availability !== undefined) updateBody.availability = data.availability;
+
+  if (data.fare_matrix !== undefined || data.driver_photo !== undefined) {
+    let matrixToSave = data.fare_matrix ? [...data.fare_matrix] : getDefaultFareMatrix(category);
+    // remove any previous photo item first
+    matrixToSave = matrixToSave.filter(item => item && item.id !== '__driver_photo__' && (item as any).destination !== 'DRIVER_PHOTO');
+    if (data.driver_photo) {
+      matrixToSave.push({
+        id: '__driver_photo__',
+        destination: 'DRIVER_PHOTO',
+        regularFare: '0.00',
+        studentFare: '0.00',
+        seniorPwdFare: '0.00',
+        photo: data.driver_photo
+      } as any);
+    }
+    updateBody.fare_matrix = matrixToSave;
+  }
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${records}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
