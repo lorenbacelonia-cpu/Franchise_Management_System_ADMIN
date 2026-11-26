@@ -58,7 +58,7 @@ export interface BatchDispatchSummary {
 }
 
 const STORAGE_KEY_REMINDER_LOGS = 'tabaco_trd_driver_reminder_logs';
-const SYSTEM_SENDER_EMAIL = 'lorenbacelonia@gmail.com';
+const SYSTEM_SENDER_EMAIL = 'tabacocitytrd@gmail.com';
 
 /**
  * Clean & extract the driver's phone/mobile number from any available record field
@@ -565,17 +565,67 @@ export async function sendDriverSmsReminder(
       };
     }
   } catch (err: any) {
-    console.warn('Backend SMS dispatch endpoint unavailable; fallback to simulated gateway:', err);
+    console.warn('Backend SMS dispatch endpoint unavailable; checking client TextBee gateway:', err);
   }
 
-  // Client-side simulated dispatch if offline/dev server without backend
+  // Client-side direct TextBee fallback if backend is offline
+  const clientTextBeeKey = (import.meta.env.VITE_TEXTBEE_API_KEY || '').trim();
+  const clientTextBeeDevice = (import.meta.env.VITE_TEXTBEE_DEVICE_ID || '').trim();
+  if (clientTextBeeKey) {
+    try {
+      const endpoint = clientTextBeeDevice
+        ? `https://api.textbee.dev/api/v1/gateway/devices/${encodeURIComponent(clientTextBeeDevice)}/send-sms`
+        : 'https://api.textbee.dev/api/v1/gateway/send-sms';
+
+      const formattedE164 = phone.startsWith('+')
+        ? phone
+        : phone.startsWith('09')
+        ? '+63' + phone.slice(1)
+        : phone.startsWith('9')
+        ? '+63' + phone
+        : `+${phone}`;
+
+      const tbRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'x-api-key': clientTextBeeKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          recipients: [formattedE164],
+          message: smsText,
+          simSlotIndex: 1,
+          ...(clientTextBeeDevice ? { deviceId: clientTextBeeDevice } : {}),
+        }),
+      });
+
+      if (tbRes.ok) {
+        return {
+          success: true,
+          channel: 'sms',
+          recipient: formattedE164,
+          delivered: true,
+          simulated: false,
+          provider: 'TextBee Direct Carrier Gateway',
+          referenceId: `TB-${Date.now()}`,
+          smsUri,
+          timestamp,
+        };
+      }
+    } catch (tbErr) {
+      console.warn('Client-side direct TextBee dispatch error:', tbErr);
+    }
+  }
+
+  // Simulated dispatch fallback
   return {
     success: true,
     channel: 'sms',
     recipient: phone,
     delivered: true,
     simulated: true,
-    provider: 'TRD Mobile SMS Dispatcher',
+    provider: 'TextBee / TRD SMS Gateway',
     referenceId: `SIM-SMS-${Date.now()}`,
     smsUri,
     timestamp,
@@ -637,7 +687,7 @@ export async function sendDriverGmailReminder(
         recipient: email,
         delivered: data.delivered ?? true,
         simulated: data.simulated ?? false,
-        provider: 'Nodemailer Gmail Dispatch (lorenbacelonia@gmail.com)',
+        provider: 'Nodemailer Gmail Dispatch (tabacocitytrd@gmail.com)',
         referenceId: `EML-${Date.now()}`,
         mailtoUri,
         timestamp,

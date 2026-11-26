@@ -226,7 +226,7 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
             type: 'success',
             message: `Gmail reminder dispatched to ${driverName} (${result.recipient})`,
             details: result.delivered
-              ? 'Official email delivered via lorenbacelonia@gmail.com.'
+              ? 'Official email delivered via tabacocitytrd@gmail.com.'
               : 'Dispatched through system cloud notification gateway.',
           });
         } else {

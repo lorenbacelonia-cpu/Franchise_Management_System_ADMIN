@@ -48,7 +48,7 @@ export const LoginScreen: React.FC = () => {
   });
 
   // Official System Sender
-  const SYSTEM_SENDER_EMAIL = 'lorenbacelonia@gmail.com';
+  const SYSTEM_SENDER_EMAIL = 'tabacocitytrd@gmail.com';
 
   // Email Verification State
   const [showEmailVerification, setShowEmailVerification] = useState(false);
@@ -854,7 +854,7 @@ export const LoginScreen: React.FC = () => {
                   Security Email Verification
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                  Enter your administrator email address. The system will dispatch your 6-digit verification code from the official sender <span className="font-mono font-bold text-slate-800">lorenbacelonia@gmail.com</span> to your email.
+                  Enter your administrator email address. The system will dispatch your 6-digit verification code from the official sender <span className="font-mono font-bold text-slate-800">tabacocitytrd@gmail.com</span> to your email.
                 </p>
               </div>
             </div>
@@ -866,7 +866,7 @@ export const LoginScreen: React.FC = () => {
                 <span>System Sender:</span>
               </span>
               <span className="font-mono font-bold text-slate-800 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200">
-                lorenbacelonia@gmail.com
+                tabacocitytrd@gmail.com
               </span>
             </div>
 
@@ -923,7 +923,7 @@ export const LoginScreen: React.FC = () => {
                   <span>Verification Code Dispatched!</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 leading-snug">
-                  A 6-digit verification code has been dispatched from <strong>lorenbacelonia@gmail.com</strong> to <span className="font-semibold underline text-emerald-950">{verificationEmail}</span>. Please check your inbox (and Spam/Junk folder) and enter the code below.
+                  A 6-digit verification code has been dispatched from <strong>tabacocitytrd@gmail.com</strong> to <span className="font-semibold underline text-emerald-950">{verificationEmail}</span>. Please check your inbox (and Spam/Junk folder) and enter the code below.
                 </p>
                 <p className="text-[10px] text-emerald-700 italic">
                   Note: The code is only accessible in your email inbox for enhanced account protection.

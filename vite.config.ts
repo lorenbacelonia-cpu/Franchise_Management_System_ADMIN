@@ -1,12 +1,67 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import nodemailer from 'nodemailer';
 
-function emailDispatchPlugin() {
+// Helper to normalize Philippine mobile numbers to E.164 format (+639XXXXXXXXX)
+function formatE164Phone(raw: string): string {
+  if (!raw) return '';
+  const cleaned = String(raw).trim().replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+')) return cleaned;
+  if (cleaned.startsWith('09') && cleaned.length === 11) {
+    return '+63' + cleaned.slice(1);
+  }
+  if (cleaned.startsWith('9') && cleaned.length === 10) {
+    return '+63' + cleaned;
+  }
+  if (cleaned.startsWith('63') && cleaned.length === 12) {
+    return '+' + cleaned;
+  }
+  return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+}
+
+function emailDispatchPlugin(env: Record<string, string> = {}) {
+  const getSenderEmail = () =>
+    (env.GMAIL_USER || process.env.GMAIL_USER || 'tabacocitytrd@gmail.com').trim();
+
+  const getGmailAppPassword = () =>
+    (
+      env.GMAIL_APP_PASSWORD ||
+      env.VITE_GMAIL_APP_PASSWORD ||
+      process.env.GMAIL_APP_PASSWORD ||
+      process.env.VITE_GMAIL_APP_PASSWORD ||
+      'ffbl cbsv kmjx tjjg'
+    )
+      .trim()
+      .replace(/\s+/g, '');
+
+  const getTextBeeApiKey = () =>
+    (
+      env.TEXTBEE_API_KEY ||
+      env.VITE_TEXTBEE_API_KEY ||
+      process.env.TEXTBEE_API_KEY ||
+      process.env.VITE_TEXTBEE_API_KEY ||
+      'txb_mJ6WrN1XSGwvN6bt5Vnz4FEMqsXW0lvm'
+    ).trim();
+
+  const getTextBeeDeviceId = () =>
+    (
+      env.TEXTBEE_DEVICE_ID ||
+      env.VITE_TEXTBEE_DEVICE_ID ||
+      process.env.TEXTBEE_DEVICE_ID ||
+      process.env.VITE_TEXTBEE_DEVICE_ID ||
+      '6b0750bb96bbd64a70a96de5'
+    ).trim();
+
+  const getTextBeeSimSlot = () =>
+    parseInt(env.TEXTBEE_SIM_SLOT || process.env.TEXTBEE_SIM_SLOT || '1', 10);
+
   return {
     name: 'email-dispatch-plugin',
     configureServer(server: any) {
+      // --------------------------------------------------------------------------
+      // 1. Admin Verification Code Endpoint (/api/send-verification)
+      // --------------------------------------------------------------------------
       server.middlewares.use('/api/send-verification', (req: any, res: any) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -32,14 +87,15 @@ function emailDispatchPlugin() {
               return;
             }
 
-            const senderEmail = 'lorenbacelonia@gmail.com';
-            const appPassword = process.env.GMAIL_APP_PASSWORD || process.env.VITE_GMAIL_APP_PASSWORD;
+            const senderEmail = getSenderEmail();
+            const appPassword = getGmailAppPassword();
 
             console.log(`\n========================================`);
-            console.log(`📧 [TRD VERIFICATION DISPATCH]`);
+            console.log(`📧 [TRD ADMIN VERIFICATION DISPATCH]`);
             console.log(`FROM (SENDER):   ${senderEmail}`);
             console.log(`TO (RECEIVER):   ${toEmail}`);
             console.log(`CODE:            ${code}`);
+            console.log(`SMTP STATUS:     ${appPassword ? 'ACTIVE (Live Gmail)' : 'FALLBACK'}`);
             console.log(`========================================\n`);
 
             if (appPassword) {
@@ -47,7 +103,7 @@ function emailDispatchPlugin() {
                 service: 'gmail',
                 auth: {
                   user: senderEmail,
-                  pass: appPassword.replace(/\s+/g, ''),
+                  pass: appPassword,
                 },
               });
 
@@ -98,7 +154,9 @@ function emailDispatchPlugin() {
         });
       });
 
-      // 2. Official TRD Driver Expiration Gmail Reminder Endpoint
+      // --------------------------------------------------------------------------
+      // 2. Official TRD Expiration Gmail Reminder Endpoint (/api/send-driver-reminder)
+      // --------------------------------------------------------------------------
       server.middlewares.use('/api/send-driver-reminder', (req: any, res: any) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -116,6 +174,7 @@ function emailDispatchPlugin() {
             const data = JSON.parse(body || '{}');
             const toEmail = (data.to || '').trim();
             const driverName = data.driverName || 'Driver';
+            const operatorName = data.operatorName || 'Operator';
             const plateNumber = data.plateNumber || 'N/A';
             const category = data.category || 'Tricycle';
             const expirationDate = data.expirationDate || 'N/A';
@@ -126,20 +185,21 @@ function emailDispatchPlugin() {
             if (!toEmail || !toEmail.includes('@')) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ success: false, error: 'Valid driver Gmail address is required.' }));
+              res.end(JSON.stringify({ success: false, error: 'Valid Gmail/Email address is required.' }));
               return;
             }
 
-            const senderEmail = 'lorenbacelonia@gmail.com';
-            const appPassword = process.env.GMAIL_APP_PASSWORD || process.env.VITE_GMAIL_APP_PASSWORD;
+            const senderEmail = getSenderEmail();
+            const appPassword = getGmailAppPassword();
 
             console.log(`\n========================================`);
-            console.log(`📧 [TRD DRIVER EXPIRY GMAIL REMINDER]`);
+            console.log(`📧 [TRD OFFICIAL GMAIL REMINDER DISPATCH]`);
             console.log(`FROM (SENDER):        ${senderEmail}`);
-            console.log(`TO (DRIVER GMAIL):    ${toEmail}`);
-            console.log(`DRIVER NAME:          ${driverName}`);
+            console.log(`TO (RECIPIENT):       ${toEmail}`);
+            console.log(`OPERATOR / DRIVER:    ${operatorName} / ${driverName}`);
             console.log(`UNIT / PLATE:         ${plateNumber} (${category})`);
             console.log(`EXPIRATION DATE:      ${expirationDate} (${daysRemaining !== undefined ? daysRemaining + ' days remaining' : ''})`);
+            console.log(`SMTP APP PASSWORD:    ${appPassword ? 'ACTIVE (Direct Live Gmail Delivery)' : 'NOT SET'}`);
             console.log(`========================================\n`);
 
             if (appPassword) {
@@ -147,7 +207,7 @@ function emailDispatchPlugin() {
                 service: 'gmail',
                 auth: {
                   user: senderEmail,
-                  pass: appPassword.replace(/\s+/g, ''),
+                  pass: appPassword,
                 },
               });
 
@@ -165,6 +225,7 @@ function emailDispatchPlugin() {
                 sender: senderEmail,
                 receiver: toEmail,
                 driverName,
+                operatorName,
                 plateNumber,
               }));
               return;
@@ -183,12 +244,15 @@ function emailDispatchPlugin() {
             console.error('Driver email reminder error:', err);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ success: false, error: err?.message || 'Failed to dispatch driver email' }));
+            res.end(JSON.stringify({ success: false, error: err?.message || 'Failed to dispatch email' }));
           }
         });
       });
 
-      // 3. Official TRD Driver Expiration SMS Reminder Endpoint
+      // --------------------------------------------------------------------------
+      // 3. Official TRD Expiration SMS Reminder Endpoint (/api/send-driver-sms)
+      //    Supports TextBee Android Gateway (from Mobile Web) + Semaphore fallback
+      // --------------------------------------------------------------------------
       server.middlewares.use('/api/send-driver-sms', (req: any, res: any) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -204,29 +268,85 @@ function emailDispatchPlugin() {
         req.on('end', async () => {
           try {
             const data = JSON.parse(body || '{}');
-            const phone = (data.phone || '').trim();
+            const rawPhone = (data.phone || '').trim();
             const driverName = data.driverName || 'Driver';
+            const operatorName = data.operatorName || 'Operator';
             const plateNumber = data.plateNumber || 'N/A';
             const message = data.message || '';
 
-            if (!phone) {
+            if (!rawPhone) {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ success: false, error: 'Recipient phone number is required.' }));
               return;
             }
 
+            const formattedPhone = formatE164Phone(rawPhone);
+            const textbeeApiKey = getTextBeeApiKey();
+            const textbeeDeviceId = getTextBeeDeviceId();
+            const textbeeSimSlot = getTextBeeSimSlot();
+
             console.log(`\n========================================`);
-            console.log(`📱 [TRD DRIVER EXPIRY SMS DISPATCH]`);
-            console.log(`GATEWAY:        TRD Tabaco City SMS Gateway`);
-            console.log(`TO (MOBILE):    ${phone}`);
-            console.log(`DRIVER NAME:    ${driverName}`);
-            console.log(`UNIT / PLATE:   ${plateNumber}`);
+            console.log(`📱 [TRD OFFICIAL SMS DISPATCH - TEXTBEE]`);
+            console.log(`TO (MOBILE):          ${formattedPhone} (Raw: ${rawPhone})`);
+            console.log(`OPERATOR / DRIVER:    ${operatorName} / ${driverName}`);
+            console.log(`UNIT / PLATE:         ${plateNumber}`);
+            console.log(`TEXTBEE API KEY:      ${textbeeApiKey ? 'CONFIGURED (Live Carrier SMS)' : 'NOT SET'}`);
+            if (textbeeDeviceId) console.log(`TEXTBEE DEVICE ID:    ${textbeeDeviceId}`);
             console.log(`SMS MESSAGE:\n${message}`);
             console.log(`========================================\n`);
 
-            const semaphoreApiKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
+            // Primary Dispatch: TextBee Gateway (from Mobile Web)
+            if (textbeeApiKey) {
+              try {
+                const endpoint = textbeeDeviceId
+                  ? `https://api.textbee.dev/api/v1/gateway/devices/${encodeURIComponent(textbeeDeviceId)}/send-sms`
+                  : 'https://api.textbee.dev/api/v1/gateway/send-sms';
 
+                const payload: any = {
+                  recipients: [formattedPhone],
+                  message,
+                  simSlotIndex: textbeeSimSlot,
+                };
+                if (textbeeDeviceId) {
+                  payload.deviceId = textbeeDeviceId;
+                }
+
+                const textbeeRes = await fetch(endpoint, {
+                  method: 'POST',
+                  headers: {
+                    'x-api-key': textbeeApiKey,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                  },
+                  body: JSON.stringify(payload),
+                });
+
+                const tbData: any = await textbeeRes.json().catch(() => ({}));
+
+                if (textbeeRes.ok) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(
+                    JSON.stringify({
+                      success: true,
+                      delivered: true,
+                      provider: 'TextBee Android SMS Gateway',
+                      phone: formattedPhone,
+                      batchId: tbData?.smsBatchId || tbData?.id || null,
+                      details: tbData,
+                    })
+                  );
+                  return;
+                } else {
+                  console.warn('TextBee returned non-200; falling back:', textbeeRes.status, tbData);
+                }
+              } catch (tbErr: any) {
+                console.error('TextBee request error; checking fallback:', tbErr?.message);
+              }
+            }
+
+            // Secondary Dispatch: Semaphore PH Gateway (if set)
+            const semaphoreApiKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
             if (semaphoreApiKey) {
               try {
                 const semaphoreRes = await fetch('https://api.semaphore.co/api/v4/messages', {
@@ -234,35 +354,40 @@ function emailDispatchPlugin() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     apikey: semaphoreApiKey,
-                    number: phone,
-                    message: message,
+                    number: rawPhone,
+                    message,
                     sendername: 'TRDTabaco',
                   }),
                 });
                 const semData = await semaphoreRes.json();
                 res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({
-                  success: true,
-                  delivered: true,
-                  provider: 'Semaphore PH SMS Gateway',
-                  referenceId: Array.isArray(semData) && semData[0]?.message_id ? String(semData[0].message_id) : `SMS-${Date.now()}`,
-                  details: semData,
-                }));
+                res.end(
+                  JSON.stringify({
+                    success: true,
+                    delivered: true,
+                    provider: 'Semaphore PH SMS Gateway',
+                    referenceId: Array.isArray(semData) && semData[0]?.message_id ? String(semData[0].message_id) : `SMS-${Date.now()}`,
+                    details: semData,
+                  })
+                );
                 return;
               } catch (semErr: any) {
                 console.warn('Semaphore SMS error; falling back to simulated dispatch:', semErr);
               }
             }
 
+            // Simulated Fallback
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({
-              success: true,
-              delivered: true,
-              simulated: true,
-              provider: 'TRD Tabaco SMS Dispatcher',
-              referenceId: `SMS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-              message: `Official SMS logged & dispatched to ${phone}.`
-            }));
+            res.end(
+              JSON.stringify({
+                success: true,
+                delivered: true,
+                simulated: true,
+                provider: 'TRD Tabaco SMS Dispatcher',
+                referenceId: `SMS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                message: `Official SMS logged & dispatched to ${formattedPhone}.`,
+              })
+            );
           } catch (err: any) {
             console.error('Driver SMS error:', err);
             res.statusCode = 500;
@@ -276,14 +401,18 @@ function emailDispatchPlugin() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: '/',
-  plugins: [react(), tailwindcss(), emailDispatchPlugin()],
-  server: {
-    host: true,
-    port: 5173,
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react-dom/client'],
-  },
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    base: '/',
+    plugins: [react(), tailwindcss(), emailDispatchPlugin(env)],
+    server: {
+      host: true,
+      port: 5173,
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-dom/client'],
+    },
+  };
 });
