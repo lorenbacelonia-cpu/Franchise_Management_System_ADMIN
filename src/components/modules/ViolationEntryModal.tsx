@@ -1947,7 +1947,6 @@ export const ViolationEntryModal: React.FC = () => {
           if (deletingViolation) {
             deleteViolation(deletingViolation.id, reason);
             if (expandedId === deletingViolation.id) setExpandedId(null);
-            setDeletingViolation(null);
           }
         }}
         onClose={() => setDeletingViolation(null)}
@@ -1965,7 +1964,6 @@ export const ViolationEntryModal: React.FC = () => {
           if (deletingComplaint) {
             deleteComplaint(deletingComplaint.id, reason);
             if (expandedId === deletingComplaint.id) setExpandedId(null);
-            setDeletingComplaint(null);
           }
         }}
         onClose={() => setDeletingComplaint(null)}

@@ -1379,7 +1379,6 @@ export const FranchiseRecordsModal: React.FC = () => {
             deleteFranchise(franchiseToDelete.id, reason);
             setNotification(`Franchise record ${franchiseToDelete.mtopNumber} (${franchiseToDelete.driverName}) has been permanently deleted.`);
             setTimeout(() => setNotification(null), 5000);
-            setFranchiseToDelete(null);
           }
         }}
       />

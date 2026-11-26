@@ -1683,7 +1683,6 @@ export const PendingReviewsTable: React.FC = () => {
             if (selectedComplaint?.id === deletingComplaint.id) {
               setSelectedComplaint(null);
             }
-            setDeletingComplaint(null);
           }
         }}
         onClose={() => setDeletingComplaint(null)}
@@ -1703,7 +1702,6 @@ export const PendingReviewsTable: React.FC = () => {
             if (selectedViolation?.id === deletingViolation.id) {
               setSelectedViolation(null);
             }
-            setDeletingViolation(null);
           }
         }}
         onClose={() => setDeletingViolation(null)}

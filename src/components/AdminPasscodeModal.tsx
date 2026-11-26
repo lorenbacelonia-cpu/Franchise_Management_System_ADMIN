@@ -54,7 +54,7 @@ export const AdminPasscodeModal: React.FC<AdminPasscodeModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isDeleted) return null;
 
   const validPasscodes = ['01012005', 'admin', '123456', 'admin123', 'trdadmin', '2004', 'trd2026', 'admin2026'];
 
