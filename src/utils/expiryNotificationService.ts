@@ -658,8 +658,7 @@ export async function sendDriverGmailReminder(
     };
   }
 
-  // 1. Dispatch via Vite server middleware endpoint
-  let backendDelivered = false;
+  // 1. Dispatch via official TRD Gmail endpoint (/api/send-driver-reminder)
   try {
     const res = await fetch('/api/send-driver-reminder', {
       method: 'POST',
@@ -680,7 +679,6 @@ export async function sendDriverGmailReminder(
 
     if (res.ok) {
       const data = await res.json();
-      backendDelivered = Boolean(data.delivered);
       return {
         success: true,
         channel: 'email',
@@ -688,54 +686,33 @@ export async function sendDriverGmailReminder(
         delivered: data.delivered ?? true,
         simulated: data.simulated ?? false,
         provider: 'Nodemailer Gmail Dispatch (tabacocitytrd@gmail.com)',
-        referenceId: `EML-${Date.now()}`,
+        referenceId: data.referenceId || `EML-${Date.now()}`,
+        mailtoUri,
+        timestamp,
+      };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      console.warn('Backend email endpoint returned non-200:', res.status, errData);
+      return {
+        success: false,
+        channel: 'email',
+        recipient: email,
+        error: errData?.error || `Email dispatch failed (HTTP ${res.status})`,
         mailtoUri,
         timestamp,
       };
     }
   } catch (err: any) {
-    console.warn('Local /api/send-driver-reminder endpoint error; using FormSubmit fallback:', err);
+    console.error('Email dispatch network error:', err);
+    return {
+      success: false,
+      channel: 'email',
+      recipient: email,
+      error: err?.message || 'Could not connect to TRD Email Gateway.',
+      mailtoUri,
+      timestamp,
+    };
   }
-
-  // 2. Also dispatch via FormSubmit targeting the receiver with sender attribution
-  try {
-    await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(email)}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        _subject: subject,
-        _captcha: 'false',
-        _template: 'box',
-        _replyto: SYSTEM_SENDER_EMAIL,
-        from_system_sender: SYSTEM_SENDER_EMAIL,
-        recipient_driver_email: email,
-        system: 'TRD Tabaco City Franchise Management Portal',
-        driver_name: record.driverName || record.operatorName || 'Driver',
-        city_plate_number: record.cityPlateNumber || record.mtopNumber,
-        vehicle_category: record.vehicleCategory,
-        expiration_date: record.expirationDate,
-        days_remaining: info.daysRemaining,
-        message: plainText,
-      }),
-    }).catch(() => {});
-  } catch (formSubmitErr) {
-    console.debug('FormSubmit fallback notice:', formSubmitErr);
-  }
-
-  return {
-    success: true,
-    channel: 'email',
-    recipient: email,
-    delivered: backendDelivered,
-    simulated: !backendDelivered,
-    provider: 'TRD Cloud Email Gateway (FormSubmit & Local NodeMailer)',
-    referenceId: `EML-FB-${Date.now()}`,
-    mailtoUri,
-    timestamp,
-  };
 }
 
 /**

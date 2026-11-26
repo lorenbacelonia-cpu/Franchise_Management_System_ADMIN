@@ -128,8 +128,8 @@ export const LoginScreen: React.FC = () => {
     }
 
     try {
-      // 1. Dispatch via local Vite SMTP endpoint with sender lorenbacelonia@gmail.com
-      fetch('/api/send-verification', {
+      // Dispatch via official TRD SMTP endpoint (/api/send-verification)
+      const res = await fetch('/api/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,27 +137,12 @@ export const LoginScreen: React.FC = () => {
           to: destEmail,
           code: code,
         }),
-      }).catch(() => {});
+      });
 
-      // 2. Also dispatch via FormSubmit targeting the receiver with sender attribution
-      fetch(`https://formsubmit.co/ajax/${encodeURIComponent(destEmail)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          _subject: `TRD Admin Verification Code: ${code}`,
-          _captcha: 'false',
-          _template: 'box',
-          _replyto: SYSTEM_SENDER_EMAIL,
-          from_system_sender: SYSTEM_SENDER_EMAIL,
-          recipient_admin_email: destEmail,
-          system: 'TRD Tabaco City Franchise Management Admin Portal',
-          verification_code: code,
-          message: `Your TRD Administrator Security Verification Code is: ${code}. Sent from official system dispatch ${SYSTEM_SENDER_EMAIL} to ${destEmail}.`,
-        }),
-      }).catch(() => {});
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Verification dispatch returned non-200:', res.status, errData);
+      }
 
       // Short delay for UI dispatch feedback
       await new Promise(resolve => setTimeout(resolve, 800));
