@@ -19,18 +19,141 @@ export const ReviewApprovalModal: React.FC = () => {
   const [rejectNotes, setRejectNotes] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
 
-  if (!selectedReview) return null;
+  // Review of Changes Display after Completing Process
+  const [reviewCompletedSummary, setReviewCompletedSummary] = useState<{
+    id: string;
+    applicantName: string;
+    mtopAssigned: string;
+    vehicleCategory: string;
+    contactNumber: string;
+    address: string;
+    status: 'Approved' | 'Rejected';
+    notes?: string;
+    orNumber?: string;
+    timestamp: string;
+  } | null>(null);
 
   const handleApprove = () => {
+    if (!selectedReview) return;
+    setReviewCompletedSummary({
+      id: selectedReview.id,
+      applicantName: selectedReview.applicantName,
+      mtopAssigned: selectedReview.mtopAssigned,
+      vehicleCategory: selectedReview.vehicleCategory,
+      contactNumber: selectedReview.contactNumber,
+      address: selectedReview.address,
+      status: 'Approved',
+      orNumber: selectedReview.orNumber || selectedReview.receiptNumber || 'N/A',
+      timestamp: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    });
     approveReview(selectedReview.id);
     setSelectedReview(null);
   };
 
   const handleRejectSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedReview) return;
+    setReviewCompletedSummary({
+      id: selectedReview.id,
+      applicantName: selectedReview.applicantName,
+      mtopAssigned: selectedReview.mtopAssigned,
+      vehicleCategory: selectedReview.vehicleCategory,
+      contactNumber: selectedReview.contactNumber,
+      address: selectedReview.address,
+      status: 'Rejected',
+      notes: rejectNotes.trim() || undefined,
+      orNumber: selectedReview.orNumber || selectedReview.receiptNumber || 'N/A',
+      timestamp: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    });
     rejectReview(selectedReview.id, rejectNotes);
     setSelectedReview(null);
   };
+
+  if (!selectedReview && !reviewCompletedSummary) return null;
+
+  if (reviewCompletedSummary) {
+    const isApproved = reviewCompletedSummary.status === 'Approved';
+    return (
+      <div className={`bg-white rounded-3xl shadow-lg border-2 ${isApproved ? 'border-emerald-500/60' : 'border-rose-500/60'} overflow-hidden mb-6 animate-fadeIn`}>
+        <div className={`px-6 py-4 text-white flex items-center justify-between ${isApproved ? 'bg-gradient-to-r from-emerald-700 to-teal-800' : 'bg-gradient-to-r from-rose-700 to-red-800'}`}>
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-xl text-white">
+              {isApproved ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 block">
+                Process Completed • Review of Decision
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-white">
+                Application {isApproved ? 'Approved' : 'Rejected'} — Unit {reviewCompletedSummary.mtopAssigned}
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={() => setReviewCompletedSummary(null)}
+            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close review"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className={`p-4 rounded-2xl border flex items-center justify-between flex-wrap gap-3 ${isApproved ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Review Decision Stamped</span>
+              <p className={`text-base font-black ${isApproved ? 'text-emerald-800' : 'text-rose-800'}`}>
+                {isApproved ? 'Status: Approved & Updated to Registry' : 'Status: Rejected'}
+              </p>
+              {reviewCompletedSummary.notes && (
+                <p className="text-xs text-rose-700 mt-1">Remarks: {reviewCompletedSummary.notes}</p>
+              )}
+            </div>
+            <span className="text-xs text-slate-500 italic">
+              Processed at {reviewCompletedSummary.timestamp}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-400 font-semibold text-[10px] uppercase block">Applicant / Operator</span>
+              <p className="font-bold text-slate-900 mt-1 truncate">{reviewCompletedSummary.applicantName}</p>
+              <p className="text-slate-500 text-[11px]">{reviewCompletedSummary.contactNumber}</p>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-400 font-semibold text-[10px] uppercase block">City Plate / MTOP</span>
+              <p className="font-mono font-bold text-slate-900 mt-1 text-sm">{reviewCompletedSummary.mtopAssigned}</p>
+              <p className="text-slate-500 text-[11px]">{reviewCompletedSummary.vehicleCategory}</p>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-400 font-semibold text-[10px] uppercase block">Official Receipt (OR)</span>
+              <p className="font-mono font-bold text-slate-900 mt-1 truncate">{reviewCompletedSummary.orNumber}</p>
+              <p className="text-slate-500 text-[11px]">Ref ID: {reviewCompletedSummary.id}</p>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <span className="text-slate-400 font-semibold text-[10px] uppercase block">Registered Address</span>
+              <p className="font-medium text-slate-800 mt-1 line-clamp-2 text-[11px]">{reviewCompletedSummary.address}</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setReviewCompletedSummary(null)}
+              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+            >
+              Done / Close Review
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedReview) return null;
 
   return (
     <div className="bg-white rounded-3xl shadow-md w-full overflow-hidden border-2 border-emerald-500/40 mb-6 animate-fadeIn">
