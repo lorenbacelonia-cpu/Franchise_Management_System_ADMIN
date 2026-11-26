@@ -18,6 +18,8 @@ import {
   Sparkles,
   RotateCcw,
   Users,
+  Plus,
+  Check,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
@@ -100,7 +102,9 @@ export const ProcessRenewalModal: React.FC = () => {
   const [reminderDriverGmail, setReminderDriverGmail] = useState('');
   const [reminderOperatorPhone, setReminderOperatorPhone] = useState('');
   const [reminderOperatorGmail, setReminderOperatorGmail] = useState('');
-  const [targetRecipient, setTargetRecipient] = useState<'both' | 'operator' | 'driver'>('both');
+  const [isAddingOperatorEmail, setIsAddingOperatorEmail] = useState(false);
+  const [isSavingEmailDirectly, setIsSavingEmailDirectly] = useState(false);
+  const [targetRecipient, setTargetRecipient] = useState<'both' | 'operator' | 'driver'>('operator');
   const [reminderChannel, setReminderChannel] = useState<'both' | 'sms' | 'email'>('both');
   const [customNote, setCustomNote] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
@@ -208,17 +212,23 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForRenewal(null);
   };
 
-  // Open Inline Single Reminder (Inside page, NOT a portal) - Operator & Driver dual support
+  // Open Inline Single Reminder (Inside page, NOT a portal) - Dedicated to Operator for Renewal
   const handleOpenReminder = (item: FranchiseRecord) => {
     setSelectedForRenewal(null); // dismiss renewal form to focus on reminder
     setSelectedForReminder(item);
-    setReminderDriverPhone(getDriverContactNumber(item));
-    setReminderDriverGmail(getDriverGmail(item));
-    setReminderOperatorPhone(getOperatorContactNumber(item));
-    setReminderOperatorGmail(getOperatorGmail(item));
-    setTargetRecipient('both');
+    const opPhone = getOperatorContactNumber(item);
+    const opGmail = getOperatorGmail(item);
+    const drvPhone = getDriverContactNumber(item);
+    const drvGmail = getDriverGmail(item);
+
+    setReminderOperatorPhone(opPhone);
+    setReminderOperatorGmail(opGmail);
+    setReminderDriverPhone(drvPhone);
+    setReminderDriverGmail(drvGmail);
+    setIsAddingOperatorEmail(!opGmail); // Expand email input if operator does not have one
+    setTargetRecipient('operator'); // Operator is the primary target for Process Renewal
     setReminderChannel('both');
-    const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item), 'both');
+    const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item), 'operator');
     setCustomNote(defaultNotice);
     setReminderFeedback(null);
   };
@@ -227,6 +237,34 @@ export const ProcessRenewalModal: React.FC = () => {
     setTargetRecipient(target);
     if (selectedForReminder) {
       setCustomNote(buildDriverSmsReminderText(selectedForReminder, getFranchiseExpiryInfo(selectedForReminder), target));
+    }
+  };
+
+  // Quick save operator email directly to the record
+  const handleSaveOperatorEmail = async () => {
+    if (!selectedForReminder) return;
+    const emailClean = reminderOperatorGmail.trim().toLowerCase();
+    if (!emailClean || !emailClean.includes('@')) {
+      setReminderFeedback('Please enter a valid operator email address (e.g. operator@gmail.com).');
+      return;
+    }
+    setIsSavingEmailDirectly(true);
+    try {
+      const plate = selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber;
+      await updateDriver(plate, {
+        driverName: selectedForReminder.driverName,
+        operatorContact: reminderOperatorPhone.trim(),
+        gmail: emailClean,
+        email: emailClean,
+      });
+      setReminderFeedback(`Operator email saved successfully: ${emailClean}`);
+      setNotification(`Saved operator email for Unit ${plate} (${emailClean})`);
+      setTimeout(() => setNotification(null), 5000);
+      setIsAddingOperatorEmail(false);
+    } catch (err: any) {
+      setReminderFeedback(`Failed to save email: ${err?.message || 'Error occurred'}`);
+    } finally {
+      setIsSavingEmailDirectly(false);
     }
   };
 
@@ -343,7 +381,7 @@ export const ProcessRenewalModal: React.FC = () => {
         </div>
       )}
 
-      {/* INLINE OPERATOR & DRIVER EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
+      {/* INLINE OPERATOR EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
       {selectedForReminder && (
         <div className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden animate-fadeIn">
           {/* Header */}
@@ -355,14 +393,14 @@ export const ProcessRenewalModal: React.FC = () => {
               <div>
                 <div className="flex items-center space-x-2 flex-wrap">
                   <h4 className="text-sm font-bold text-white">
-                    Send Franchise Expiration Notice to Operator &amp; Driver (SMS &amp; Gmail)
+                    Send Franchise Expiration Notice to Operator (SMS &amp; Email)
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950">
                     Unit {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Operator: <strong>{selectedForReminder.operatorName}</strong> • Driver: <strong>{selectedForReminder.driverName}</strong> • Expiration: {selectedForReminder.expirationDate}
+                  Franchise Holder: <strong>{selectedForReminder.operatorName}</strong> • Driver: {selectedForReminder.driverName} • Expiration: {selectedForReminder.expirationDate}
                 </p>
               </div>
             </div>
@@ -393,22 +431,6 @@ export const ProcessRenewalModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => handleTargetRecipientChange('both')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    targetRecipient === 'both'
-                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>👥 Both (Operator &amp; Driver)</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
-                    Default
-                  </span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => handleTargetRecipientChange('operator')}
                   className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
                     targetRecipient === 'operator'
@@ -416,7 +438,23 @@ export const ProcessRenewalModal: React.FC = () => {
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
+                  <Users className="w-4 h-4" />
                   <span>👤 Operator Only</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
+                    Primary / Renewal
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTargetRecipientChange('both')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    targetRecipient === 'both'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>👥 Both (Operator &amp; Driver)</span>
                 </button>
 
                 <button
@@ -436,32 +474,28 @@ export const ProcessRenewalModal: React.FC = () => {
             {/* Step 2: Recipient Contact Details Grid (Operator & Driver) */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                2. Recipient Contact Information (Directly Editable)
+                2. Contact Information &amp; Delivery Destination
               </label>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Operator Card */}
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  targetRecipient === 'operator' || targetRecipient === 'both'
-                    ? 'bg-amber-50/40 border-amber-300'
-                    : 'bg-slate-50/50 border-slate-200 opacity-60'
-                }`}>
-                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                {/* Operator Card - Highlighted as Primary */}
+                <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/40 shadow-2xs space-y-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-amber-200">
                     <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                       <span>👤 Operator:</span>
-                      <strong className="text-amber-900">{selectedForReminder.operatorName}</strong>
+                      <strong className="text-amber-950">{selectedForReminder.operatorName}</strong>
                     </span>
-                    {(targetRecipient === 'both' || targetRecipient === 'operator') && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
-                        Targeted
-                      </span>
-                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-2xs">
+                      Renewal Contact
+                    </span>
                   </div>
+
                   <div className="space-y-3">
+                    {/* Operator Mobile Number */}
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        <span className="inline-flex items-center space-x-1">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>Operator Mobile (SMS)</span>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <span className="inline-flex items-center space-x-1.5">
+                          <Phone className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Operator Mobile (SMS / Messenger)</span>
                         </span>
                       </label>
                       <input
@@ -469,23 +503,88 @@ export const ProcessRenewalModal: React.FC = () => {
                         value={reminderOperatorPhone}
                         onChange={(e) => setReminderOperatorPhone(e.target.value)}
                         placeholder="09171234567 or +639171234567"
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Delivered directly via TextBee Android SMS Gateway.
+                      </p>
                     </div>
+
+                    {/* Operator Gmail / Email with + Add Email Button */}
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        <span className="inline-flex items-center space-x-1">
-                          <Mail className="w-3 h-3 text-slate-400" />
-                          <span>Operator Gmail / Email</span>
-                        </span>
-                      </label>
-                      <input
-                        type="email"
-                        value={reminderOperatorGmail}
-                        onChange={(e) => setReminderOperatorGmail(e.target.value)}
-                        placeholder="operator@gmail.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
+                          <Mail className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Operator Email / Gmail</span>
+                        </label>
+                        {reminderOperatorGmail && (
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
+                              ✓ On File
+                            </span>
+                            {!isAddingOperatorEmail && (
+                              <button
+                                type="button"
+                                onClick={() => setIsAddingOperatorEmail(true)}
+                                className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {!reminderOperatorGmail && !isAddingOperatorEmail ? (
+                        /* If operator DOES NOT have an email, show dedicated + Add Email button */
+                        <div className="p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <Mail className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span className="text-xs text-slate-600 italic truncate">
+                              No email registered for Operator
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingOperatorEmail(true)}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Add Email</span>
+                          </button>
+                        </div>
+                      ) : (
+                        /* Email Input Field with Save Action */
+                        <div className="space-y-1.5">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="email"
+                              value={reminderOperatorGmail}
+                              onChange={(e) => setReminderOperatorGmail(e.target.value)}
+                              placeholder="e.g. operator@gmail.com"
+                              className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                              autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
+                            />
+                            <button
+                              type="button"
+                              disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
+                              onClick={handleSaveOperatorEmail}
+                              className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                              title="Save email to operator record"
+                            >
+                              {isSavingEmailDirectly ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                              <span>Save Email</span>
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -786,7 +885,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   disabled={isSendingRenewalConfirmation}
                   onClick={handleSendRenewalConfirmationNotice}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
-                  title="Send official SMS & Email confirmation to both Operator and Driver"
+                  title="Send official SMS & Email confirmation to Operator"
                 >
                   {isSendingRenewalConfirmation ? (
                     <>
@@ -796,7 +895,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   ) : (
                     <>
                       <Send className="h-4 w-4" />
-                      <span>Send Notice to Op &amp; Dr (SMS &amp; Email)</span>
+                      <span>Send Notice to Operator (SMS &amp; Email)</span>
                     </>
                   )}
                 </button>
