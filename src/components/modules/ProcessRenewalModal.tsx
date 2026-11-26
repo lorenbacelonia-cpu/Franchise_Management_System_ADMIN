@@ -74,6 +74,22 @@ export const ProcessRenewalModal: React.FC = () => {
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Floating Completion Card State
+  const [completedRenewalSummary, setCompletedRenewalSummary] = useState<{
+    mtopNumber: string;
+    cityPlateNumber?: string;
+    vehicleCategory?: string;
+    operatorName: string;
+    driverName: string;
+    previousExpiry: string;
+    newExpiry: string;
+    applicationNo: string;
+    orNumber: string;
+    amountPaid: string;
+    paymentDate: string;
+    processedAt: string;
+  } | null>(null);
+
   // Inline Single Reminder State (No separate portal)
   const [selectedForReminder, setSelectedForReminder] = useState<FranchiseRecord | null>(null);
   const [reminderPhone, setReminderPhone] = useState('');
@@ -142,17 +158,42 @@ export const ProcessRenewalModal: React.FC = () => {
     e.preventDefault();
     if (!selectedForRenewal || !renewalExpiryDate || !renewalApplicationNo.trim()) return;
 
+    const prevExp = selectedForRenewal.expirationDate || 'N/A';
+    const mtop = selectedForRenewal.mtopNumber;
+    const plate = selectedForRenewal.cityPlateNumber || selectedForRenewal.mtopNumber;
+    const cat = selectedForRenewal.vehicleCategory || 'Tricycle';
+    const op = selectedForRenewal.operatorName || selectedForRenewal.ownerName || '—';
+    const dr = selectedForRenewal.driverName || '—';
+    const appNo = renewalApplicationNo.trim().toUpperCase();
+    const orNo = renewalOrNumber.trim().toUpperCase();
+    const amt = parseFloat(renewalAmountPaid || '0').toFixed(2);
+    const payDate = renewalPaymentDate || new Date().toISOString().split('T')[0];
+
     await renewFranchise(selectedForRenewal.id, {
       newExpiry: renewalExpiryDate,
-      applicationNo: renewalApplicationNo.trim().toUpperCase(),
-      orNumber: renewalOrNumber.trim().toUpperCase(),
+      applicationNo: appNo,
+      orNumber: orNo,
       amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
     });
 
+    setCompletedRenewalSummary({
+      mtopNumber: mtop,
+      cityPlateNumber: plate,
+      vehicleCategory: cat,
+      operatorName: op,
+      driverName: dr,
+      previousExpiry: prevExp,
+      newExpiry: renewalExpiryDate,
+      applicationNo: appNo,
+      orNumber: orNo,
+      amountPaid: amt,
+      paymentDate: payDate,
+      processedAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    });
+
     setNotification(
-      `Renewed unit ${selectedForRenewal.mtopNumber} (${selectedForRenewal.driverName}) • OR No: ${renewalOrNumber.trim().toUpperCase()} • Paid: ₱${parseFloat(renewalAmountPaid || '0').toFixed(2)} • Next Expiry: ${renewalExpiryDate}`
+      `Renewed unit ${mtop} (${dr}) • OR No: ${orNo} • Paid: ₱${amt} • Next Expiry: ${renewalExpiryDate}`
     );
-    setTimeout(() => setNotification(null), 5000);
     setSelectedForRenewal(null);
   };
 
@@ -471,6 +512,128 @@ export const ProcessRenewalModal: React.FC = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FLOATING PAGE: RENEWAL COMPLETION CARD ── */}
+      {completedRenewalSummary && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCompletedRenewalSummary(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl border-2 border-emerald-500/60 max-w-2xl w-full overflow-hidden animate-scaleUp max-h-[92vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-emerald-700 to-teal-800 px-6 py-4 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white/20 rounded-xl text-white">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 block">
+                    Process Completed • Completion Card
+                  </span>
+                  <h4 className="text-base sm:text-lg font-black text-white">
+                    Franchise Permit Renewed — Unit {completedRenewalSummary.mtopNumber}
+                  </h4>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompletedRenewalSummary(null)}
+                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Close floating page"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Validity Extension Highlight Banner */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Validity Extension Applied</span>
+                    <div className="flex items-center space-x-2 mt-0.5">
+                      <span className="font-mono text-xs text-slate-400 line-through">{completedRenewalSummary.previousExpiry}</span>
+                      <span className="text-slate-400 font-bold">➔</span>
+                      <span className="font-mono text-sm font-extrabold text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
+                        {completedRenewalSummary.newExpiry}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full shadow-2xs">
+                    Status: Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Summary Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span className="text-slate-400 font-semibold text-[10px] uppercase block">Unit &amp; Category</span>
+                  <p className="font-bold text-slate-900 mt-1 text-sm">MTOP {completedRenewalSummary.mtopNumber}</p>
+                  <p className="text-slate-500 text-[11px]">{completedRenewalSummary.vehicleCategory || 'Tricycle'}</p>
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span className="text-slate-400 font-semibold text-[10px] uppercase block">Operator &amp; Driver</span>
+                  <p className="font-bold text-slate-900 mt-1 truncate">Op: {completedRenewalSummary.operatorName}</p>
+                  <p className="text-slate-600 truncate text-[11px]">Dr: {completedRenewalSummary.driverName}</p>
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span className="text-slate-400 font-semibold text-[10px] uppercase block">Official Receipt (OR)</span>
+                  <p className="font-mono font-bold text-slate-900 mt-1 truncate">{completedRenewalSummary.orNumber}</p>
+                  <p className="text-slate-500 text-[11px]">App: {completedRenewalSummary.applicationNo}</p>
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span className="text-slate-400 font-semibold text-[10px] uppercase block">Renewal Fee Paid</span>
+                  <p className="font-mono font-black text-emerald-700 mt-1 text-sm">₱{completedRenewalSummary.amountPaid}</p>
+                  <p className="text-slate-500 text-[11px]">{completedRenewalSummary.paymentDate}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200 text-center text-slate-500 text-[11px] italic">
+                ✓ System verification updated in Supabase cloud database &amp; recorded to Audit Trail at {completedRenewalSummary.processedAt}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3 shrink-0">
+              <span className="text-[11px] text-slate-400 italic">
+                Official Municipal Conveyance Permit • Tabaco City TRD
+              </span>
+              <div className="flex items-center space-x-2.5">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+                >
+                  <Receipt className="h-4 w-4 text-slate-600" />
+                  <span>Print Receipt / Slip</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCompletedRenewalSummary(null)}
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                >
+                  Done / Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

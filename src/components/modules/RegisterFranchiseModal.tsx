@@ -317,32 +317,46 @@ export const RegisterFranchiseModal: React.FC = () => {
         </div>
       )}
 
-      {/* If Registration Completed: Show Inline Summary + Inline QR Generator & Print on the SAME page */}
+      {/* ── FLOATING PAGE: REGISTRATION COMPLETION CARD ── */}
       {createdId && createdFranchise && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/40 shadow-md space-y-6 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div className="flex items-center space-x-3">
-              <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-7 w-7" />
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleReset();
+          }}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/60 shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto space-y-6 animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="h-7 w-7" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
+                    Process Completed • Completion Card
+                  </span>
+                  <h3 className="text-lg font-extrabold text-slate-900">
+                    Franchise Registration Completed — Unit {createdFranchise.mtopNumber}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Enrolled in official system registry • Scannable QR badge and Word export ready below
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900">
-                  Franchise Registration Completed — Unit {createdFranchise.mtopNumber}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Enrolled in system registry • Generate and print the permanent QR badge right below without leaving this page
-                </p>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all cursor-pointer shrink-0"
+                >
+                  Done / Close
+                </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer shrink-0"
-            >
-              + New Registration Form
-            </button>
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Left: Enrolled Record & Official Receipt Summary */}
@@ -511,6 +525,7 @@ export const RegisterFranchiseModal: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Main Registration Form Card */}
