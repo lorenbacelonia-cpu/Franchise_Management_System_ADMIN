@@ -20,8 +20,7 @@ import {
   PlusCircle,
   Trash2,
   UserCheck,
-  ShieldCheck,
-  Printer
+  ShieldCheck
 } from 'lucide-react';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix } from '../../utils/fareUtils';
@@ -62,20 +61,6 @@ export const DriverRegistryModal: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<'All' | 'Tricycle' | 'Pedicab'>('All');
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
-
-  // Review of Changes Display after Completing Update
-  const [completedUpdateSummary, setCompletedUpdateSummary] = useState<{
-    plate: string;
-    mtopNumber: string;
-    previousDriver: string;
-    newDriver: string;
-    previousOperator: string;
-    newOperator: string;
-    routeParada: string;
-    touristGuide: string;
-    status: string;
-    processedAt: string;
-  } | null>(null);
 
   // Inline Edit State — Matches Register Franchise full fields
   const [editingUnit, setEditingUnit] = useState<FranchiseRecord | null>(null);
@@ -347,19 +332,6 @@ export const DriverRegistryModal: React.FC = () => {
         }))
       });
 
-      setCompletedUpdateSummary({
-        plate: cityPlateNo.trim() || targetPlate,
-        mtopNumber: editingUnit.mtopNumber,
-        previousDriver: editingUnit.driverName || '—',
-        newDriver: finalDriverName || '—',
-        previousOperator: editingUnit.operatorName || editingUnit.ownerName || '—',
-        newOperator: finalOwnerName || '—',
-        routeParada: paradaRoute.trim(),
-        touristGuide,
-        status: editStatus,
-        processedAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
-      });
-
       setNotification(
         `Franchise Record for Plate ${cityPlateNo.trim() || targetPlate} successfully updated!`
       );
@@ -379,113 +351,6 @@ export const DriverRegistryModal: React.FC = () => {
         <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold px-4 py-3 rounded-2xl flex items-center space-x-2 shadow-sm animate-fadeIn">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>{notification}</span>
-        </div>
-      )}
-
-      {/* Review of Changes Display after Completing Update */}
-      {completedUpdateSummary && (
-        <div className="bg-white rounded-3xl shadow-lg border-2 border-emerald-500/60 overflow-hidden animate-fadeIn mb-6">
-          <div className="bg-gradient-to-r from-emerald-700 to-teal-800 px-6 py-4 text-white flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl text-white">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 block">
-                  Process Completed • Review of Changes
-                </span>
-                <h4 className="text-base sm:text-lg font-black text-white">
-                  Franchise Record Updated — Plate {completedUpdateSummary.plate}
-                </h4>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCompletedUpdateSummary(null)}
-              className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="Close review"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Driver Assignment Change */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Driver Assignment
-                </span>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xs text-slate-400 line-through truncate max-w-[150px]">
-                    {completedUpdateSummary.previousDriver}
-                  </span>
-                  <span className="text-slate-400">➔</span>
-                  <span className="font-bold text-sm text-slate-900 bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded-lg truncate">
-                    {completedUpdateSummary.newDriver}
-                  </span>
-                </div>
-              </div>
-
-              {/* Operator Assignment Change */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Operator Assignment
-                </span>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xs text-slate-400 line-through truncate max-w-[150px]">
-                    {completedUpdateSummary.previousOperator}
-                  </span>
-                  <span className="text-slate-400">➔</span>
-                  <span className="font-bold text-sm text-slate-900 bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded-lg truncate">
-                    {completedUpdateSummary.newOperator}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Other Metadata */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <span className="text-slate-400 font-semibold text-[10px] uppercase block">Route / Parada</span>
-                <p className="font-bold text-slate-900 mt-1 truncate">{completedUpdateSummary.routeParada || 'Sua-Igot 24 Tabaco'}</p>
-              </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <span className="text-slate-400 font-semibold text-[10px] uppercase block">Accredited Tourist Guide</span>
-                <p className="font-bold text-emerald-800 mt-1">{completedUpdateSummary.touristGuide || 'Yes'}</p>
-              </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <span className="text-slate-400 font-semibold text-[10px] uppercase block">Status</span>
-                <p className="font-bold text-slate-900 mt-1">{completedUpdateSummary.status || 'Active'}</p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-3">
-              <span className="text-[11px] text-slate-400 italic">
-                Logged to TRD Database &amp; Audit History at {completedUpdateSummary.processedAt}
-              </span>
-              <div className="flex items-center space-x-2.5">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5"
-                >
-                  <Printer className="h-4 w-4 text-slate-600" />
-                  <span>Print Record</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCompletedUpdateSummary(null)}
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
-                >
-                  Done / Close Review
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
