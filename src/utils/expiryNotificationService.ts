@@ -75,13 +75,37 @@ export function getDriverContactNumber(record: FranchiseRecord): string {
 }
 
 /**
+ * Clean & extract the operator's phone/mobile number from any available record field
+ */
+export function getOperatorContactNumber(record: FranchiseRecord): string {
+  const raw =
+    record.operatorContact ||
+    record.ownerContact ||
+    (record as any).contact ||
+    '';
+  return String(raw).trim();
+}
+
+/**
+ * Clean & extract the operator's Gmail/email from any available record field
+ */
+export function getOperatorGmail(record: FranchiseRecord): string {
+  const raw =
+    record.operatorEmail ||
+    record.email ||
+    record.gmail ||
+    '';
+  return String(raw).trim().toLowerCase();
+}
+
+/**
  * Clean & extract the driver's Gmail/email from any available record field
  */
 export function getDriverGmail(record: FranchiseRecord): string {
   const raw =
+    record.driverEmail ||
     record.gmail ||
     record.email ||
-    record.driverEmail ||
     record.operatorEmail ||
     '';
   return String(raw).trim().toLowerCase();
@@ -226,14 +250,16 @@ export function filterExpiringDrivers(
 }
 
 /**
- * Compose official SMS text for the driver
+ * Compose official SMS text for the driver & operator
  */
 export function buildDriverSmsReminderText(
   record: FranchiseRecord,
-  info?: FranchiseExpiryInfo
+  info?: FranchiseExpiryInfo,
+  recipientType: 'both' | 'operator' | 'driver' = 'both'
 ): string {
   const expiry = info || getFranchiseExpiryInfo(record);
-  const driverName = record.driverName || record.operatorName || 'Driver';
+  const driverName = record.driverName || 'Driver';
+  const operatorName = record.operatorName || record.ownerName || 'Operator';
   const unit = record.cityPlateNumber || record.mtopNumber || 'N/A';
   const category = record.vehicleCategory || 'Tricycle';
   const expDate = record.expirationDate || 'N/A';
@@ -242,9 +268,16 @@ export function buildDriverSmsReminderText(
     ? `ay EXPIRED NA noong ${expDate}`
     : `ay MAG-EEXPIRE NA sa ${expDate} (${expiry.statusLabel})`;
 
+  let greeting = `Magandang araw Operator ${operatorName} at Driver ${driverName}!`;
+  if (recipientType === 'operator') {
+    greeting = `Magandang araw Operator ${operatorName}!`;
+  } else if (recipientType === 'driver') {
+    greeting = `Magandang araw Driver ${driverName}!`;
+  }
+
   return (
     `[TRD TABACO NOTICE]\n` +
-    `Magandang araw ${driverName}!\n` +
+    `${greeting}\n` +
     `Paalala mula sa Tabaco City Transportation Regulation Division (TRD):\n` +
     `Ang inyong ${category} Permit (Unit ${unit}) ${countdownText}.\n\n` +
     `Mangyaring magsadya sa Tabaco City Hall - TRD Office upang iproseso ang inyong Franchise Renewal bago ang takdang araw upang maiwasan ang multa, impound, o deactivation.\n\n` +
@@ -259,6 +292,29 @@ export function buildDriverSmsReminderText(
 }
 
 /**
+ * Compose official SMS text after a franchise renewal is completed
+ */
+export function buildRenewalConfirmationSms(summary: {
+  unit: string;
+  category: string;
+  operatorName: string;
+  driverName: string;
+  newExpiry: string;
+  orNumber: string;
+}): string {
+  return (
+    `[TRD TABACO CONFIRMATION]\n` +
+    `Magandang araw Operator ${summary.operatorName} at Driver ${summary.driverName}!\n` +
+    `Matagumpay na nai-proseso ang RENEWAL ng inyong ${summary.category} Franchise Permit (Unit ${summary.unit}).\n\n` +
+    `Bagong Expiration Date: ${summary.newExpiry}\n` +
+    `Official Receipt (OR) No: ${summary.orNumber}\n` +
+    `Status: Rehistrado at Aktibo (Active)\n\n` +
+    `Maraming salamat sa inyong maagap na pagtupad sa mga alituntunin ng Lungsod ng Tabaco para sa ligtas at maayos na transportasyon.\n` +
+    `Transportation Regulation Division (TRD), Tabaco City Hall.`
+  );
+}
+
+/**
  * Compose official Gmail subject line
  */
 export function buildDriverGmailSubject(
@@ -268,11 +324,13 @@ export function buildDriverGmailSubject(
   const expiry = info || getFranchiseExpiryInfo(record);
   const unit = record.cityPlateNumber || record.mtopNumber || 'N/A';
   const category = record.vehicleCategory || 'Tricycle';
+  const op = record.operatorName || record.ownerName || 'Operator';
+  const dr = record.driverName || 'Driver';
 
   if (expiry.isExpired) {
-    return `[TRD Tabaco City Official] URGENT: Expired Franchise Permit Notice - Unit ${unit} (${category})`;
+    return `[TRD Tabaco City Official] URGENT: Expired Franchise Permit Notice - Unit ${unit} (${category}) | Op: ${op} • Dr: ${dr}`;
   }
-  return `[TRD Tabaco City Official] Franchise Permit Expiration Reminder: Unit ${unit} (${expiry.statusLabel})`;
+  return `[TRD Tabaco City Official] Franchise Permit Expiration Reminder: Unit ${unit} (${expiry.statusLabel}) | Op: ${op} • Dr: ${dr}`;
 }
 
 /**
@@ -631,7 +689,128 @@ export async function sendDriverGmailReminder(
 }
 
 /**
- * Dispatch both SMS and Gmail to driver based on their registered numbers
+ * Dispatch both SMS and Gmail to driver & operator based on their registered numbers
+ */
+export async function sendFranchiseBothReminders(
+  record: FranchiseRecord,
+  options?: {
+    driverPhone?: string;
+    driverEmail?: string;
+    operatorPhone?: string;
+    operatorEmail?: string;
+    overridePhone?: string;
+    overrideEmail?: string;
+    targetRecipient?: 'both' | 'operator' | 'driver';
+    channel?: 'both' | 'sms' | 'email';
+    customNote?: string;
+  }
+): Promise<{
+  sms: DispatchReminderResult[];
+  email: DispatchReminderResult[];
+  overallSuccess: boolean;
+  summaryText: string;
+}> {
+  const target = options?.targetRecipient || 'both';
+  const channel = options?.channel || 'both';
+  const info = getFranchiseExpiryInfo(record);
+
+  const drvPhone = (options?.driverPhone || options?.overridePhone || getDriverContactNumber(record)).trim();
+  const drvEmail = (options?.driverEmail || options?.overrideEmail || getDriverGmail(record)).trim().toLowerCase();
+  const opPhone = (options?.operatorPhone || getOperatorContactNumber(record)).trim();
+  const opEmail = (options?.operatorEmail || getOperatorGmail(record)).trim().toLowerCase();
+
+  const smsPromises: Promise<DispatchReminderResult>[] = [];
+  const emailPromises: Promise<DispatchReminderResult>[] = [];
+
+  // Determine phones to text
+  if (channel === 'both' || channel === 'sms') {
+    const phonesToText = new Set<string>();
+    if (target === 'both' || target === 'driver') {
+      if (drvPhone) phonesToText.add(drvPhone);
+    }
+    if (target === 'both' || target === 'operator') {
+      if (opPhone) phonesToText.add(opPhone);
+    }
+    // Fallback if neither was set
+    if (phonesToText.size === 0 && drvPhone) phonesToText.add(drvPhone);
+
+    const smsMessage = options?.customNote || buildDriverSmsReminderText(record, info, target);
+    phonesToText.forEach((phone) => {
+      smsPromises.push(
+        sendDriverSmsReminder(record, {
+          overridePhone: phone,
+          customMessage: smsMessage,
+        })
+      );
+    });
+  }
+
+  // Determine emails to send
+  if (channel === 'both' || channel === 'email') {
+    const emailsToSend = new Set<string>();
+    if (target === 'both' || target === 'driver') {
+      if (drvEmail && drvEmail.includes('@')) emailsToSend.add(drvEmail);
+    }
+    if (target === 'both' || target === 'operator') {
+      if (opEmail && opEmail.includes('@')) emailsToSend.add(opEmail);
+    }
+    // Fallback if neither was set
+    if (emailsToSend.size === 0 && drvEmail && drvEmail.includes('@')) emailsToSend.add(drvEmail);
+
+    emailsToSend.forEach((email) => {
+      emailPromises.push(
+        sendDriverGmailReminder(record, {
+          overrideEmail: email,
+          customNote: options?.customNote,
+        })
+      );
+    });
+  }
+
+  const [smsResults, emailResults] = await Promise.all([
+    Promise.all(smsPromises),
+    Promise.all(emailPromises),
+  ]);
+
+  const smsSuccessCount = smsResults.filter((r) => r.success).length;
+  const emailSuccessCount = emailResults.filter((r) => r.success).length;
+  const overallSuccess = smsSuccessCount > 0 || emailSuccessCount > 0;
+
+  // Save audit log entry
+  const entry: ReminderLogEntry = {
+    id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    recordId: record.id,
+    cityPlateNumber: record.cityPlateNumber || record.mtopNumber,
+    vehicleCategory: record.vehicleCategory,
+    driverName: record.driverName || 'Driver',
+    operatorName: record.operatorName || record.ownerName || 'Operator',
+    contactNumber: [drvPhone, opPhone].filter(Boolean).join(', ') || 'None',
+    gmail: [drvEmail, opEmail].filter(Boolean).join(', ') || 'None',
+    channels: channel,
+    smsStatus: smsSuccessCount > 0 ? 'delivered' : smsPromises.length > 0 ? 'failed' : 'not_sent',
+    emailStatus: emailSuccessCount > 0 ? 'delivered' : emailPromises.length > 0 ? 'failed' : 'not_sent',
+    summary: `SMS: ${smsSuccessCount}/${smsPromises.length} sent • Gmail: ${emailSuccessCount}/${emailPromises.length} sent to ${target === 'both' ? 'Driver & Operator' : target}`,
+    timestamp: new Date().toISOString(),
+    daysRemaining: info.daysRemaining,
+    isExpired: info.isExpired,
+  };
+
+  saveReminderLog(entry);
+
+  const summaryText = `Dispatched ${smsSuccessCount} SMS and ${emailSuccessCount} Gmail notice(s) to ${
+    target === 'both' ? 'Driver and Operator' : target
+  }!`;
+
+  return {
+    sms: smsResults,
+    email: emailResults,
+    overallSuccess,
+    summaryText,
+  };
+}
+
+/**
+ * Dispatch both SMS and Gmail to driver based on their registered numbers (backwards compatibility wrapper)
  */
 export async function sendDriverBothReminders(
   record: FranchiseRecord,
@@ -641,45 +820,144 @@ export async function sendDriverBothReminders(
   email: DispatchReminderResult;
   overallSuccess: boolean;
 }> {
-  const [smsResult, emailResult] = await Promise.all([
-    sendDriverSmsReminder(record, {
-      overridePhone: options?.overridePhone,
-      customMessage: options?.customNote,
-    }),
-    sendDriverGmailReminder(record, {
-      overrideEmail: options?.overrideEmail,
-      customNote: options?.customNote,
-    }),
-  ]);
-
-  const overallSuccess = smsResult.success || emailResult.success;
-  const info = getFranchiseExpiryInfo(record);
-
-  // Save audit log entry
-  const entry: ReminderLogEntry = {
-    id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    recordId: record.id,
-    cityPlateNumber: record.cityPlateNumber || record.mtopNumber,
-    vehicleCategory: record.vehicleCategory,
-    driverName: record.driverName || record.operatorName || 'Driver',
-    operatorName: record.operatorName || record.ownerName || 'Operator',
-    contactNumber: options?.overridePhone || getDriverContactNumber(record) || 'None',
-    gmail: options?.overrideEmail || getDriverGmail(record) || 'None',
-    channels: 'both',
-    smsStatus: smsResult.success ? (smsResult.simulated ? 'simulated' : 'delivered') : 'failed',
-    emailStatus: emailResult.success ? (emailResult.simulated ? 'simulated' : 'delivered') : 'failed',
-    summary: `SMS: ${smsResult.success ? 'Sent' : 'Failed'} • Gmail: ${emailResult.success ? 'Sent' : 'Failed'}`,
-    timestamp: new Date().toISOString(),
-    daysRemaining: info.daysRemaining,
-    isExpired: info.isExpired,
-  };
-
-  saveReminderLog(entry);
+  const res = await sendFranchiseBothReminders(record, {
+    overridePhone: options?.overridePhone,
+    overrideEmail: options?.overrideEmail,
+    customNote: options?.customNote,
+  });
 
   return {
-    sms: smsResult,
-    email: emailResult,
-    overallSuccess,
+    sms: res.sms[0] || {
+      success: false,
+      channel: 'sms',
+      recipient: options?.overridePhone || '',
+      timestamp: new Date().toISOString(),
+    },
+    email: res.email[0] || {
+      success: false,
+      channel: 'email',
+      recipient: options?.overrideEmail || '',
+      timestamp: new Date().toISOString(),
+    },
+    overallSuccess: res.overallSuccess,
+  };
+}
+
+/**
+ * Send official Renewal Confirmation SMS & Email to Driver & Operator
+ */
+export async function sendRenewalConfirmationNotice(
+  summary: {
+    mtopNumber: string;
+    cityPlateNumber?: string;
+    vehicleCategory?: string;
+    operatorName: string;
+    driverName: string;
+    newExpiry: string;
+    orNumber: string;
+    applicationNo?: string;
+    amountPaid?: string;
+  },
+  contacts?: {
+    operatorPhone?: string;
+    operatorEmail?: string;
+    driverPhone?: string;
+    driverEmail?: string;
+  }
+): Promise<{ success: boolean; smsCount: number; emailCount: number; message: string }> {
+  const unit = summary.cityPlateNumber || summary.mtopNumber;
+  const category = summary.vehicleCategory || 'Tricycle';
+  const smsBody = buildRenewalConfirmationSms({
+    unit,
+    category,
+    operatorName: summary.operatorName,
+    driverName: summary.driverName,
+    newExpiry: summary.newExpiry,
+    orNumber: summary.orNumber,
+  });
+
+  const phones = new Set<string>();
+  if (contacts?.driverPhone) phones.add(contacts.driverPhone.trim());
+  if (contacts?.operatorPhone) phones.add(contacts.operatorPhone.trim());
+
+  const emails = new Set<string>();
+  if (contacts?.driverEmail && contacts.driverEmail.includes('@')) emails.add(contacts.driverEmail.trim().toLowerCase());
+  if (contacts?.operatorEmail && contacts.operatorEmail.includes('@')) emails.add(contacts.operatorEmail.trim().toLowerCase());
+
+  const smsPromises: Promise<any>[] = [];
+  phones.forEach((phone) => {
+    smsPromises.push(
+      fetch('/api/send-driver-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          driverName: summary.driverName,
+          operatorName: summary.operatorName,
+          plateNumber: unit,
+          category,
+          expirationDate: summary.newExpiry,
+          message: smsBody,
+        }),
+      }).catch((e) => ({ ok: false, error: e }))
+    );
+  });
+
+  const emailSubject = `[TRD Tabaco City] Official Franchise Permit Renewal Confirmation: Unit ${unit} (${category})`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; overflow: hidden;">
+      <div style="background: #064e3b; color: white; padding: 20px; text-align: center;">
+        <h2 style="margin: 0; font-size: 18px;">Tabaco City TRD - Renewal Confirmation</h2>
+        <p style="margin: 4px 0 0; font-size: 12px; color: #a7f3d0;">Official Municipal Conveyance Registry</p>
+      </div>
+      <div style="padding: 24px;">
+        <p style="font-size: 15px; font-weight: bold; color: #065f46;">
+          ✓ Renewal Processed Successfully!
+        </p>
+        <p style="font-size: 13px; color: #334155; line-height: 1.5;">
+          Magandang araw Operator <strong>${summary.operatorName}</strong> at Driver <strong>${summary.driverName}</strong>,<br>
+          Ang inyong franchise permit para sa <strong>Unit ${unit} (${category})</strong> ay matagumpay nang na-renew sa City Hall TRD.
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; font-size: 13px; margin: 16px 0;">
+          <p style="margin: 4px 0;"><strong>City Plate / MTOP:</strong> ${unit}</p>
+          <p style="margin: 4px 0;"><strong>Bagong Expiration:</strong> <span style="color: #059669; font-weight: bold;">${summary.newExpiry}</span></p>
+          <p style="margin: 4px 0;"><strong>Official Receipt (OR):</strong> ${summary.orNumber}</p>
+          <p style="margin: 4px 0;"><strong>Status:</strong> Active / Verified</p>
+        </div>
+        <p style="font-size: 12px; color: #64748b; margin: 0;">
+          Maraming salamat sa inyong patuloy na kooperasyon sa City Government of Tabaco.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const emailPromises: Promise<any>[] = [];
+  emails.forEach((email) => {
+    emailPromises.push(
+      fetch('/api/send-driver-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          driverName: summary.driverName,
+          operatorName: summary.operatorName,
+          plateNumber: unit,
+          category,
+          expirationDate: summary.newExpiry,
+          subject: emailSubject,
+          html: emailHtml,
+        }),
+      }).catch((e) => ({ ok: false, error: e }))
+    );
+  });
+
+  await Promise.all([...smsPromises, ...emailPromises]);
+
+  return {
+    success: true,
+    smsCount: phones.size,
+    emailCount: emails.size,
+    message: `Renewal confirmation notice sent to ${phones.size} phone(s) and ${emails.size} email(s)!`,
   };
 }
 

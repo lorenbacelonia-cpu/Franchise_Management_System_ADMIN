@@ -331,14 +331,14 @@ export const ExpiryReminderModal: React.FC<ExpiryReminderModalProps> = ({
             <div>
               <div className="flex items-center space-x-2 flex-wrap">
                 <h2 className="text-lg font-black tracking-tight">
-                  Driver Franchise Expiration Reminder Center
+                  Driver &amp; Operator Franchise Expiration Reminder Center
                 </h2>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-400 text-slate-950">
                   SMS &amp; Gmail Dispatch
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Automatically notifies drivers when franchise permits are expiring soon or overdue via registered phone number and Gmail
+                Automatically notifies drivers and operators when franchise permits are expiring soon or overdue via registered phone number and Gmail
               </p>
             </div>
           </div>

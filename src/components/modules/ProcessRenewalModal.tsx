@@ -17,15 +17,19 @@ import {
   History,
   Sparkles,
   RotateCcw,
+  Users,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
   filterExpiringDrivers,
   getFranchiseExpiryInfo,
+  getDriverContactNumber,
+  getDriverGmail,
+  getOperatorContactNumber,
+  getOperatorGmail,
   buildDriverSmsReminderText,
-  sendDriverSmsReminder,
-  sendDriverGmailReminder,
-  sendDriverBothReminders,
+  sendFranchiseBothReminders,
+  sendRenewalConfirmationNotice,
   sendBatchExpiryReminders,
   getReminderLogs,
   getLastReminderForRecord,
@@ -90,14 +94,21 @@ export const ProcessRenewalModal: React.FC = () => {
     processedAt: string;
   } | null>(null);
 
-  // Inline Single Reminder State (No separate portal)
+  // Inline Single Reminder State (No separate portal) - Supports both Operator & Driver
   const [selectedForReminder, setSelectedForReminder] = useState<FranchiseRecord | null>(null);
-  const [reminderPhone, setReminderPhone] = useState('');
-  const [reminderGmail, setReminderGmail] = useState('');
+  const [reminderDriverPhone, setReminderDriverPhone] = useState('');
+  const [reminderDriverGmail, setReminderDriverGmail] = useState('');
+  const [reminderOperatorPhone, setReminderOperatorPhone] = useState('');
+  const [reminderOperatorGmail, setReminderOperatorGmail] = useState('');
+  const [targetRecipient, setTargetRecipient] = useState<'both' | 'operator' | 'driver'>('both');
   const [reminderChannel, setReminderChannel] = useState<'both' | 'sms' | 'email'>('both');
   const [customNote, setCustomNote] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null);
+
+  // Floating Completion Card Renewal Confirmation State
+  const [isSendingRenewalConfirmation, setIsSendingRenewalConfirmation] = useState(false);
+  const [renewalConfirmationFeedback, setRenewalConfirmationFeedback] = useState<string | null>(null);
 
   // Inline Batch Reminder Dispatcher State (Inside the page)
   const [showReminderCenter, setShowReminderCenter] = useState(false);
@@ -197,19 +208,29 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForRenewal(null);
   };
 
-  // Open Inline Single Driver Reminder (Inside page, NOT a portal)
+  // Open Inline Single Reminder (Inside page, NOT a portal) - Operator & Driver dual support
   const handleOpenReminder = (item: FranchiseRecord) => {
     setSelectedForRenewal(null); // dismiss renewal form to focus on reminder
     setSelectedForReminder(item);
-    setReminderPhone(item.driverContact || item.operatorContact || '');
-    setReminderGmail(item.gmail || item.email || '');
+    setReminderDriverPhone(getDriverContactNumber(item));
+    setReminderDriverGmail(getDriverGmail(item));
+    setReminderOperatorPhone(getOperatorContactNumber(item));
+    setReminderOperatorGmail(getOperatorGmail(item));
+    setTargetRecipient('both');
     setReminderChannel('both');
-    const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item));
+    const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item), 'both');
     setCustomNote(defaultNotice);
     setReminderFeedback(null);
   };
 
-  // Dispatch Single Reminder
+  const handleTargetRecipientChange = (target: 'both' | 'operator' | 'driver') => {
+    setTargetRecipient(target);
+    if (selectedForReminder) {
+      setCustomNote(buildDriverSmsReminderText(selectedForReminder, getFranchiseExpiryInfo(selectedForReminder), target));
+    }
+  };
+
+  // Dispatch Single Reminder to Operator & Driver
   const handleSendSingleReminder = async () => {
     if (!selectedForReminder) return;
     setIsDispatching(true);
@@ -217,58 +238,70 @@ export const ProcessRenewalModal: React.FC = () => {
 
     try {
       const plate = selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber;
-      const phoneClean = reminderPhone.trim();
-      const emailClean = reminderGmail.trim();
+      const drvPhone = reminderDriverPhone.trim();
+      const drvEmail = reminderDriverGmail.trim();
+      const opPhone = reminderOperatorPhone.trim();
+      const opEmail = reminderOperatorGmail.trim();
 
-      // If user corrected phone or email, save it inline to record
-      if (
-        phoneClean !== (selectedForReminder.driverContact || selectedForReminder.operatorContact || '') ||
-        emailClean !== (selectedForReminder.gmail || selectedForReminder.email || '')
-      ) {
-        await updateDriver(plate, {
-          driverName: selectedForReminder.driverName,
-          contact: phoneClean,
-          gmail: emailClean,
-          email: emailClean,
-        });
-      }
+      // If user corrected phones or emails, persist inline to record
+      await updateDriver(plate, {
+        driverName: selectedForReminder.driverName,
+        contact: drvPhone || opPhone,
+        operatorContact: opPhone,
+        gmail: drvEmail || opEmail,
+        email: drvEmail || opEmail,
+      });
 
-      const activeRecord: FranchiseRecord = {
-        ...selectedForReminder,
-        driverContact: phoneClean,
-        operatorContact: phoneClean,
-        gmail: emailClean,
-        email: emailClean,
-      };
+      const res = await sendFranchiseBothReminders(selectedForReminder, {
+        driverPhone: drvPhone,
+        driverEmail: drvEmail,
+        operatorPhone: opPhone,
+        operatorEmail: opEmail,
+        targetRecipient,
+        channel: reminderChannel,
+        customNote,
+      });
 
-      let successMessage = '';
-      if (reminderChannel === 'both') {
-        const { sms, email, overallSuccess } = await sendDriverBothReminders(activeRecord, { customNote });
-        if (overallSuccess) {
-          successMessage = `Dispatched SMS & Gmail reminder to ${selectedForReminder.driverName} (${phoneClean || 'SMS'} & ${emailClean || 'Gmail'})!`;
-        } else {
-          successMessage = `Dispatched: SMS (${sms.success ? 'Success' : 'Failed'}), Gmail (${email.success ? 'Success' : 'Failed'}). Check phone or Gmail format.`;
-        }
-      } else if (reminderChannel === 'sms') {
-        const res = await sendDriverSmsReminder(activeRecord, { customMessage: customNote });
-        successMessage = res.success
-          ? `SMS reminder dispatched to ${selectedForReminder.driverName} (${res.recipient})`
-          : `SMS notice error: ${res.error || 'Missing valid mobile number'}`;
-      } else {
-        const res = await sendDriverGmailReminder(activeRecord, { customNote });
-        successMessage = res.success
-          ? `Gmail reminder dispatched to ${selectedForReminder.driverName} (${res.recipient})`
-          : `Gmail notice error: ${res.error || 'Missing valid Gmail address'}`;
-      }
-
-      setReminderFeedback(successMessage);
-      setNotification(successMessage);
+      setReminderFeedback(res.summaryText);
+      setNotification(res.summaryText);
       setTimeout(() => setNotification(null), 6000);
       setReminderLogs(getReminderLogs());
     } catch (err: any) {
       setReminderFeedback(`Dispatch failed: ${err?.message || 'Error occurred'}`);
     } finally {
       setIsDispatching(false);
+    }
+  };
+
+  // Dispatch Renewal Confirmation Notice (SMS & Email) to Operator & Driver
+  const handleSendRenewalConfirmationNotice = async () => {
+    if (!completedRenewalSummary) return;
+    setIsSendingRenewalConfirmation(true);
+    setRenewalConfirmationFeedback(null);
+
+    try {
+      const matchingRecord = franchises.find((f) => f.mtopNumber === completedRenewalSummary.mtopNumber);
+      const drvPhone = matchingRecord ? getDriverContactNumber(matchingRecord) : '';
+      const drvEmail = matchingRecord ? getDriverGmail(matchingRecord) : '';
+      const opPhone = matchingRecord ? getOperatorContactNumber(matchingRecord) : '';
+      const opEmail = matchingRecord ? getOperatorGmail(matchingRecord) : '';
+
+      const result = await sendRenewalConfirmationNotice(completedRenewalSummary, {
+        driverPhone: drvPhone,
+        driverEmail: drvEmail,
+        operatorPhone: opPhone,
+        operatorEmail: opEmail,
+      });
+
+      const msg = result.message || `Renewal Confirmation dispatched! (SMS: ${result.smsCount} sent, Email: ${result.emailCount} sent)`;
+      setRenewalConfirmationFeedback(msg);
+      setNotification(msg);
+      setTimeout(() => setNotification(null), 6000);
+      setReminderLogs(getReminderLogs());
+    } catch (err: any) {
+      setRenewalConfirmationFeedback(`Confirmation dispatch failed: ${err?.message || 'Error occurred'}`);
+    } finally {
+      setIsSendingRenewalConfirmation(false);
     }
   };
 
@@ -310,7 +343,7 @@ export const ProcessRenewalModal: React.FC = () => {
         </div>
       )}
 
-      {/* INLINE DRIVER EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
+      {/* INLINE OPERATOR & DRIVER EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
       {selectedForReminder && (
         <div className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden animate-fadeIn">
           {/* Header */}
@@ -322,14 +355,14 @@ export const ProcessRenewalModal: React.FC = () => {
               <div>
                 <div className="flex items-center space-x-2 flex-wrap">
                   <h4 className="text-sm font-bold text-white">
-                    Send Driver Expiration Notice (SMS &amp; Gmail)
+                    Send Franchise Expiration Notice to Operator &amp; Driver (SMS &amp; Gmail)
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950">
                     Unit {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Driver: <strong>{selectedForReminder.driverName}</strong> • Operator: {selectedForReminder.operatorName} • Expiration: {selectedForReminder.expirationDate}
+                  Operator: <strong>{selectedForReminder.operatorName}</strong> • Driver: <strong>{selectedForReminder.driverName}</strong> • Expiration: {selectedForReminder.expirationDate}
                 </p>
               </div>
             </div>
@@ -352,60 +385,178 @@ export const ProcessRenewalModal: React.FC = () => {
               </div>
             )}
 
-            {/* Contact Details Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  <span className="inline-flex items-center space-x-1">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Driver Mobile Number (SMS)</span>
+            {/* Step 1: Target Recipient Selection */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                1. Target Recipient
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleTargetRecipientChange('both')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    targetRecipient === 'both'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>👥 Both (Operator &amp; Driver)</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
+                    Default
                   </span>
-                </label>
-                <input
-                  type="text"
-                  value={reminderPhone}
-                  onChange={(e) => setReminderPhone(e.target.value)}
-                  placeholder="09171234567 or +639171234567"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Supports Philippine mobile numbers. Can be edited here directly.
-                </p>
-              </div>
+                </button>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  <span className="inline-flex items-center space-x-1">
-                    <Mail className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Driver Gmail / Email Address</span>
-                  </span>
-                </label>
-                <input
-                  type="email"
-                  value={reminderGmail}
-                  onChange={(e) => setReminderGmail(e.target.value)}
-                  placeholder="driver@gmail.com"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Receives formal City Hall TRD renewal notification with permit breakdown.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => handleTargetRecipientChange('operator')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    targetRecipient === 'operator'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>👤 Operator Only</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTargetRecipientChange('driver')}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    targetRecipient === 'driver'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>🛺 Driver Only</span>
+                </button>
               </div>
             </div>
 
-            {/* Channel Selection Buttons */}
+            {/* Step 2: Recipient Contact Details Grid (Operator & Driver) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                2. Recipient Contact Information (Directly Editable)
+              </label>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Operator Card */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  targetRecipient === 'operator' || targetRecipient === 'both'
+                    ? 'bg-amber-50/40 border-amber-300'
+                    : 'bg-slate-50/50 border-slate-200 opacity-60'
+                }`}>
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                      <span>👤 Operator:</span>
+                      <strong className="text-amber-900">{selectedForReminder.operatorName}</strong>
+                    </span>
+                    {(targetRecipient === 'both' || targetRecipient === 'operator') && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
+                        Targeted
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        <span className="inline-flex items-center space-x-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          <span>Operator Mobile (SMS)</span>
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={reminderOperatorPhone}
+                        onChange={(e) => setReminderOperatorPhone(e.target.value)}
+                        placeholder="09171234567 or +639171234567"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        <span className="inline-flex items-center space-x-1">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>Operator Gmail / Email</span>
+                        </span>
+                      </label>
+                      <input
+                        type="email"
+                        value={reminderOperatorGmail}
+                        onChange={(e) => setReminderOperatorGmail(e.target.value)}
+                        placeholder="operator@gmail.com"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Driver Card */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  targetRecipient === 'driver' || targetRecipient === 'both'
+                    ? 'bg-amber-50/40 border-amber-300'
+                    : 'bg-slate-50/50 border-slate-200 opacity-60'
+                }`}>
+                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                      <span>🛺 Driver:</span>
+                      <strong className="text-amber-900">{selectedForReminder.driverName}</strong>
+                    </span>
+                    {(targetRecipient === 'both' || targetRecipient === 'driver') && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
+                        Targeted
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        <span className="inline-flex items-center space-x-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          <span>Driver Mobile (SMS)</span>
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={reminderDriverPhone}
+                        onChange={(e) => setReminderDriverPhone(e.target.value)}
+                        placeholder="09171234567 or +639171234567"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        <span className="inline-flex items-center space-x-1">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>Driver Gmail / Email</span>
+                        </span>
+                      </label>
+                      <input
+                        type="email"
+                        value={reminderDriverGmail}
+                        onChange={(e) => setReminderDriverGmail(e.target.value)}
+                        placeholder="driver@gmail.com"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Channel Selection Buttons */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2">
-                Select Dispatch Channel
+                3. Select Dispatch Channel
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setReminderChannel('both')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${reminderChannel === 'both'
-                    ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'both'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Both SMS &amp; Gmail</span>
@@ -417,10 +568,11 @@ export const ProcessRenewalModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setReminderChannel('sms')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${reminderChannel === 'sms'
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'sms'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
                 >
                   <Phone className="w-4 h-4 text-emerald-500" />
                   <span>SMS Only</span>
@@ -429,10 +581,11 @@ export const ProcessRenewalModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setReminderChannel('email')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${reminderChannel === 'email'
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                    reminderChannel === 'email'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
                 >
                   <Mail className="w-4 h-4 text-blue-400" />
                   <span>Gmail Only</span>
@@ -440,7 +593,7 @@ export const ProcessRenewalModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Official Notice Content Preview (Just One Header) */}
+            {/* Official Notice Content Preview */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="text-xs font-bold text-slate-800 inline-flex items-center space-x-1.5">
@@ -456,7 +609,8 @@ export const ProcessRenewalModal: React.FC = () => {
                     onClick={() => {
                       const suggested = buildDriverSmsReminderText(
                         selectedForReminder,
-                        getFranchiseExpiryInfo(selectedForReminder)
+                        getFranchiseExpiryInfo(selectedForReminder),
+                        targetRecipient
                       );
                       setCustomNote(suggested);
                     }}
@@ -479,7 +633,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y shadow-2xs"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-                  <span>Editable notice dispatched via SMS &amp; Gmail. Use "Reset to Suggested" to restore standard wording.</span>
+                  <span>Editable notice dispatched via SMS &amp; Gmail to {targetRecipient === 'both' ? 'Operator & Driver' : targetRecipient}.</span>
                   <span>{customNote.length} characters</span>
                 </div>
               </div>
@@ -556,6 +710,14 @@ export const ProcessRenewalModal: React.FC = () => {
 
             {/* Modal Body */}
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Renewal Confirmation Feedback Banner */}
+              {renewalConfirmationFeedback && (
+                <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold p-3.5 rounded-2xl flex items-center space-x-2.5 animate-fadeIn shadow-2xs">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>{renewalConfirmationFeedback}</span>
+                </div>
+              )}
+
               {/* Validity Extension Highlight Banner */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center space-x-3">
@@ -618,6 +780,27 @@ export const ProcessRenewalModal: React.FC = () => {
                 Official Municipal Conveyance Permit • Tabaco City TRD
               </span>
               <div className="flex items-center space-x-2.5">
+                {/* 1-Click Send Renewal Confirmation SMS & Email to Operator & Driver */}
+                <button
+                  type="button"
+                  disabled={isSendingRenewalConfirmation}
+                  onClick={handleSendRenewalConfirmationNotice}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
+                  title="Send official SMS & Email confirmation to both Operator and Driver"
+                >
+                  {isSendingRenewalConfirmation ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Sending Confirmation...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      <span>Send Notice to Op &amp; Dr (SMS &amp; Email)</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => window.print()}
