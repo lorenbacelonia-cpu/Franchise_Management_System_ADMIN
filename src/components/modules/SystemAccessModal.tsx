@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { EnforcerAccount, AdminAccount } from '../../types';
 import { DEFAULT_MOBILE_VERIFIER_URL } from '../../utils/fareUtils';
@@ -62,7 +62,16 @@ export const SystemAccessModal: React.FC = () => {
   };
 
   // Active Tab: 'admins' (Admin Users), 'enforcers' (Traffic Enforcers), or 'citizens' (Passenger Accounts)
-  const [activeTab, setActiveTab] = useState<'admins' | 'enforcers' | 'citizens'>('admins');
+  const [activeTab, setActiveTab] = useState<'admins' | 'enforcers' | 'citizens'>(() => {
+    try {
+      const saved = sessionStorage.getItem('tabaco_trd_active_system_access_tab');
+      if (saved === 'citizens' || saved === 'enforcers' || saved === 'admins') {
+        sessionStorage.removeItem('tabaco_trd_active_system_access_tab');
+        return saved;
+      }
+    } catch {}
+    return 'admins';
+  });
 
   // ── TRAFFIC ENFORCER FORM STATE (System-Provided Credentials) ──
   const [enfFullName, setEnfFullName] = useState('');
@@ -103,7 +112,39 @@ export const SystemAccessModal: React.FC = () => {
   const [adminSearch, setAdminSearch] = useState('');
 
   // Citizen search state
-  const [citizenSearch, setCitizenSearch] = useState('');
+  const [citizenSearch, setCitizenSearch] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('tabaco_trd_citizen_search');
+      if (saved) {
+        sessionStorage.removeItem('tabaco_trd_citizen_search');
+        return saved;
+      }
+    } catch {}
+    return '';
+  });
+
+  // Listen for direct tab navigation events from notifications
+  useEffect(() => {
+    const handleSwitch = (e?: any) => {
+      try {
+        const detail = e?.detail;
+        const targetTab = detail?.tab || sessionStorage.getItem('tabaco_trd_active_system_access_tab');
+        if (targetTab === 'citizens' || targetTab === 'enforcers' || targetTab === 'admins') {
+          sessionStorage.removeItem('tabaco_trd_active_system_access_tab');
+          setActiveTab(targetTab);
+        }
+        const search = detail?.search ?? sessionStorage.getItem('tabaco_trd_citizen_search');
+        if (typeof search === 'string') {
+          sessionStorage.removeItem('tabaco_trd_citizen_search');
+          setCitizenSearch(search);
+        }
+      } catch {}
+    };
+
+    handleSwitch();
+    window.addEventListener('tabaco_switch_tab', handleSwitch);
+    return () => window.removeEventListener('tabaco_switch_tab', handleSwitch);
+  }, []);
 
   // ── ADMIN USER FORM STATE ──
   const [fullName, setFullName] = useState('');

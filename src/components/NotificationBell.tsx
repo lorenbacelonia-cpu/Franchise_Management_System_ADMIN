@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useFranchise } from '../context/FranchiseContext';
+import type { ActiveModule } from '../types';
 import {
   Bell,
   CheckCircle2,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   Volume2,
   VolumeX,
+  ArrowRight,
 } from 'lucide-react';
 
 export interface NotificationItem {
@@ -17,6 +19,9 @@ export interface NotificationItem {
   type: 'passenger' | 'complaint' | 'violation';
   title: string;
   description: string;
+  assignedModule: ActiveModule;
+  assignedModuleName: string;
+  assignedTabName: string;
   vehicleCategory?: 'Tricycle' | 'Pedicab';
   plateOrMtop?: string;
   date: string;
@@ -140,6 +145,9 @@ export const NotificationBell: React.FC = () => {
         type: 'passenger',
         title: `New Passenger User: ${p.fullname || p.username}`,
         description: `@${p.username} registered via mobile passenger app`,
+        assignedModule: 'system_access',
+        assignedModuleName: 'User Managements',
+        assignedTabName: 'Passenger Accounts',
         date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent',
         severity: 'info',
         targetData: p,
@@ -154,6 +162,9 @@ export const NotificationBell: React.FC = () => {
           type: 'complaint',
           title: `Report: ${c.issueType}`,
           description: `Plate: ${c.cityPlateNumber || c.mtopNumber || 'N/A'} — ${c.description ? c.description.slice(0, 60) + '...' : 'Awaiting admin response'}`,
+          assignedModule: 'violation_entry',
+          assignedModuleName: 'Violation and Reports',
+          assignedTabName: 'Reports Tab',
           vehicleCategory: c.vehicleCategory || 'Tricycle',
           plateOrMtop: c.cityPlateNumber || c.mtopNumber,
           date: c.incidentDate || 'Recent',
@@ -171,6 +182,9 @@ export const NotificationBell: React.FC = () => {
           type: 'violation',
           title: `Citation: ${v.violationType}`,
           description: `Plate ${v.cityPlateNumber || v.mtopNumber} — Driver: ${v.driverName} (Fine: ₱${Number(v.fineAmount || 0).toLocaleString()})`,
+          assignedModule: 'violation_entry',
+          assignedModuleName: 'Violation and Reports',
+          assignedTabName: 'Citations Tab',
           vehicleCategory: (v as any).vehicleCategory || 'Tricycle',
           plateOrMtop: v.cityPlateNumber || v.mtopNumber,
           date: v.dateSubmitted || 'Recent',
@@ -207,6 +221,9 @@ export const NotificationBell: React.FC = () => {
           type: 'violation',
           title: `⚠️ Excessive Violations: ${info.driver}`,
           description: `Plate ${info.plate} has ${info.count} recorded violations/reports. Admin action advised.`,
+          assignedModule: 'violation_entry',
+          assignedModuleName: 'Violation and Reports',
+          assignedTabName: 'Repeat Offenders',
           vehicleCategory: info.category || 'Tricycle',
           plateOrMtop: info.plate,
           date: 'Action Advised',
@@ -263,23 +280,62 @@ export const NotificationBell: React.FC = () => {
     setIsOpen(false);
 
     if (item.type === 'passenger') {
+      try {
+        sessionStorage.setItem('tabaco_trd_active_system_access_tab', 'citizens');
+        if (item.targetData?.username || item.targetData?.fullname) {
+          sessionStorage.setItem('tabaco_trd_citizen_search', item.targetData?.username || item.targetData?.fullname || '');
+        }
+      } catch {}
       setActiveModule('system_access');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
+          detail: {
+            module: 'system_access',
+            tab: 'citizens',
+            search: item.targetData?.username || item.targetData?.fullname || '',
+          }
+        }));
+      }, 50);
     } else if (item.type === 'complaint') {
       try {
         sessionStorage.setItem('tabaco_trd_active_violation_tab', 'reports');
+        if (item.plateOrMtop) {
+          sessionStorage.setItem('tabaco_trd_violation_search', item.plateOrMtop);
+        }
+        if (item.targetData?.id) {
+          sessionStorage.setItem('tabaco_trd_violation_expanded', item.targetData.id);
+        }
       } catch {}
       setActiveModule('violation_entry');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
+          detail: {
+            module: 'violation_entry',
+            tab: 'reports',
+            search: item.plateOrMtop || '',
+            expandedId: item.targetData?.id,
+          }
+        }));
+      }, 50);
     } else if (item.type === 'violation') {
-      if (item.targetData?.multipleOffender) {
-        try {
-          sessionStorage.setItem('tabaco_trd_active_violation_tab', 'multiple_violations');
-        } catch {}
-      } else {
-        try {
-          sessionStorage.setItem('tabaco_trd_active_violation_tab', 'violations');
-        } catch {}
-      }
+      const isMultiple = Boolean(item.targetData?.multipleOffender);
+      const tab = isMultiple ? 'multiple_violations' : 'violations';
+      try {
+        sessionStorage.setItem('tabaco_trd_active_violation_tab', tab);
+        if (item.plateOrMtop) {
+          sessionStorage.setItem('tabaco_trd_violation_search', item.plateOrMtop);
+        }
+      } catch {}
       setActiveModule('violation_entry');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
+          detail: {
+            module: 'violation_entry',
+            tab,
+            search: item.plateOrMtop || '',
+          }
+        }));
+      }, 50);
     }
   };
 
@@ -462,6 +518,20 @@ export const NotificationBell: React.FC = () => {
                       <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
                         {item.description}
                       </p>
+
+                      {/* Assigned Module Destination Pill & Navigation Link */}
+                      <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                        <div className="flex items-center space-x-1 min-w-0">
+                          <span className="text-slate-400 font-medium">Assigned:</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200 truncate">
+                            {item.assignedModuleName} &rarr; {item.assignedTabName}
+                          </span>
+                        </div>
+                        <span className="shrink-0 font-bold text-emerald-600 flex items-center gap-0.5 ml-2 hover:underline">
+                          <span>Open</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
                     </div>
 
                     <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 self-center" />

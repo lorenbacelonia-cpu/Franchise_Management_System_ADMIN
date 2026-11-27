@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import {
   ShieldAlert,
@@ -79,16 +79,66 @@ export const ViolationEntryModal: React.FC = () => {
     } catch { }
     return 'violations';
   });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('tabaco_trd_violation_search');
+      if (saved) {
+        sessionStorage.removeItem('tabaco_trd_violation_search');
+        return saved;
+      }
+    } catch {}
+    return '';
+  });
   const [statusFilter, setStatusFilter] = useState('All');
   const [multipleCategoryFilter, setMultipleCategoryFilter] = useState<'All' | 'Tricycle' | 'Pedicab'>('All');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('tabaco_trd_violation_expanded');
+      if (saved) {
+        sessionStorage.removeItem('tabaco_trd_violation_expanded');
+        return saved;
+      }
+    } catch {}
+    return null;
+  });
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
   const [replyInput, setReplyInput] = useState('');
   const [syncFeedback, setSyncFeedback] = useState<{ type: 'loading' | 'success'; message: string } | null>(null);
   const [deletingViolation, setDeletingViolation] = useState<any | null>(null);
   const [deletingComplaint, setDeletingComplaint] = useState<any | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
+
+  // Listen for direct tab & search navigation from notifications
+  useEffect(() => {
+    const handleSwitch = (e?: any) => {
+      try {
+        const detail = e?.detail;
+        const targetTab = detail?.tab || sessionStorage.getItem('tabaco_trd_active_violation_tab');
+        if (targetTab === 'multiple_violations' || targetTab === 'reports' || targetTab === 'logs' || targetTab === 'violations') {
+          sessionStorage.removeItem('tabaco_trd_active_violation_tab');
+          setActiveTab(targetTab);
+        }
+        const search = detail?.search ?? sessionStorage.getItem('tabaco_trd_violation_search');
+        if (typeof search === 'string') {
+          sessionStorage.removeItem('tabaco_trd_violation_search');
+          setSearchTerm(search);
+        }
+        const expId = detail?.expandedId ?? sessionStorage.getItem('tabaco_trd_violation_expanded');
+        if (expId) {
+          sessionStorage.removeItem('tabaco_trd_violation_expanded');
+          setExpandedId(expId);
+        }
+      } catch (err) {
+        console.warn('Tab switch event error:', err);
+      }
+    };
+
+    handleSwitch();
+    window.addEventListener('tabaco_switch_tab', handleSwitch);
+    return () => {
+      window.removeEventListener('tabaco_switch_tab', handleSwitch);
+    };
+  }, []);
 
   // ── Persistent Sanction state (strictly user/admin records from database & actions) ──
   const [sanctionsMap, setSanctionsMap] = useState<Record<string, SanctionDetail>>(() => {
