@@ -10,7 +10,6 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { DateBadge } from '../DateBadge';
 import {
   BarChart,
   Bar,
@@ -442,9 +441,8 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
     <div className="space-y-6 animate-fadeIn">
       {/* Main Content Card */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
-        {/* Top Print Action & Live Date (Fixed Position) */}
-        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-slate-200 shadow-md flex items-center justify-between gap-3">
-          <DateBadge />
+        {/* Top Print Action */}
+        <div className="flex items-center justify-end pb-2 border-b border-slate-100">
           <button
             onClick={handleDownloadPDF}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center space-x-2 cursor-pointer transition-colors"

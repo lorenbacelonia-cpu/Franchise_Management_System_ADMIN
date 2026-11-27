@@ -20,7 +20,6 @@ import {
   Check,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
-import { DateBadge } from '../DateBadge';
 import {
   filterExpiringDrivers,
   getFranchiseExpiryInfo,
@@ -1275,9 +1274,9 @@ export const ProcessRenewalModal: React.FC = () => {
           </div>
         )}
 
-        {/* Search bar & Live System Date (Fixed Position) */}
-        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-slate-200 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative flex-1 w-full">
+        {/* Search bar (Fixed Position) */}
+        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-slate-200 shadow-md">
+          <div className="relative w-full">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-slate-400" />
             </div>
@@ -1289,7 +1288,6 @@ export const ProcessRenewalModal: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
-          <DateBadge className="hidden sm:inline-flex py-1 text-[11px]" />
         </div>
 
         {/* Table */}

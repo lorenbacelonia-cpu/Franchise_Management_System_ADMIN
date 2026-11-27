@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import { UserX, AlertTriangle, Lock, CheckCircle2 } from 'lucide-react';
-import { DateBadge } from '../DateBadge';
 
 export const FranchiseDeactivationModal: React.FC = () => {
   const { activeModule, franchises, deactivateFranchise } = useFranchise();
@@ -50,20 +49,6 @@ export const FranchiseDeactivationModal: React.FC = () => {
           <span>{notification}</span>
         </div>
       )}
-
-      {/* Sticky Top Bar & Live Date (Fixed Position) */}
-      <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-slate-200 shadow-md flex items-center justify-between gap-3">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 bg-rose-100 text-rose-700 rounded-lg">
-            <UserX className="h-4 w-4" />
-          </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900 leading-tight">Franchise Deactivation</h4>
-            <p className="text-[10px] text-slate-500">Permit revocation &amp; unit deactivation</p>
-          </div>
-        </div>
-        <DateBadge className="py-1 text-[11px]" />
-      </div>
 
       {/* Main Content Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-5 text-sm">

@@ -17,7 +17,6 @@ import {
   Filter
 } from 'lucide-react';
 import { isHeadAdmin } from '../../utils/roles';
-import { DateBadge } from '../DateBadge';
 
 export const AccountDashboard: React.FC = () => {
   const {
@@ -67,20 +66,6 @@ export const AccountDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      {/* Sticky Top Bar & Live Date (Fixed Position) */}
-      <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-slate-200 shadow-md flex items-center justify-between gap-3">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
-            <User className="h-4 w-4" />
-          </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900 leading-tight">Account &amp; Session Settings</h4>
-            <p className="text-[10px] text-slate-500">Administrator profile &amp; security logs</p>
-          </div>
-        </div>
-        <DateBadge className="py-1 text-[11px]" />
-      </div>
-
       {/* Top Banner */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

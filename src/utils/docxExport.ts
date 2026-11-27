@@ -20,6 +20,15 @@ import { formatExpDate } from './fareUtils';
  */
 async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
   try {
+    if (url.startsWith('data:')) {
+      const base64 = url.split(',')[1];
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
     const res = await fetch(url);
     if (!res.ok) return null;
     const buffer = await res.arrayBuffer();

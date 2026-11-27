@@ -26,7 +26,6 @@ import {
   Upload
 } from 'lucide-react';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
-import { DateBadge } from '../DateBadge';
 import { cleanFare, getDefaultFareMatrix } from '../../utils/fareUtils';
 import {
   validateContactNumber,
@@ -1299,9 +1298,6 @@ export const DriverRegistryModal: React.FC = () => {
               <Users className="h-4 w-4 text-indigo-600 shrink-0" />
               <span>Driver &amp; Operator Directory</span>
             </div>
-
-            {/* Live System Date Badge */}
-            <DateBadge className="hidden lg:inline-flex py-1 text-[11px]" />
 
             {/* Category Filter Tabs */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">

@@ -4,7 +4,6 @@ import {
   CalendarDays,
   X
 } from 'lucide-react';
-import { DateBadge } from './DateBadge';
 import { 
   isDateMatchingFilter, 
   getFilterDisplayLabel,
@@ -74,7 +73,6 @@ export const DashboardMetrics: React.FC = () => {
             <div className="flex items-center space-x-2 text-slate-800 font-bold text-xs sm:text-sm shrink-0">
               <span className="tracking-tight">Date / Day Filter:</span>
             </div>
-            <DateBadge className="hidden xl:inline-flex py-1 text-[11px]" />
 
             <div className="flex items-center flex-wrap gap-1.5">
               <button

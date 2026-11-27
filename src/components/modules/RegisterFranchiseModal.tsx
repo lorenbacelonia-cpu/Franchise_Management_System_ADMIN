@@ -18,7 +18,7 @@ import {
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-import { DateBadge } from '../DateBadge';
+import { generateQrDataUrl } from '../../utils/qrGenerator';
 
 interface FareRow {
   id: string;
@@ -280,9 +280,21 @@ export const RegisterFranchiseModal: React.FC = () => {
   const createdFranchise = franchises.find(f => f.id === createdId);
   const isPermanentActive = createdFranchise?.hasPermanentQr === true;
   const permanentQrPayload = createdFranchise ? buildPermanentQrPayload(createdFranchise) : '';
-  const qrDataUrl = createdFranchise
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(permanentQrPayload)}`
-    : '';
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    if (permanentQrPayload) {
+      generateQrDataUrl(permanentQrPayload, 280).then((dataUrl) => {
+        if (active) setQrDataUrl(dataUrl);
+      });
+    } else {
+      setQrDataUrl('');
+    }
+    return () => {
+      active = false;
+    };
+  }, [permanentQrPayload]);
 
   const handleGenerateQrInline = async () => {
     if (!createdId) return;
@@ -529,16 +541,13 @@ export const RegisterFranchiseModal: React.FC = () => {
 
       {/* Main Registration Form Card */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-6 sm:-mx-8 px-6 sm:px-8 py-3.5 -mt-6 sm:-mt-8 rounded-t-3xl border-b border-slate-100 flex items-center justify-between gap-4 shadow-xs">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-              {vehicleCategory} Registration Form
-            </h3>
-            <p className="text-xs text-slate-400 font-medium italic mt-0.5">
-              Enter operator, driver, vehicle, official receipt, and fare matrix details
-            </p>
-          </div>
-          <DateBadge className="hidden sm:inline-flex py-1 text-[11px]" />
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            {vehicleCategory} Registration Form
+          </h3>
+          <p className="text-xs text-slate-400 font-medium italic mt-0.5">
+            Enter operator, driver, vehicle, official receipt, and fare matrix details
+          </p>
         </div>
 
         {/* 2-Column Responsive Layout */}

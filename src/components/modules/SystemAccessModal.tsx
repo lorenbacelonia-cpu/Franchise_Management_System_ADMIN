@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { EnforcerAccount, AdminAccount } from '../../types';
 import { DEFAULT_MOBILE_VERIFIER_URL } from '../../utils/fareUtils';
-import { DateBadge } from '../DateBadge';
 import {
   UserPlus,
   KeyRound,
@@ -762,9 +761,8 @@ City Government of Tabaco, Albay`;
           </button>
         </div>
 
-        {/* Live System Date & Mobile Web Direct Link Pill */}
+        {/* Mobile Web Direct Link Pill */}
         <div className="flex items-center space-x-2">
-          <DateBadge className="hidden lg:inline-flex py-1 text-[11px]" />
           <a
             href={DEFAULT_MOBILE_VERIFIER_URL}
             target="_blank"

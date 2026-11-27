@@ -1143,8 +1143,9 @@ export async function updatePassengerComplaintStatusInSupabase(
   details?: { complainantName?: string; cityPlateNumber?: string; issueType?: string; adminRemarks?: string }
 ) {
   try {
+    const dbStatus = status === 'Pending' ? 'Under Investigation' : status;
     const patchPayload: any = {
-      status,
+      status: dbStatus,
       admin_decision: status,
       updated_at: new Date().toISOString(),
       admin_response: details?.adminRemarks || `Status updated to ${status} by TRD Administration.`

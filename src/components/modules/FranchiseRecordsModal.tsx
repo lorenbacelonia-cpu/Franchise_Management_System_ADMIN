@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
 import type { FranchiseRecord, FranchiseTransactionItem } from '../../types';
@@ -6,9 +6,7 @@ import {
   Users,
   Search,
   QrCode,
-  Sparkles,
   CheckCircle2,
-  Check,
   Trash2,
   X,
   Printer,
@@ -26,14 +24,12 @@ import {
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-import { DateBadge } from '../DateBadge';
+import { generateQrDataUrl } from '../../utils/qrGenerator';
 
 export const FranchiseRecordsModal: React.FC = () => {
   const {
     activeModule,
     franchises,
-    generatePermanentQr,
-    generateAllPermanentQr,
     deleteFranchise,
   } = useFranchise();
 
@@ -139,14 +135,23 @@ export const FranchiseRecordsModal: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const pendingQrCount = franchises.filter(f => !f.hasPermanentQr).length;
-  const allGenerated = pendingQrCount === 0;
-
   const inlineQrUnit = franchises.find(f => f.id === inlineQrUnitId) || null;
   const inlineQrPayload = inlineQrUnit ? buildPermanentQrPayload(inlineQrUnit) : '';
-  const inlineQrDataUrl = inlineQrUnit
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(inlineQrPayload)}`
-    : '';
+  const [inlineQrDataUrl, setInlineQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    if (inlineQrPayload) {
+      generateQrDataUrl(inlineQrPayload, 280).then((dataUrl) => {
+        if (active) setInlineQrDataUrl(dataUrl);
+      });
+    } else {
+      setInlineQrDataUrl('');
+    }
+    return () => {
+      active = false;
+    };
+  }, [inlineQrPayload]);
 
   // ── Print Feature: Pure Plain Text Table Layout Only (No Design) ──
   const handlePrintFranchiseRecords = () => {
@@ -447,29 +452,6 @@ export const FranchiseRecordsModal: React.FC = () => {
     `);
 
     printWindow.document.close();
-  };
-
-  const handleGenerateAllQrCodes = async () => {
-    try {
-      await generateAllPermanentQr();
-      setNotification('Success! Unique Permanent QR Codes have been generated and locked for all registered franchises.');
-    } catch (err: any) {
-      setNotification(`Error generating QR codes: ${err?.message || 'Please retry.'}`);
-    } finally {
-      setTimeout(() => setNotification(null), 5000);
-    }
-  };
-
-  const handleGenerateSingleQr = async (franchiseId: string, mtopNumber: string) => {
-    try {
-      await generatePermanentQr(franchiseId);
-      setInlineQrUnitId(franchiseId);
-      setNotification(`Success! Unique Permanent QR Code generated & locked for unit ${mtopNumber}.`);
-    } catch (err: any) {
-      setNotification(`Error generating QR code for unit ${mtopNumber}: ${err?.message || 'Please retry.'}`);
-    } finally {
-      setTimeout(() => setNotification(null), 4000);
-    }
   };
 
   const handleToggleInlineQr = (franchiseId: string) => {
@@ -806,16 +788,11 @@ export const FranchiseRecordsModal: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-slate-900">Registered Franchise Data</h3>
             <p className="text-xs text-slate-400 font-medium italic">
-              {allGenerated
-                ? 'All units have permanent QR codes active'
-                : `${pendingQrCount} unit(s) awaiting QR generation • Batch generate below`}
+              Official registry of licensed tricycle and pedicab units
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap w-full md:w-auto">
-            {/* Live System Date Badge */}
-            <DateBadge className="hidden lg:inline-flex py-1 text-[11px]" />
-
             {/* Category Filter Tabs */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
               <button
@@ -867,27 +844,6 @@ export const FranchiseRecordsModal: React.FC = () => {
             >
               <Printer className="h-4 w-4 text-emerald-400" />
               <span>Print Records</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleGenerateAllQrCodes}
-              className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap shrink-0 ${allGenerated
-                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
-                : 'bg-[#05b875] hover:bg-[#049d63] text-white active:scale-[0.98]'
-                }`}
-            >
-              {allGenerated ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                  <span>All QR Generated</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                  <span>Generate All QR</span>
-                </>
-              )}
             </button>
 
             {/* Prominent Search bar */}
@@ -1007,7 +963,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                           <span>View</span>
                         </button>
 
-                        {item.hasPermanentQr ? (
+                        {item.hasPermanentQr && (
                           <button
                             type="button"
                             onClick={() => handleToggleInlineQr(item.id)}
@@ -1019,15 +975,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                           >
                             <QrCode className="h-3.5 w-3.5 shrink-0" />
                             <span>{inlineQrUnitId === item.id ? 'Hide QR' : 'View / Print QR'}</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleGenerateSingleQr(item.id, item.mtopNumber)}
-                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer bg-[#05b875] hover:bg-[#049d63] text-white whitespace-nowrap"
-                          >
-                            <QrCode className="h-3.5 w-3.5 text-white shrink-0" />
-                            <span>Generate QR</span>
                           </button>
                         )}
 
