@@ -188,7 +188,7 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     if (f.id) {
       url.searchParams.set('driver_id', f.id);
     }
-    if (f.driverPhoto) {
+    if (f.driverPhoto && !f.driverPhoto.startsWith('data:')) {
       url.searchParams.set('photo', f.driverPhoto);
     }
     if (f.applicationNo) {
