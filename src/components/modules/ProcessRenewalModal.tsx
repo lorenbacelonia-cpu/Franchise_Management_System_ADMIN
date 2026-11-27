@@ -19,6 +19,7 @@ import {
   Plus,
   Check,
   Clock,
+  Users,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
@@ -113,6 +114,9 @@ export const ProcessRenewalModal: React.FC = () => {
   const [isSendingRenewalConfirmation, setIsSendingRenewalConfirmation] = useState(false);
   const [renewalConfirmationFeedback, setRenewalConfirmationFeedback] = useState<string | null>(null);
 
+  // Multi-Selection State for selecting multiple drivers for expiration reminders
+  const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
+
   // Inline Batch Reminder Dispatcher State (Inside the page)
   const [showReminderCenter, setShowReminderCenter] = useState(false);
   const [reminderFilter, setReminderFilter] = useState<ExpiryFilterMode>('all');
@@ -155,6 +159,35 @@ export const ProcessRenewalModal: React.FC = () => {
       if (bExp && !aExp) return 1;
       return 0;
     });
+
+  const multiSelectedFranchises = useMemo(() => {
+    return categoryFranchises.filter(f => selectedRecordIds.has(f.id));
+  }, [categoryFranchises, selectedRecordIds]);
+
+  const toggleSelectRecord = (id: string) => {
+    setSelectedRecordIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRecordIds.size === categoryFranchises.length && categoryFranchises.length > 0) {
+      setSelectedRecordIds(new Set());
+    } else {
+      setSelectedRecordIds(new Set(categoryFranchises.map(f => f.id)));
+    }
+  };
+
+  const selectExpiringOnly = () => {
+    const expiring = categoryFranchises.filter(f => {
+      const info = getFranchiseExpiryInfo(f);
+      return info.isExpired || info.daysRemaining <= 30;
+    });
+    setSelectedRecordIds(new Set(expiring.map(f => f.id)));
+  };
 
   // Open Renewal Form
   const handleOpenRenewalDialog = (item: FranchiseRecord) => {
@@ -211,10 +244,19 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForRenewal(null);
   };
 
-  // Open Inline Single Reminder (Inside page, NOT a portal) - Dedicated to Operator & Driver
-  const handleOpenReminder = (item: FranchiseRecord) => {
+  // Open Inline Reminder (Supports both single driver and multiple selected drivers)
+  const handleOpenReminder = (item: FranchiseRecord, keepSelection: boolean = false) => {
     setSelectedForRenewal(null); // dismiss renewal form to focus on reminder
     setSelectedForReminder(item);
+
+    if (!keepSelection) {
+      setSelectedRecordIds(prev => {
+        const next = new Set(prev);
+        next.add(item.id);
+        return next;
+      });
+    }
+
     const opPhone = getOperatorContactNumber(item);
     const opGmail = getOperatorGmail(item);
     const drvPhone = getDriverContactNumber(item);
@@ -229,6 +271,14 @@ export const ProcessRenewalModal: React.FC = () => {
     const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item), 'both');
     setCustomNote(defaultNotice);
     setReminderFeedback(null);
+  };
+
+  const handleOpenMultiReminder = () => {
+    if (selectedRecordIds.size === 0) return;
+    const firstTarget = categoryFranchises.find(f => selectedRecordIds.has(f.id)) || categoryFranchises[0];
+    if (firstTarget) {
+      handleOpenReminder(firstTarget, true);
+    }
   };
 
   // Quick save driver email directly to the record
@@ -330,6 +380,40 @@ export const ProcessRenewalModal: React.FC = () => {
     }
   };
 
+  // Dispatch Batch Reminders to all currently selected drivers
+  const handleSendMultiDriverReminder = async () => {
+    if (multiSelectedFranchises.length === 0) return;
+    setIsDispatching(true);
+    setReminderFeedback(null);
+
+    try {
+      const summary = await sendBatchExpiryReminders(multiSelectedFranchises, {
+        sendSms: batchSendSms,
+        sendGmail: batchSendGmail,
+        customNote: customNote || undefined,
+        onProgress: (p) => {
+          setBatchProgress({
+            current: p.current,
+            total: p.total,
+            name: p.currentItem.driverName,
+          });
+        },
+      });
+
+      setBatchSummary(summary);
+      setReminderLogs(getReminderLogs());
+      const msg = `Dispatched reminders to ${summary.totalTargeted} drivers! (SMS: ${summary.smsSucceeded} sent, Gmail: ${summary.emailSucceeded} sent)`;
+      setReminderFeedback(msg);
+      setNotification(msg);
+      setTimeout(() => setNotification(null), 7000);
+    } catch (err: any) {
+      setReminderFeedback(`Batch dispatch failed: ${err?.message || 'Error occurred'}`);
+    } finally {
+      setIsDispatching(false);
+      setBatchProgress(null);
+    }
+  };
+
   // Dispatch Renewal Confirmation Notice (SMS & Email) to Operator & Driver
   const handleSendRenewalConfirmationNotice = async () => {
     if (!completedRenewalSummary) return;
@@ -400,49 +484,61 @@ export const ProcessRenewalModal: React.FC = () => {
         </div>
       )}
 
-      {/* INLINE OPERATOR EXPIRATION REMINDER CARD (Rendered inside the page — NO PORTAL) */}
+      {/* INLINE OPERATOR & DRIVER EXPIRATION REMINDER CARD (Supports Single & Multiple Drivers) */}
       {selectedForReminder && (
         <div className="bg-white rounded-3xl shadow-md border-2 border-amber-400 overflow-hidden animate-fadeIn">
           {/* Header */}
           <div className="bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 px-6 py-4 text-white flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-xs">
-                <Send className="w-5 h-5" />
+                {selectedRecordIds.size > 1 ? <Users className="w-5 h-5" /> : <Send className="w-5 h-5" />}
               </div>
               <div>
                 <div className="flex items-center space-x-2 flex-wrap">
                   <h4 className="text-sm font-bold text-white">
-                    Send Franchise Expiration Notice to Operator &amp; Driver (SMS &amp; Email)
+                    {selectedRecordIds.size > 1
+                      ? `Send Franchise Expiration Notice to Multiple Selected Drivers (${selectedRecordIds.size} Units)`
+                      : `Send Franchise Expiration Notice to Operator & Driver (SMS & Email)`}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-slate-950">
-                    Unit {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
+                    {selectedRecordIds.size > 1
+                      ? `${selectedRecordIds.size} Drivers Selected`
+                      : `Unit ${selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}`}
                   </span>
                 </div>
                 <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-300">
-                  <span>Franchise Holder: <strong>{selectedForReminder.operatorName}</strong></span>
-                  <span>• Driver: <strong>{selectedForReminder.driverName}</strong></span>
-                  <span>• Expiration: <strong className="font-mono">{selectedForReminder.expirationDate}</strong></span>
-                  {(() => {
-                    const info = getFranchiseExpiryInfo(selectedForReminder);
-                    if (info.daysRemaining <= 30) {
-                      return (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          info.isExpired
-                            ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
-                            : info.daysRemaining <= 7
-                              ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
-                              : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
-                        }`}>
-                          {info.isExpired
-                            ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
-                            : info.daysRemaining === 0
-                              ? 'Expires Today!'
-                              : `${info.daysRemaining} days left`}
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
+                  {selectedRecordIds.size > 1 ? (
+                    <span>
+                      Batch dispatching official renewal notice to <strong>{selectedRecordIds.size} selected drivers/units</strong> at once.
+                    </span>
+                  ) : (
+                    <>
+                      <span>Franchise Holder: <strong>{selectedForReminder.operatorName}</strong></span>
+                      <span>• Driver: <strong>{selectedForReminder.driverName}</strong></span>
+                      <span>• Expiration: <strong className="font-mono">{selectedForReminder.expirationDate}</strong></span>
+                      {(() => {
+                        const info = getFranchiseExpiryInfo(selectedForReminder);
+                        if (info.daysRemaining <= 30) {
+                          return (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              info.isExpired
+                                ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                                : info.daysRemaining <= 7
+                                  ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                                  : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                            }`}>
+                              {info.isExpired
+                                ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
+                                : info.daysRemaining === 0
+                                  ? 'Expires Today!'
+                                  : `${info.daysRemaining} days left`}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -465,19 +561,112 @@ export const ProcessRenewalModal: React.FC = () => {
               </div>
             )}
 
-            {/* Contact Information & Delivery Destination (Operator & Driver) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Operator Card */}
-              <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/40 shadow-2xs space-y-3.5">
-                <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                    <span>👤 Operator:</span>
-                    <strong className="text-amber-950">{selectedForReminder.operatorName}</strong>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-2xs">
-                    Franchise Holder
-                  </span>
+            {/* Multiple Drivers Selected Mode vs Single Driver Mode */}
+            {selectedRecordIds.size > 1 ? (
+              <div className="bg-amber-50/70 border-2 border-amber-400 rounded-2xl p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-amber-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 font-black">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-black text-slate-900">
+                        Selected Drivers ({multiSelectedFranchises.length} Units)
+                      </h5>
+                      <p className="text-[11px] text-slate-600">
+                        Notices will be dispatched in batch to all drivers listed below.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                      Multi-Driver Batch Mode
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRecordIds(new Set())}
+                      className="text-xs text-rose-600 hover:text-rose-700 font-bold underline cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
                 </div>
+
+                {/* Selected Drivers Chips */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-700">Selected Units &amp; Assigned Drivers:</span>
+                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2.5 bg-white rounded-xl border border-amber-200 shadow-inner">
+                    {multiSelectedFranchises.map(driver => (
+                      <span
+                        key={driver.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-slate-900 text-xs font-bold border border-amber-300 shadow-2xs"
+                      >
+                        <span className="font-mono text-amber-950 font-black">{driver.mtopNumber || driver.cityPlateNumber}</span>
+                        <span className="text-slate-600">({driver.driverName})</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectRecord(driver.id)}
+                          className="text-slate-400 hover:text-rose-600 font-black text-sm ml-0.5 cursor-pointer leading-none"
+                          title={`Remove ${driver.driverName}`}
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Channel Checkboxes */}
+                <div className="p-3 bg-white rounded-xl border border-amber-200 flex flex-wrap items-center gap-6 text-xs text-slate-700">
+                  <span className="font-bold text-slate-900">Delivery Channels:</span>
+                  <label className="inline-flex items-center space-x-2 font-bold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={batchSendSms}
+                      onChange={(e) => setBatchSendSms(e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                    />
+                    <span>SMS Mobile Notice (to all selected drivers)</span>
+                  </label>
+                  <label className="inline-flex items-center space-x-2 font-bold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={batchSendGmail}
+                      onChange={(e) => setBatchSendGmail(e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                    />
+                    <span>Gmail Official Notice (to all selected drivers)</span>
+                  </label>
+                </div>
+              </div>
+            ) : (
+              /* Single Driver Mode (Operator & Driver cards) */
+              <>
+                <div className="bg-amber-50/60 p-2.5 px-3.5 rounded-xl border border-amber-200 text-[11px] text-amber-900 font-medium flex items-center justify-between">
+                  <span>
+                    💡 <strong>Multi-Driver Tip:</strong> You can select multiple drivers from the table below using the checkboxes to dispatch reminders in batch!
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectExpiringOnly}
+                    className="ml-2 font-bold underline hover:text-amber-950 cursor-pointer shrink-0"
+                  >
+                    Select All Expiring Drivers
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Operator Card */}
+                  <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/40 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                      <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                        <span>👤 Operator:</span>
+                        <strong className="text-amber-950">{selectedForReminder.operatorName}</strong>
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-2xs">
+                        Franchise Holder
+                      </span>
+                    </div>
 
                 <div className="space-y-3">
                   {/* Operator Mobile Number */}
@@ -691,6 +880,8 @@ export const ProcessRenewalModal: React.FC = () => {
                 </div>
               </div>
             </div>
+          </>
+        )}
 
             {/* Official Notice Content Preview */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
@@ -701,7 +892,9 @@ export const ProcessRenewalModal: React.FC = () => {
                 </span>
                 <div className="flex items-center space-x-2">
                   <span className="text-[10px] font-mono text-slate-500">
-                    Unit: {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
+                    {selectedRecordIds.size > 1
+                      ? `Batch Template (${selectedRecordIds.size} Units)`
+                      : `Unit: ${selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}`}
                   </span>
                   <button
                     type="button"
@@ -725,46 +918,83 @@ export const ProcessRenewalModal: React.FC = () => {
               {/* Editable Textarea */}
               <div className="space-y-1">
                 <textarea
-                  rows={6}
+                  rows={5}
                   value={customNote}
                   onChange={(e) => setCustomNote(e.target.value)}
                   placeholder="Type or customize your official notice here..."
                   className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y shadow-2xs"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-                  <span>Editable notice dispatched via SMS &amp; Gmail directly to Operator &amp; Driver.</span>
+                  <span>Editable notice dispatched via SMS &amp; Gmail directly to targeted operators &amp; drivers.</span>
                   <span>{customNote.length} characters</span>
                 </div>
               </div>
             </div>
 
+            {/* Batch Progress Bar (when dispatching to multiple drivers) */}
+            {isDispatching && batchProgress && (
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                  <span className="flex items-center space-x-1.5">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                    <span>Dispatching: {batchProgress.name || 'Driver'}</span>
+                  </span>
+                  <span className="font-mono text-amber-900">
+                    {batchProgress.current} of {batchProgress.total} ({Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%)
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-amber-500 h-full transition-all duration-300"
+                    style={{ width: `${(batchProgress.current / (batchProgress.total || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Bottom Actions */}
-            <div className="flex items-center justify-end space-x-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setSelectedForReminder(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isDispatching}
-                onClick={handleSendSingleReminder}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
-              >
-                {isDispatching ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Dispatching Notice...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Send Expiration Notice to Operator &amp; Driver (SMS &amp; Email)</span>
-                  </>
-                )}
-              </button>
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+              <span className="text-[11px] text-slate-500 font-medium">
+                {selectedRecordIds.size > 1
+                  ? `Ready to dispatch to ${selectedRecordIds.size} selected drivers at once.`
+                  : `Dispatches official reminder directly to operator & driver.`}
+              </span>
+
+              <div className="flex items-center space-x-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedForReminder(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDispatching || (selectedRecordIds.size > 1 && !batchSendSms && !batchSendGmail)}
+                  onClick={selectedRecordIds.size > 1 ? handleSendMultiDriverReminder : handleSendSingleReminder}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-95"
+                >
+                  {isDispatching ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>
+                        {batchProgress
+                          ? `Sending (${batchProgress.current}/${batchProgress.total}): ${batchProgress.name}...`
+                          : 'Dispatching Notice...'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>
+                        {selectedRecordIds.size > 1
+                          ? `Dispatch Reminders to All (${selectedRecordIds.size}) Drivers`
+                          : `Send Expiration Notice to Operator & Driver (SMS & Email)`}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1337,11 +1567,64 @@ export const ProcessRenewalModal: React.FC = () => {
           </div>
         </div>
 
+        {/* Multi-Selected Drivers Action Bar (appears when 1 or more drivers are selected) */}
+        {selectedRecordIds.size > 0 && (
+          <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-amber-400 animate-fadeIn">
+            <div className="flex items-center space-x-2.5 flex-wrap">
+              <span className="w-7 h-7 rounded-lg bg-slate-950 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                {selectedRecordIds.size}
+              </span>
+              <span className="text-xs font-black">
+                {selectedRecordIds.size} {selectedRecordIds.size === 1 ? 'Driver' : 'Drivers'} Selected for Expiration Reminder
+              </span>
+              <span className="text-[11px] text-slate-800 font-medium hidden md:inline">
+                • You can dispatch official notices to all selected drivers at once!
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-wrap">
+              <button
+                type="button"
+                onClick={selectExpiringOnly}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-slate-950 text-xs font-bold transition-all border border-amber-600/30 cursor-pointer"
+                title="Select all units expired or within 30 days"
+              >
+                Select Expiring Only (≤30d)
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRecordIds(new Set())}
+                className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenMultiReminder}
+                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-900 text-white text-xs font-black shadow-md transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
+              >
+                <Send className="w-3.5 h-3.5 text-amber-400" />
+                <span>Remind Selected ({selectedRecordIds.size}) &rarr;</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="border border-slate-200 rounded-2xl overflow-hidden overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-900 text-white font-semibold text-xs uppercase tracking-wider">
               <tr>
+                <th className="px-3 py-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={categoryFranchises.length > 0 && selectedRecordIds.size === categoryFranchises.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer accent-amber-500"
+                    title={selectedRecordIds.size === categoryFranchises.length ? "Deselect All" : "Select All Drivers"}
+                    aria-label="Select / Deselect all drivers"
+                  />
+                </th>
                 <th className="px-4 py-3">City Plate No.</th>
                 <th className="px-4 py-3">Application No.</th>
                 <th className="px-4 py-3">Operator / Driver</th>
@@ -1353,7 +1636,7 @@ export const ProcessRenewalModal: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {categoryFranchises.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                  <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
                     <p className="text-sm font-semibold text-slate-600">No Franchise Records Available for Renewal</p>
                     <p className="text-xs text-slate-400 mt-1">There are currently 0 records matching your query.</p>
                   </td>
@@ -1363,6 +1646,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
                   const isSelectedRenewal = selectedForRenewal?.id === item.id;
                   const isSelectedReminder = selectedForReminder?.id === item.id;
+                  const isMultiSelected = selectedRecordIds.has(item.id);
                   const lastLog = getLastReminderForRecord(item.cityPlateNumber || item.mtopNumber);
 
                   return (
@@ -1371,13 +1655,24 @@ export const ProcessRenewalModal: React.FC = () => {
                       className={
                         isSelectedReminder
                           ? 'bg-amber-50/80 border-l-4 border-amber-500'
-                          : isSelectedRenewal
-                            ? 'bg-blue-50/70 border-l-4 border-blue-500'
-                            : isExpired
-                              ? 'bg-rose-50/40 hover:bg-rose-50/70 transition-colors'
-                              : 'hover:bg-slate-50/80 transition-colors'
+                          : isMultiSelected
+                            ? 'bg-amber-50/70 border-l-4 border-amber-400'
+                            : isSelectedRenewal
+                              ? 'bg-blue-50/70 border-l-4 border-blue-500'
+                              : isExpired
+                                ? 'bg-rose-50/40 hover:bg-rose-50/70 transition-colors'
+                                : 'hover:bg-slate-50/80 transition-colors'
                       }
                     >
+                      <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isMultiSelected}
+                          onChange={() => toggleSelectRecord(item.id)}
+                          className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer accent-amber-500"
+                          aria-label={`Select unit ${item.mtopNumber}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono font-bold text-slate-900">
                         <div className="flex items-center space-x-1.5">
                           <span>{item.mtopNumber}</span>
@@ -1465,12 +1760,16 @@ export const ProcessRenewalModal: React.FC = () => {
                             onClick={() => handleOpenReminder(item)}
                             className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all inline-flex items-center space-x-1 cursor-pointer ${isSelectedReminder
                               ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
+                              : isMultiSelected
+                                ? 'bg-amber-200 text-slate-900 border border-amber-400 font-bold'
+                                : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
                               }`}
                             title={`Send SMS & Gmail Expiration Reminder to ${item.driverName}`}
                           >
                             <Send className="h-3 w-3 text-amber-600" />
-                            <span className="hidden sm:inline">{isSelectedReminder ? 'Reminding...' : 'Remind'}</span>
+                            <span className="hidden sm:inline">
+                              {isSelectedReminder ? 'Reminding...' : isMultiSelected ? 'Selected' : 'Remind'}
+                            </span>
                           </button>
 
                           {/* RENEW / UPDATE BUTTON */}
