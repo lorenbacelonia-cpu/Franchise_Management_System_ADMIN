@@ -523,7 +523,7 @@ export const DriverRegistryModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                   <span className="text-slate-400 font-semibold text-[10px] uppercase block">Route / Parada</span>
-                  <p className="font-bold text-slate-900 mt-1 truncate">{completedUpdateSummary.routeParada || 'Sua-Igot 24 Tabaco'}</p>
+                  <p className="font-bold text-slate-900 mt-1 truncate">{completedUpdateSummary.routeParada || '—'}</p>
                 </div>
 
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">

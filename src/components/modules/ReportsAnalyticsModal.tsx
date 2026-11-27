@@ -295,7 +295,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
             <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-mono;">${f.applicationNo || '—'}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.operatorName || f.ownerName || '—'}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.driverName || '—'}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.routeParada || 'Tabaco City Line'}</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">${f.routeParada || '—'}</td>
             <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">
               <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: bold; background: #dcfce7; color: #166534;">
                 Active
@@ -726,7 +726,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
 
                       {/* Route / Parada */}
                       <td className="px-4 py-3.5 text-slate-600">
-                        {item.routeParada || 'Tabaco City Line'}
+                        {item.routeParada || '—'}
                       </td>
 
                       {/* Registration Date */}
@@ -1011,7 +1011,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
 
                           {/* Route / Parada */}
                           <td className="px-4 py-3.5 text-slate-600">
-                            {item.routeParada || 'Tabaco City Line'}
+                            {item.routeParada || '—'}
                           </td>
 
                           {/* Status */}

@@ -748,7 +748,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Model / Make</span>
-                      <span className="font-semibold text-slate-800 block truncate">{viewDetailsRecord.modelMake || viewDetailsRecord.makeModel || (viewDetailsRecord.vehicleCategory === 'Pedicab' ? 'Passenger Pedicab' : 'Kawasaki Barako 175')}</span>
+                      <span className="font-semibold text-slate-800 block truncate">{viewDetailsRecord.modelMake || viewDetailsRecord.makeModel || '—'}</span>
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Color</span>
@@ -783,7 +783,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Receipt (OR) No.</span>
-                      <span className="font-mono font-bold text-slate-900 block truncate">{viewDetailsRecord.receiptNumber || viewDetailsRecord.orNumber || 'OR-2026-10492'}</span>
+                      <span className="font-mono font-bold text-slate-900 block truncate">{viewDetailsRecord.receiptNumber || viewDetailsRecord.orNumber || '—'}</span>
                     </div>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Date</span>
@@ -1062,7 +1062,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-slate-800">{item.ownerName || item.operatorName}</td>
                     <td className="px-4 py-3.5 text-slate-700">{item.driverName}</td>
-                    <td className="px-4 py-3.5 text-slate-600 font-medium">{item.routeParada || 'Sua-Igot 24 Tabaco'}</td>
+                    <td className="px-4 py-3.5 text-slate-600 font-medium">{item.routeParada || '—'}</td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <span className={
                         item.status === 'Active' ? 'badge-active' :
@@ -1312,7 +1312,7 @@ export const FranchiseRecordsModal: React.FC = () => {
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
-              <span className="font-bold text-slate-900 text-[11px] truncate block">{inlineQrUnit.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+              <span className="font-bold text-slate-900 text-[11px] truncate block">{inlineQrUnit.routeParada || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>

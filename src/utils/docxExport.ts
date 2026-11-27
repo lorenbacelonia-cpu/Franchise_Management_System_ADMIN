@@ -110,7 +110,7 @@ export async function downloadFranchiseDocx(
               new Paragraph({
                 children: [
                   new TextRun({ text: 'AUTHORIZED ROUTE / PARADA\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
-                  new TextRun({ text: franchise.routeParada || 'Sua-Igot 24 Tabaco', bold: true, size: 20, color: '1E293B', font: 'Arial' }),
+                  new TextRun({ text: franchise.routeParada || '—', bold: true, size: 20, color: '1E293B', font: 'Arial' }),
                 ],
               }),
             ],

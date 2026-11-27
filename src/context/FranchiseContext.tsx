@@ -122,6 +122,7 @@ interface FranchiseContextType {
   generateAllPermanentQr: () => Promise<void>;
   renewFranchise: (id: string, renewalData?: { newExpiry?: string; applicationNo?: string; orNumber?: string; amountPaid?: number }) => Promise<void>;
   deactivateFranchise: (id: string, reason?: string) => Promise<void>;
+  updateFranchiseStatus: (plateOrMtop: string, status: FranchiseStatus, reason?: string) => Promise<boolean>;
   addViolation: (newViol: Omit<ViolationRecord, 'id' | 'dateSubmitted' | 'status'>) => Promise<void>;
   updateViolationStatus: (id: string, status: 'Pending' | 'Settled', remarks?: string) => Promise<void>;
   deleteViolation: (id: string, customReason?: string) => Promise<void>;
@@ -185,6 +186,7 @@ interface FranchiseContextType {
       qrGeneratedDate?: string;
     }
   ) => Promise<void>;
+  updateFranchiseStatus: (plateOrMtop: string, status: FranchiseStatus, reason?: string) => Promise<boolean>;
   approveReview: (reviewId: string) => Promise<void>;
   rejectReview: (reviewId: string, notes: string) => Promise<void>;
 
@@ -455,9 +457,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const defaultAdminUser: AdminUser = {
-    adminId: 'ADM-2026-001',
-    name: 'TRD Chief Administrator',
-    email: 'admin@franchise.gov.ph',
+    adminId: 'ADMIN',
+    name: 'TRD Admin Officer',
+    email: 'admin@trd.tabacocity.gov.ph',
     role: 'Head Administrator',
   };
 
@@ -485,8 +487,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return [
       {
         id: 'act-init-1',
-        adminId: 'ADM-2026-001',
-        adminName: 'TRD Chief Administrator',
+        adminId: 'ADMIN',
+        adminName: 'TRD Admin Officer',
         action: 'System Access & Authentication Initiated',
         details: 'Admin portal established secure connection to Tabaco City TRD cloud database.',
         module: 'system',
@@ -504,7 +506,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   ) => {
     const newLog: AdminActivityLog = {
       id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      adminId: currentAdmin.adminId || 'ADM-2026-001',
+      adminId: currentAdmin.adminId || 'ADMIN',
       adminName: currentAdmin.name || 'TRD Administrator',
       action,
       details,
@@ -1486,6 +1488,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       contact_number: newOperatorContact,
       residential_address: newOperatorAddress,
       availability: driverData.availability,
+      status: driverData.status ?? target?.status,
       qr_payload: updatedQrPayload,
     }, cat);
 
@@ -1605,6 +1608,33 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ]);
   };
 
+  const updateFranchiseStatus = useCallback(async (plateOrMtop: string, status: FranchiseStatus, reason?: string) => {
+    const cleanPlate = (plateOrMtop || '').trim();
+    if (!cleanPlate) return false;
+
+    const matched = franchises.find(f =>
+      (f.cityPlateNumber || '').toLowerCase() === cleanPlate.toLowerCase() ||
+      (f.mtopNumber || '').toLowerCase() === cleanPlate.toLowerCase()
+    );
+    const cat = matched?.vehicleCategory || vehicleCategory;
+
+    await updateFranchiseStatusInSupabase(cleanPlate, status, cat, reason);
+
+    setFranchises(prev => prev.map(f => {
+      const match = (f.cityPlateNumber || '').toLowerCase() === cleanPlate.toLowerCase() ||
+                    (f.mtopNumber || '').toLowerCase() === cleanPlate.toLowerCase();
+      return match ? { ...f, status } : f;
+    }));
+
+    logAdminActivity(
+      `Updated Franchise Status for Plate ${cleanPlate} to ${status}`,
+      reason || `Status updated to ${status} via Violation Management`,
+      'violation_entry',
+      'Violation'
+    );
+    return true;
+  }, [franchises, vehicleCategory, logAdminActivity]);
+
   const approveReview = async (reviewId: string) => {
     const target = pendingReviews.find(r => r.id === reviewId);
     if (!target) return;
@@ -1613,23 +1643,29 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       r.id === reviewId ? { ...r, status: 'Approved' as const } : r
     ));
 
-    const plate = target.cityPlateAssigned || target.mtopAssigned || '1243';
+    const plate = target.cityPlateAssigned || target.mtopAssigned;
+    if (!plate) return;
+
+    const defaultNextExp = () => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      return d.toISOString().split('T')[0];
+    };
+
     const newId = await addFranchise({
       cityPlateNumber: plate,
       mtopNumber: plate,
-      plateNumber: target.vehicleCategory === 'Tricycle' ? `${plate}-TR` : `${plate}-PED`,
+      plateNumber: target.vehicleCategory === 'Pedicab' ? `${plate}-PED` : `${plate}-TR`,
       vehicleCategory: target.vehicleCategory,
-      makeModel: target.vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Custom Passenger Pedicab',
-      engineNumber: 'ENG-AUTO-01',
-      chassisNumber: 'CHS-AUTO-01',
+      makeModel: '',
       operatorName: target.applicantName,
       operatorContact: target.contactNumber,
       operatorAddress: target.address,
       driverName: target.applicantName,
-      driverLicenseNo: 'N01-20-998811',
-      licenseExpiry: '2028-12-31',
+      driverLicenseNo: '',
+      licenseExpiry: defaultNextExp(),
       registrationDate: new Date().toISOString().split('T')[0],
-      expirationDate: '2027-01-15',
+      expirationDate: defaultNextExp(),
     });
 
     setSelectedFranchiseId(newId);
@@ -1942,6 +1978,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         deleteComplaint,
         addComplaintReply,
         updateDriver,
+        updateFranchiseStatus,
         approveReview,
         rejectReview,
         isReminderModalOpen,

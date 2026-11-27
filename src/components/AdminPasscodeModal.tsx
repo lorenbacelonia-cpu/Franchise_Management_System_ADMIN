@@ -85,7 +85,7 @@ export const AdminPasscodeModal: React.FC<AdminPasscodeModalProps> = ({
       itemType: itemType || 'Record',
       reason: reasonClean,
       adminName: currentAdmin?.name || 'Administrator',
-      adminId: currentAdmin?.adminId || 'ADM-2026-001',
+      adminId: currentAdmin?.adminId || 'ADMIN',
       timestamp: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
     });
     setIsDeleted(true);

@@ -168,9 +168,9 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForRenewal(item);
     setRenewalExpiryDate(computeDefaultNextExpiry(item.expirationDate));
     setRenewalApplicationNo(item.applicationNo || generateNewApplicationNo());
-    setRenewalOrNumber(item.orNumber || item.receiptNumber || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`);
+    setRenewalOrNumber(item.orNumber || item.receiptNumber || '');
     setRenewalPaymentDate(new Date().toISOString().split('T')[0]);
-    setRenewalAmountPaid(item.vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
+    setRenewalAmountPaid(item.amountPaid !== undefined && item.amountPaid !== null ? String(item.amountPaid) : (item.vehicleCategory === 'Pedicab' ? '250.00' : '450.00'));
     setRenewalDriverEmail(getDriverGmail(item));
     setRenewalOperatorEmail(getOperatorGmail(item));
     setAutoSendRenewalEmail(true);

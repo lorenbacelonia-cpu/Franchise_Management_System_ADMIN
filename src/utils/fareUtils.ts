@@ -105,7 +105,7 @@ export function getDefaultFareMatrix(category: VehicleCategory = 'Tricycle'): Fa
   }
   return [
     { id: 'f-1', destination: 'Short Distance (Base)', regularFare: '20.00', studentFare: '16.00', seniorPwdFare: '16.00', discountedFare: '16.00' },
-    { id: 'f-2', destination: 'Poblacion to Miss pina', regularFare: '50.00', studentFare: '40.00', seniorPwdFare: '40.00', discountedFare: '40.00' },
+    { id: 'f-2', destination: 'Poblacion to San Roque', regularFare: '25.00', studentFare: '20.00', seniorPwdFare: '20.00', discountedFare: '20.00' },
     { id: 'f-3', destination: 'Longer Distance (Inter-Brgy)', regularFare: '25.00', studentFare: '20.00', seniorPwdFare: '20.00', discountedFare: '20.00' },
     { id: 'f-4', destination: 'Special Trip (Pakyaw)', regularFare: '35.00', studentFare: '28.00', seniorPwdFare: '28.00', discountedFare: '28.00' }
   ];
@@ -178,7 +178,7 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     url.searchParams.set('type', category);
     url.searchParams.set('driver', f.driverName || '');
     url.searchParams.set('operator', f.operatorName || '');
-    url.searchParams.set('route', f.routeParada || 'Sua-Igot 24 Tabaco');
+    url.searchParams.set('route', f.routeParada || '');
     url.searchParams.set('exp', expDateStr);
     url.searchParams.set('status', resolvedStatus);
     url.searchParams.set('tourist_guide', f.touristGuide || 'Yes');
@@ -240,8 +240,8 @@ export function buildLegacyTextQrPayload(f: FranchiseRecord): string {
     `Operator: ${f.operatorName}`,
     `Driver Name: ${f.driverName}`,
     `Plate No.: ${f.plateNumber || (category === 'Pedicab' ? `${plate}-PED` : `${plate}-TR`)}`,
-    `Parada/Route: ${f.routeParada || 'Sua-Igot 24 Tabaco'}`,
-    `Route/Parada: ${f.routeParada || 'Sua-Igot 24 Tabaco'}`,
+    `Parada/Route: ${f.routeParada || '—'}`,
+    `Route/Parada: ${f.routeParada || '—'}`,
     `Standard Fare: ${standardFareText}`,
     `Base Fare: ₱${firstRouteFare}`,
     `Tourist Guide: ${f.touristGuide || 'Yes'}`,

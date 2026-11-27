@@ -8,6 +8,7 @@ export const isHeadAdmin = (admin?: { role?: string; adminId?: string } | null):
   const role = (admin.role || '').toLowerCase().trim();
   const id = (admin.adminId || '').toUpperCase().trim();
   return (
+    id === 'ADMIN' ||
     id === 'ADM-2026-001' ||
     role.includes('head') ||
     role.includes('chief') ||

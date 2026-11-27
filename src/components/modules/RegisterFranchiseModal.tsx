@@ -56,43 +56,39 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [driverAddress, setDriverAddress] = useState('');
 
   // Right Column - Franchise & Unit Details
-  const [applicationNo, setApplicationNo] = useState(`APP-2026-${Math.floor(100 + Math.random() * 900)}`);
+  const [applicationNo, setApplicationNo] = useState('');
   const [modelMake, setModelMake] = useState('');
   const [color, setColor] = useState('');
-  const [touristGuide, setTouristGuide] = useState<'Yes' | 'No'>('Yes');
+  const [touristGuide, setTouristGuide] = useState<'Yes' | 'No'>('No');
   const [status, setStatus] = useState<FranchiseStatus>('Active');
-  const [paradaRoute, setParadaRoute] = useState('Sua-Igot 24 Tabaco');
-  const [cityPlateNo, setCityPlateNo] = useState(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
-  const [expirationDate, setExpirationDate] = useState('2027-01-15');
+  const [paradaRoute, setParadaRoute] = useState('');
+  const [cityPlateNo, setCityPlateNo] = useState('');
+  const [expirationDate, setExpirationDate] = useState(() => {
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    return nextYear.toISOString().split('T')[0];
+  });
 
   // Official Receipt & Payment Details
-  const [receiptNumber, setReceiptNumber] = useState(`OR-2026-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [receiptNumber, setReceiptNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [amountPaid, setAmountPaid] = useState(vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
+  const [amountPaid, setAmountPaid] = useState('');
 
-  const [fareMatrix, setFareMatrix] = useState<FareRow[]>([
-    {
-      id: 'fare-1',
-      destination: 'Short Distance (Base)',
-      regularFare: '20.00',
-      studentFare: '16.00',
-      seniorPwdFare: '16.00',
-    },
-    {
-      id: 'fare-2',
-      destination: 'Poblacion to Miss pina',
-      regularFare: '50.00',
-      studentFare: '40.00',
-      seniorPwdFare: '40.00',
-    },
-    {
-      id: 'fare-3',
-      destination: 'Longer Distance (Inter-Brgy)',
-      regularFare: '25.00',
-      studentFare: '20.00',
-      seniorPwdFare: '20.00',
-    }
-  ]);
+  const [fareMatrix, setFareMatrix] = useState<FareRow[]>(() => {
+    return getDefaultFareMatrix(vehicleCategory).map((f, i) => {
+      const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
+      const reg = cleanFare(f.regularFare, fallback);
+      const regNum = parseFloat(reg);
+      const discount = (regNum * 0.8).toFixed(2);
+      return {
+        id: f.id || `fare-${i + 1}`,
+        destination: f.destination,
+        regularFare: reg,
+        studentFare: cleanFare(f.studentFare, discount),
+        seniorPwdFare: cleanFare(f.seniorPwdFare || f.discountedFare, discount),
+      };
+    });
+  });
 
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
@@ -100,8 +96,6 @@ export const RegisterFranchiseModal: React.FC = () => {
 
   useEffect(() => {
     if (vehicleCategory) {
-      setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
-      setAmountPaid(vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
       const defaultRows = getDefaultFareMatrix(vehicleCategory).map(f => {
         const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
         const reg = cleanFare(f.regularFare, fallback);
@@ -174,15 +168,25 @@ export const RegisterFranchiseModal: React.FC = () => {
     setDriverAddress('');
     setModelMake('');
     setColor('');
-    setCityPlateNo(vehicleCategory === 'Tricycle' ? 'T-106' : 'P-106');
-    setApplicationNo(`APP-2026-${Math.floor(100 + Math.random() * 900)}`);
-    setReceiptNumber(`OR-2026-${Math.floor(10000 + Math.random() * 90000)}`);
+    setCityPlateNo('');
+    setApplicationNo('');
+    setReceiptNumber('');
+    setParadaRoute('');
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    setExpirationDate(nextYear.toISOString().split('T')[0]);
     setPaymentDate(new Date().toISOString().split('T')[0]);
-    setAmountPaid(vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
+    setAmountPaid('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const targetPlate = cityPlateNo.trim();
+    if (!targetPlate) {
+      alert('Please enter the City Plate / MTOP Number.');
+      return;
+    }
 
     const ownerFullName = [ownerFirstName, ownerMiddleName, ownerLastName]
       .map(s => s.trim())
@@ -198,7 +202,6 @@ export const RegisterFranchiseModal: React.FC = () => {
       ? cleanFare(fareMatrix[0].regularFare, vehicleCategory === 'Pedicab' ? '15.00' : '20.00')
       : (vehicleCategory === 'Pedicab' ? '15.00' : '20.00');
     const primaryFare = `₱${baseFareAmount} Minimum`;
-    const targetPlate = cityPlateNo.trim() || '—';
 
     const sanitizedFareMatrix = fareMatrix.map(row => {
       const fallback = vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
@@ -221,57 +224,63 @@ export const RegisterFranchiseModal: React.FC = () => {
     const contactValue = cleanPhone || ownerContact.trim();
     const cleanEmail = gmail.trim();
 
+    const defaultExpDate = () => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      return d.toISOString().split('T')[0];
+    };
+
     const newId = await addFranchise({
-      applicationNo: applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
+      applicationNo: applicationNo.trim(),
       cityPlateNumber: targetPlate,
       mtopNumber: targetPlate,
       plateNumber: vehicleCategory === 'Tricycle' ? `${targetPlate}-TR` : `${targetPlate}-PED`,
       vehicleCategory: vehicleCategory,
 
-      ownerLastName,
-      ownerFirstName,
-      ownerMiddleName,
+      ownerLastName: ownerLastName.trim(),
+      ownerFirstName: ownerFirstName.trim(),
+      ownerMiddleName: ownerMiddleName.trim(),
       ownerName: ownerFullName,
       ownerContact: contactValue,
       email: cleanEmail,
       gmail: cleanEmail,
       operatorEmail: cleanEmail,
-      ownerAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
+      ownerAddress: residentialAddress.trim(),
       age: age.trim(),
       beneficiaryName: driverFullName,
       beneficiaryAddress: (driverAddress || residentialAddress).trim(),
 
-      operatorLastName: ownerLastName,
-      operatorFirstName: ownerFirstName,
-      operatorMiddleName: ownerMiddleName,
+      operatorLastName: ownerLastName.trim(),
+      operatorFirstName: ownerFirstName.trim(),
+      operatorMiddleName: ownerMiddleName.trim(),
       operatorName: ownerFullName,
       operatorContact: contactValue,
-      operatorAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
-      residentialAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
+      operatorAddress: residentialAddress.trim(),
+      residentialAddress: residentialAddress.trim(),
 
-      driverLastName,
-      driverFirstName,
-      driverMiddleName,
+      driverLastName: driverLastName.trim(),
+      driverFirstName: driverFirstName.trim(),
+      driverMiddleName: driverMiddleName.trim(),
       driverName: driverFullName,
-      driverAddress: driverAddress || residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
+      driverAddress: (driverAddress || residentialAddress).trim(),
       driverLicenseNo: 'Verified',
-      licenseExpiry: '2028-11-20',
+      licenseExpiry: defaultExpDate(),
 
-      makeModel: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
-      modelMake: modelMake.trim() || (vehicleCategory === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
-      color: color.trim() || 'Blue / Silver',
+      makeModel: modelMake.trim(),
+      modelMake: modelMake.trim(),
+      color: color.trim(),
 
       registrationDate: new Date().toISOString().split('T')[0],
-      expirationDate: expirationDate || '2027-01-15',
-      routeParada: paradaRoute || 'Sua-Igot 24 Tabaco',
+      expirationDate: expirationDate || defaultExpDate(),
+      routeParada: paradaRoute.trim(),
       standardFare: primaryFare,
       fareMatrix: sanitizedFareMatrix,
       touristGuide: touristGuide,
       availability: 'Available / On-Duty',
-      receiptNumber: receiptNumber.trim() || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`,
-      orNumber: receiptNumber.trim() || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`,
+      receiptNumber: receiptNumber.trim(),
+      orNumber: receiptNumber.trim(),
       paymentDate: paymentDate || new Date().toISOString().split('T')[0],
-      amountPaid: amountPaid ? parseFloat(amountPaid) : (vehicleCategory === 'Pedicab' ? 250 : 450),
+      amountPaid: amountPaid ? parseFloat(amountPaid) : undefined,
     });
 
     setCreatedId(newId);
@@ -1085,7 +1094,7 @@ export const RegisterFranchiseModal: React.FC = () => {
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
-              <span className="font-bold text-slate-900 text-[11px] truncate block">{createdFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+              <span className="font-bold text-slate-900 text-[11px] truncate block">{createdFranchise.routeParada || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>

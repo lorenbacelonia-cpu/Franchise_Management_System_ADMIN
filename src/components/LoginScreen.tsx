@@ -105,12 +105,7 @@ export const LoginScreen: React.FC = () => {
   const resolveTargetEmail = (idInput: string): string => {
     const clean = idInput.trim().toLowerCase();
     if (clean.includes('@')) return clean;
-    const allAdmins = [
-      ...registeredAdmins, 
-      { adminId: 'ADM-2026-001', email: 'admin@franchise.gov.ph' }, 
-      { adminId: 'ADM-2026-002', email: 'licensing@tabaco.gov.ph' }
-    ];
-    const found = allAdmins.find(a => (a as any).adminId?.toLowerCase() === clean);
+    const found = registeredAdmins.find(a => (a as any).adminId?.toLowerCase() === clean);
     return (found as any)?.email || '';
   };
 

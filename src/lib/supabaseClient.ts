@@ -1,4 +1,4 @@
-import type { FareMatrixItem, FranchiseRecord, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount, EnforcerAccount, PassengerAccount } from '../types';
+import type { FareMatrixItem, FranchiseRecord, FranchiseStatus, VehicleCategory, ViolationRecord, PassengerComplaint, ComplaintChatMessage, PendingReview, AdminAccount, EnforcerAccount, PassengerAccount } from '../types';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, isRecordExpired, resolveFranchiseStatus } from '../utils/fareUtils';
 
 // Supabase configuration from environment variables
@@ -92,8 +92,8 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     beneficiaryName: row.beneficiary_name || '',
     beneficiaryAddress: row.beneficiary_address || '',
     color: row.color || '',
-    makeModel: row.make_model || row.model_make || (category === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
-    modelMake: row.make_model || row.model_make || (category === 'Tricycle' ? 'Kawasaki Barako 175' : 'Standard Pedicab'),
+    makeModel: row.make_model || row.model_make || '',
+    modelMake: row.make_model || row.model_make || '',
     operatorLastName: row.operator_last_name || row.owner_last_name || '',
     operatorFirstName: row.operator_first_name || row.owner_first_name || '',
     operatorMiddleName: row.operator_middle_name || row.owner_middle_name || '',
@@ -106,26 +106,26 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     driverMiddleName: row.driver_middle_name || '',
     driverName: row.driver_name || `${row.driver_first_name || ''} ${row.driver_last_name || ''}`.trim(),
     driverAddress: row.driver_address || row.residential_address || '',
-    driverLicenseNo: row.driver_license_no || 'N02-18-994820',
+    driverLicenseNo: row.driver_license_no || '',
     driverPhoto: extractedDriverPhoto,
-    licenseExpiry: row.license_expiry || '2028-11-20',
+    licenseExpiry: row.license_expiry || '',
     registrationDate: row.registration_date || (row.created_at ? row.created_at.split('T')[0] : ''),
-    expirationDate: row.expiration_date || '2026-12-31',
+    expirationDate: row.expiration_date || '',
     status: resolveFranchiseStatus(row.status, row.expiration_date),
     qrCodeData: '',
     violationsCount: row.violations_count || 0,
     documentsVerified: row.documents_verified ?? true,
-    routeParada: row.route_parada || 'Sua-Igot 24 Tabaco',
+    routeParada: row.route_parada || row.parada_route || '',
     standardFare: resolvedStandardFare,
     fareMatrix: mappedMatrix,
-    touristGuide: row.tourist_guide || 'Yes',
+    touristGuide: row.tourist_guide || 'No',
     availability: row.availability || 'Available / On-Duty',
     hasPermanentQr: row.has_permanent_qr ?? false,
     qrGeneratedDate: row.qr_generated_date,
     receiptNumber: row.receipt_number || row.or_number || '',
     orNumber: row.or_number || row.receipt_number || '',
     paymentDate: row.payment_date || (row.created_at ? row.created_at.split('T')[0] : ''),
-    amountPaid: row.amount_paid !== undefined && row.amount_paid !== null ? Number(row.amount_paid) : (category === 'Pedicab' ? 250 : 450),
+    amountPaid: row.amount_paid !== undefined && row.amount_paid !== null ? Number(row.amount_paid) : 0,
   };
 
   record.qrCodeData = buildPermanentQrPayload(record);
@@ -138,13 +138,13 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
   const isValidUuid = f.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.id);
   const operatorName = f.operatorName || f.ownerName || `${f.operatorFirstName || ''} ${f.operatorLastName || ''}`.trim() || 'N/A';
   const driverName = f.driverName || `${f.driverFirstName || ''} ${f.driverLastName || ''}`.trim() || 'N/A';
-  const opAddress = f.operatorAddress || f.ownerAddress || f.residentialAddress || 'Tabaco City';
-  const resAddress = f.residentialAddress || f.operatorAddress || f.ownerAddress || 'Tabaco City';
-  const drvAddress = f.driverAddress || f.residentialAddress || f.operatorAddress || 'Tabaco City';
-  const opContact = f.operatorContact || f.ownerContact || '0917-882-1920';
+  const opAddress = f.operatorAddress || f.ownerAddress || f.residentialAddress || '';
+  const resAddress = f.residentialAddress || f.operatorAddress || f.ownerAddress || '';
+  const drvAddress = f.driverAddress || f.residentialAddress || f.operatorAddress || '';
+  const opContact = f.operatorContact || f.ownerContact || '';
 
   const payload: any = {
-    application_no: f.applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
+    application_no: f.applicationNo || '',
     city_plate_number: plate,
     mtop_number: plate,
     vehicle_category: f.vehicleCategory || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle'),
@@ -161,11 +161,11 @@ export function mapFranchiseRecordToDB(f: FranchiseRecord) {
     driver_middle_name: f.driverMiddleName || '',
     driver_name: driverName,
     driver_address: drvAddress,
-    driver_license_no: f.driverLicenseNo || 'Verified',
-    license_expiry: f.licenseExpiry || '2028-11-20',
+    driver_license_no: f.driverLicenseNo || '',
+    license_expiry: f.licenseExpiry || '',
     registration_date: f.registrationDate || new Date().toISOString().split('T')[0],
-    expiration_date: f.expirationDate || '2027-01-15',
-    route_parada: f.routeParada || 'Sua-Igot 24 Tabaco',
+    expiration_date: f.expirationDate || '',
+    route_parada: f.routeParada || '',
     standard_fare: f.standardFare || (f.vehicleCategory === 'Pedicab' ? '₱15.00 Minimum' : '₱20.00 Minimum'),
     fare_matrix: (() => {
       const matrix = Array.isArray(f.fareMatrix) ? f.fareMatrix.filter(item => item && item.id !== '__driver_photo__' && (item as any).destination !== 'DRIVER_PHOTO') : [];

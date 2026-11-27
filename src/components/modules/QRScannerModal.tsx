@@ -329,7 +329,7 @@ export const QRScannerModal: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Route/Parada:</span>
-                      <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24'}</span>
+                      <span className="font-bold text-slate-900">{currentFranchise.routeParada || '—'}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Expiration Date:</span>
@@ -657,7 +657,7 @@ export const QRScannerModal: React.FC = () => {
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Authorized Route / Parada</span>
-              <span className="font-bold text-slate-900 text-[11px] truncate block">{currentFranchise.routeParada || 'Sua-Igot 24 Tabaco'}</span>
+              <span className="font-bold text-slate-900 text-[11px] truncate block">{currentFranchise.routeParada || '—'}</span>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg border border-slate-300">
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Accredited Tourist Guide</span>

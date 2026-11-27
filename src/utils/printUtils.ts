@@ -347,7 +347,7 @@ export const printDriverRegistryUpdateSlip = (summary: DriverRegistryUpdateSlipD
     <div class="grid-3">
       <div class="card">
         <div class="card-title">Route / Parada</div>
-        <div class="card-value">${summary.routeParada || 'Sua-Igot 24 Tabaco'}</div>
+        <div class="card-value">${summary.routeParada || '—'}</div>
       </div>
 
       <div class="card">
