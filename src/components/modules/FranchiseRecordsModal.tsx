@@ -19,10 +19,11 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Car
+  Car,
+  Receipt
 } from 'lucide-react';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
-import { buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
+import { buildPermanentQrPayload, formatExpDate, getDefaultFareMatrix } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
 import { generateQrDataUrl } from '../../utils/qrGenerator';
 
@@ -609,104 +610,213 @@ export const FranchiseRecordsModal: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
-            {/* Grid of Profile Information */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Driver Details Card */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-                <div className="text-xs font-black uppercase text-indigo-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Authorized Driver</span>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Full Name</span>
-                    <span className="font-bold text-slate-900">{viewDetailsRecord.driverName || '—'}</span>
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* 2-Column Compact Registration Form Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              
+              {/* ============ LEFT COLUMN: OPERATOR & DRIVER ============ */}
+              <div className="space-y-3">
+                {/* Operator Details Box */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                    <span className="text-xs font-black uppercase text-emerald-800 flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Operator Details</span>
+                    </span>
+                    {viewDetailsRecord.age && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700">
+                        Age: {viewDetailsRecord.age}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">License No.</span>
-                    <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.driverLicenseNo || 'On File'}</span>
+
+                  {/* Name (Last, First, Middle) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Last Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.ownerLastName || viewDetailsRecord.operatorLastName || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">First Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.ownerFirstName || viewDetailsRecord.operatorFirstName || viewDetailsRecord.ownerName?.split(' ')[0] || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Middle Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.ownerMiddleName || viewDetailsRecord.operatorMiddleName || '—'}</span>
+                    </div>
                   </div>
-                  <div>
+
+                  {/* Mobile & Gmail */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Mobile Number</span>
+                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.ownerContact || viewDetailsRecord.operatorContact || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Gmail</span>
+                      <span className="font-medium text-slate-700 truncate block">{viewDetailsRecord.gmail || viewDetailsRecord.operatorEmail || viewDetailsRecord.email || '—'}</span>
+                    </div>
+                  </div>
+
+                  {/* Residential Address */}
+                  <div className="text-xs pt-1 border-t border-slate-100">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Residential Address</span>
-                    <span className="text-slate-700">{viewDetailsRecord.driverAddress || 'Tabaco City'}</span>
+                    <span className="text-slate-800 font-medium">{viewDetailsRecord.residentialAddress || viewDetailsRecord.ownerAddress || viewDetailsRecord.operatorAddress || 'Zone 4, Poblacion, Tabaco City'}</span>
                   </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Availability</span>
-                    <span className="text-slate-700">{viewDetailsRecord.availability || 'Active Full-time'}</span>
+                </div>
+
+                {/* Driver Details Box */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                    <span className="text-xs font-black uppercase text-indigo-800 flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>Driver Details</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800">
+                      {viewDetailsRecord.availability || 'Active Full-time'}
+                    </span>
+                  </div>
+
+                  {/* Driver Name (Last, First, Middle) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Last Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.driverLastName || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">First Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.driverFirstName || viewDetailsRecord.driverName?.split(' ')[0] || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Middle Name</span>
+                      <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.driverMiddleName || '—'}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Driver Full Name</span>
+                      <span className="font-bold text-slate-900">{viewDetailsRecord.driverName || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Driver License No.</span>
+                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.driverLicenseNo || 'On File'}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs pt-1 border-t border-slate-100">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Driver Address</span>
+                    <span className="text-slate-800 font-medium">{viewDetailsRecord.driverAddress || 'Zone 4, Poblacion, Tabaco City'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Operator Details Card */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-                <div className="text-xs font-black uppercase text-emerald-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Franchise Operator</span>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Name</span>
-                    <span className="font-bold text-slate-900">{viewDetailsRecord.ownerName || viewDetailsRecord.operatorName || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact Number &amp; Gmail</span>
-                    <span className="font-mono text-slate-900 font-bold block">
-                      {[viewDetailsRecord.operatorContact || viewDetailsRecord.ownerContact, viewDetailsRecord.gmail || viewDetailsRecord.email || viewDetailsRecord.operatorEmail].filter(Boolean).join(' • ') || '—'}
+              {/* ============ RIGHT COLUMN: VEHICLE, OR & FARE MATRIX ============ */}
+              <div className="space-y-3">
+                {/* Vehicle & Franchise Info */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                    <span className="text-xs font-black uppercase text-sky-800 flex items-center gap-1.5">
+                      <Car className="h-3.5 w-3.5 text-sky-600" />
+                      <span>Vehicle &amp; Franchise Specifications</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800">
+                      Tourist Guide: {viewDetailsRecord.touristGuide || 'Yes'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Operator Address</span>
-                    <span className="text-slate-700">{viewDetailsRecord.operatorAddress || viewDetailsRecord.residentialAddress || viewDetailsRecord.ownerAddress || 'Tabaco City'}</span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">City Plate No.</span>
+                      <span className="font-mono font-black text-slate-900">{viewDetailsRecord.cityPlateNumber || viewDetailsRecord.mtopNumber}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Model / Make</span>
+                      <span className="font-semibold text-slate-800 block truncate">{viewDetailsRecord.modelMake || viewDetailsRecord.makeModel || (viewDetailsRecord.vehicleCategory === 'Pedicab' ? 'Passenger Pedicab' : 'Kawasaki Barako 175')}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Color</span>
+                      <span className="font-semibold text-slate-800">{viewDetailsRecord.color || 'Standard'}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Authorized Route / Parada</span>
+                      <span className="font-semibold text-slate-800">{viewDetailsRecord.routeParada || 'Zone 1 - Poblacion Line'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Permit Expiration Date</span>
+                      <span className="font-mono font-bold text-emerald-700">{formatExpDate(viewDetailsRecord.expirationDate)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Official Receipt & Payment Details */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                    <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
+                      <Receipt className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Official Receipt &amp; Payment Details</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      Paid &amp; Recorded
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Receipt (OR) No.</span>
+                      <span className="font-mono font-bold text-slate-900 block truncate">{viewDetailsRecord.receiptNumber || viewDetailsRecord.orNumber || 'OR-2026-10492'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Payment Date</span>
+                      <span className="font-mono font-semibold text-slate-800">{viewDetailsRecord.paymentDate || viewDetailsRecord.registrationDate || '2026-11-27'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount Paid</span>
+                      <span className="font-mono font-black text-emerald-700">₱{viewDetailsRecord.amountPaid ? Number(viewDetailsRecord.amountPaid).toFixed(2) : (viewDetailsRecord.vehicleCategory === 'Pedicab' ? '250.00' : '450.00')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fare Matrix (Compact Table) */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                    <span className="text-xs font-black uppercase text-slate-800">
+                      Fare Adjustment Matrix
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium">Standard City Ordinance</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                        <tr>
+                          <th className="py-1">Route / Distance</th>
+                          <th className="py-1 text-center">Regular</th>
+                          <th className="py-1 text-center">Student</th>
+                          <th className="py-1 text-center">Senior/PWD</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-[11px]">
+                        {(viewDetailsRecord.fareMatrix && viewDetailsRecord.fareMatrix.length > 0
+                          ? viewDetailsRecord.fareMatrix
+                          : getDefaultFareMatrix(viewDetailsRecord.vehicleCategory)
+                        ).slice(0, 4).map((row, idx) => (
+                          <tr key={row.id || idx}>
+                            <td className="py-1 font-medium text-slate-800 truncate max-w-[140px]">{row.destination}</td>
+                            <td className="py-1 text-center font-bold text-slate-900">₱{row.regularFare}</td>
+                            <td className="py-1 text-center text-slate-700">₱{row.studentFare}</td>
+                            <td className="py-1 text-center text-slate-700">₱{row.seniorPwdFare}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
 
-              {/* Vehicle & Franchise Card */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
-                <div className="text-xs font-black uppercase text-sky-700 flex items-center gap-1.5 pb-1 border-b border-slate-200">
-                  <Car className="h-3.5 w-3.5" />
-                  <span>Vehicle &amp; Franchise Status</span>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Make / Model / Color</span>
-                    <span className="font-semibold text-slate-900">
-                      {viewDetailsRecord.modelMake || viewDetailsRecord.makeModel || (viewDetailsRecord.vehicleCategory === 'Pedicab' ? 'Pedicab' : 'TMX 125')} • {viewDetailsRecord.color || 'Standard'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Authorized Route / Parada</span>
-                    <span className="font-semibold text-slate-800">{viewDetailsRecord.routeParada || 'Tabaco City Line'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Accredited Tourist Guide</span>
-                    <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px] inline-block">
-                      {viewDetailsRecord.touristGuide || 'Yes'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">App No.</span>
-                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.applicationNo || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">OR No.</span>
-                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.receiptNumber || viewDetailsRecord.orNumber || '—'}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Registration</span>
-                      <span className="font-mono text-slate-700">{viewDetailsRecord.registrationDate || viewDetailsRecord.paymentDate || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Permit Expiry</span>
-                      <span className="font-mono font-bold text-emerald-700">{viewDetailsRecord.expirationDate}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* PREVIOUS TRANSACTION HISTORY OF DRIVER / OPERATOR */}

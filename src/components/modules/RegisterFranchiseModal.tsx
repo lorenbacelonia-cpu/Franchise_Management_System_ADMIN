@@ -369,174 +369,172 @@ export const RegisterFranchiseModal: React.FC = () => {
               </div>
             </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Left: Enrolled Record & Official Receipt Summary */}
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-                    Enrolled Franchise Details
-                  </span>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    {createdFranchise.status}
-                  </span>
-                </div>
-
-                <div className="bg-white rounded-xl p-4 border border-slate-200 text-xs space-y-2 divide-y divide-slate-100">
-                  <div className="flex justify-between pt-1">
-                    <span className="text-slate-500 font-medium">City Plate No.:</span>
-                    <span className="font-mono font-bold text-slate-900">{createdFranchise.mtopNumber}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Application No.:</span>
-                    <span className="font-mono font-semibold text-slate-800">{createdFranchise.applicationNo}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Operator:</span>
-                    <span className="font-bold text-slate-900">{createdFranchise.operatorName}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Authorized Driver:</span>
-                    <span className="font-bold text-slate-900">{createdFranchise.driverName}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Accredited Tourist Guide:</span>
-                    <span className="font-bold text-emerald-800">{createdFranchise.touristGuide || 'Yes'}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Route / Parada:</span>
-                    <span className="font-semibold text-slate-800">{createdFranchise.routeParada}</span>
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <span className="text-slate-500 font-medium">Expiration Date:</span>
-                    <span className="font-mono font-bold text-emerald-700">{createdFranchise.expirationDate}</span>
-                  </div>
-                </div>
-
-                {/* Official Receipt Summary */}
-                <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              {/* Left: Enrolled Record & Official Receipt Summary */}
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-950 flex items-center space-x-1.5">
-                      <Receipt className="h-4 w-4 text-emerald-700" />
-                      <span>Official Receipt &amp; Payment</span>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                      Enrolled Franchise Details
                     </span>
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      Paid &amp; Verified
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      {createdFranchise.status}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-500">Receipt No.</span>
-                      <span className="font-mono font-bold text-emerald-800">{receiptNumber}</span>
+
+                  <div className="bg-white rounded-xl p-4 border border-slate-200 text-xs space-y-2 divide-y divide-slate-100">
+                    <div className="flex justify-between pt-1">
+                      <span className="text-slate-500 font-medium">City Plate No.:</span>
+                      <span className="font-mono font-bold text-slate-900">{createdFranchise.mtopNumber}</span>
                     </div>
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-500">Date Paid</span>
-                      <span className="font-semibold text-slate-800">{paymentDate}</span>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Application No.:</span>
+                      <span className="font-mono font-semibold text-slate-800">{createdFranchise.applicationNo}</span>
                     </div>
-                    <div>
-                      <span className="block text-[10px] uppercase font-bold text-slate-500">Amount Paid</span>
-                      <span className="font-mono font-extrabold text-emerald-700">
-                        ₱{parseFloat(amountPaid || '0').toFixed(2)}
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Operator:</span>
+                      <span className="font-bold text-slate-900">{createdFranchise.operatorName}</span>
+                    </div>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Authorized Driver:</span>
+                      <span className="font-bold text-slate-900">{createdFranchise.driverName}</span>
+                    </div>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Accredited Tourist Guide:</span>
+                      <span className="font-bold text-emerald-800">{createdFranchise.touristGuide || 'Yes'}</span>
+                    </div>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Route / Parada:</span>
+                      <span className="font-semibold text-slate-800">{createdFranchise.routeParada}</span>
+                    </div>
+                    <div className="flex justify-between pt-2">
+                      <span className="text-slate-500 font-medium">Expiration Date:</span>
+                      <span className="font-mono font-bold text-emerald-700">{createdFranchise.expirationDate}</span>
+                    </div>
+                  </div>
+
+                  {/* Official Receipt Summary */}
+                  <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-emerald-950 flex items-center space-x-1.5">
+                        <Receipt className="h-4 w-4 text-emerald-700" />
+                        <span>Official Receipt &amp; Payment</span>
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        Paid &amp; Verified
                       </span>
                     </div>
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      <div>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500">Receipt No.</span>
+                        <span className="font-mono font-bold text-emerald-800">{receiptNumber}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500">Date Paid</span>
+                        <span className="font-semibold text-slate-800">{paymentDate}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] uppercase font-bold text-slate-500">Amount Paid</span>
+                        <span className="font-mono font-extrabold text-emerald-700">
+                          ₱{parseFloat(amountPaid || '0').toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Generate QR Button */}
-              {isPermanentActive ? (
-                <div className="w-full bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2">
-                  <Lock className="h-4 w-4 text-emerald-700" />
-                  <span>Permanent QR Code Generated &amp; Locked</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleGenerateQrInline}
-                  className="w-full bg-[#05b875] hover:bg-[#049d63] text-white font-bold text-xs py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>Generate Permanent QR Code Now</span>
-                </button>
-              )}
-            </div>
-
-            {/* Right: Inline QR Code Preview, Word Download & 1-Page Print */}
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col justify-between space-y-4">
-              <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col items-center justify-center flex-1 space-y-3">
+                {/* Generate QR Button */}
                 {isPermanentActive ? (
-                  <>
-                    <div className="flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      <Globe className="h-3 w-3 text-emerald-600" />
-                      <span>UNIVERSAL QR LINK • READY TO SCAN OR PRINT</span>
-                    </div>
-                    <img
-                      src={qrDataUrl}
-                      alt="System QR Code"
-                      className="w-44 h-44 object-contain p-2 border border-slate-200 rounded-xl"
-                    />
-                    <div className="flex items-center space-x-2 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
-                      <input
-                        type="text"
-                        readOnly
-                        value={permanentQrPayload}
-                        className="text-[10px] font-mono text-slate-700 bg-transparent flex-1 outline-none"
-                      />
-                      <a
-                        href={permanentQrPayload}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shrink-0"
-                      >
-                        <span>Test Link</span>
-                        <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 space-y-2">
-                    <QrCode className="h-12 w-12 text-slate-300 mx-auto" />
-                    <p className="text-xs font-bold text-slate-700">QR Badge Ready to Issue</p>
-                    <p className="text-[11px] text-slate-400 max-w-xs">
-                      Click &ldquo;Generate Permanent QR Code Now&rdquo; on the left to preview, download Word (.docx), or print the 1-page badge right here.
-                    </p>
+                  <div className="w-full bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center space-x-2">
+                    <Lock className="h-4 w-4 text-emerald-700" />
+                    <span>Permanent QR Code Generated &amp; Locked</span>
                   </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGenerateQrInline}
+                    className="w-full bg-[#05b875] hover:bg-[#049d63] text-white font-bold text-xs py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>Generate Permanent QR Code Now</span>
+                  </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  disabled={!isPermanentActive || isExportingDocx}
-                  onClick={handleDownloadDocx}
-                  className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${
-                    isPermanentActive && !isExportingDocx
+              {/* Right: Inline QR Code Preview, Word Download & 1-Page Print */}
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col justify-between space-y-4">
+                <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col items-center justify-center flex-1 space-y-3">
+                  {isPermanentActive ? (
+                    <>
+                      <div className="flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <Globe className="h-3 w-3 text-emerald-600" />
+                        <span>UNIVERSAL QR LINK • READY TO SCAN OR PRINT</span>
+                      </div>
+                      <img
+                        src={qrDataUrl}
+                        alt="System QR Code"
+                        className="w-44 h-44 object-contain p-2 border border-slate-200 rounded-xl"
+                      />
+                      <div className="flex items-center space-x-2 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <input
+                          type="text"
+                          readOnly
+                          value={permanentQrPayload}
+                          className="text-[10px] font-mono text-slate-700 bg-transparent flex-1 outline-none"
+                        />
+                        <a
+                          href={permanentQrPayload}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shrink-0"
+                        >
+                          <span>Test Link</span>
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8 space-y-2">
+                      <QrCode className="h-12 w-12 text-slate-300 mx-auto" />
+                      <p className="text-xs font-bold text-slate-700">QR Badge Ready to Issue</p>
+                      <p className="text-[11px] text-slate-400 max-w-xs">
+                        Click &ldquo;Generate Permanent QR Code Now&rdquo; on the left to preview, download Word (.docx), or print the 1-page badge right here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    disabled={!isPermanentActive || isExportingDocx}
+                    onClick={handleDownloadDocx}
+                    className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${isPermanentActive && !isExportingDocx
                       ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  <FileDown className="h-4 w-4" />
-                  <span>{isExportingDocx ? 'Generating...' : 'Download Word (.docx)'}</span>
-                </button>
+                      }`}
+                  >
+                    <FileDown className="h-4 w-4" />
+                    <span>{isExportingDocx ? 'Generating...' : 'Download Word (.docx)'}</span>
+                  </button>
 
-                <button
-                  type="button"
-                  disabled={!isPermanentActive}
-                  onClick={handlePrintBadge}
-                  className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${
-                    isPermanentActive
+                  <button
+                    type="button"
+                    disabled={!isPermanentActive}
+                    onClick={handlePrintBadge}
+                    className={`w-full font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 transition-all ${isPermanentActive
                       ? 'bg-slate-900 hover:bg-slate-800 text-white cursor-pointer shadow-xs'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Printer className="h-4 w-4" />
-                  <span>Print / Save PDF (1-Page)</span>
-                </button>
+                      }`}
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Print / Save PDF (1-Page)</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Main Registration Form Card */}
@@ -719,11 +717,10 @@ export const RegisterFranchiseModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setVehicleCategory('Tricycle')}
-                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${
-                      vehicleCategory === 'Tricycle'
-                        ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs'
-                        : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
-                    }`}
+                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${vehicleCategory === 'Tricycle'
+                      ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs'
+                      : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
+                      }`}
                   >
                     <span>🛺</span>
                     <span>Tricycle</span>
@@ -731,11 +728,10 @@ export const RegisterFranchiseModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setVehicleCategory('Pedicab')}
-                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${
-                      vehicleCategory === 'Pedicab'
-                        ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                        : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
-                    }`}
+                    className={`flex items-center justify-center space-x-1.5 rounded-lg px-3 py-2 text-xs font-extrabold border-2 transition-all cursor-pointer ${vehicleCategory === 'Pedicab'
+                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-[#d8dfe6] border-[#c6cfd8] text-slate-700 hover:bg-white'
+                      }`}
                   >
                     <span>🚲</span>
                     <span>Pedicab</span>
