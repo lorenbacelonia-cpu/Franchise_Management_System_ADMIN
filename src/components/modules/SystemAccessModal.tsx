@@ -760,21 +760,6 @@ City Government of Tabaco, Albay`;
             </span>
           </button>
         </div>
-
-        {/* Mobile Web Direct Link Pill */}
-        <div className="flex items-center space-x-2">
-          <a
-            href={DEFAULT_MOBILE_VERIFIER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
-            title="Open the Enforcer Mobile Web portal in a new tab"
-          >
-            <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Enforcer Mobile Web</span>
-            <ExternalLink className="h-3 w-3 text-emerald-700 ml-0.5" />
-          </a>
-        </div>
       </div>
 
       {/* Global Alerts */}
