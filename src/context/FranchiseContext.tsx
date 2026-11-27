@@ -29,6 +29,7 @@ import {
   fetchViolationsFromSupabase,
   updateViolationStatusInSupabase,
   saveDriverRegistryUpdateInSupabase,
+  updateFranchiseStatusInSupabase,
   saveDeactivationInSupabase,
   fetchPassengerComplaintsFromSupabase,
   updatePassengerComplaintStatusInSupabase,
@@ -393,7 +394,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setEnforcers(dbEnforcers);
         try {
           localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(dbEnforcers));
-        } catch {}
+        } catch { }
       }
     } catch (e) {
       console.warn('Error syncing enforcers from Supabase:', e);
@@ -873,7 +874,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setEnforcers(updated);
     try {
       localStorage.setItem(STORAGE_KEY_ENFORCERS, JSON.stringify(updated));
-    } catch {}
+    } catch { }
 
     try {
       await deleteEnforcerAccountInSupabase(cleanBadge);
@@ -913,7 +914,7 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setRegisteredAdmins(updated);
     try {
       localStorage.setItem(STORAGE_KEY_REGISTERED_ADMINS, JSON.stringify(updated));
-    } catch {}
+    } catch { }
 
     try {
       await deleteAdminAccountInSupabase(cleanId);
@@ -1491,106 +1492,106 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFranchises(prev => {
       const updatedList = prev.map(item => {
         if (item.mtopNumber === mtopNumber || item.cityPlateNumber === mtopNumber) {
-        const nameChanged =
-          (newOperatorName && newOperatorName !== item.operatorName) ||
-          (newDriverName && newDriverName !== item.driverName);
+          const nameChanged =
+            (newOperatorName && newOperatorName !== item.operatorName) ||
+            (newDriverName && newDriverName !== item.driverName);
 
-        const newHistoryEntry = nameChanged
-          ? {
-            id: `nc-${Date.now()}`,
-            previousOperatorName: item.operatorName || '—',
-            newOperatorName: newOperatorName || item.operatorName || '—',
-            previousDriverName: item.driverName || '—',
-            newDriverName: newDriverName || item.driverName || '—',
-            changedAt: new Date().toISOString(),
-            changedBy: currentAdmin?.name || 'TRD Admin',
-          }
-          : null;
+          const newHistoryEntry = nameChanged
+            ? {
+              id: `nc-${Date.now()}`,
+              previousOperatorName: item.operatorName || '—',
+              newOperatorName: newOperatorName || item.operatorName || '—',
+              previousDriverName: item.driverName || '—',
+              newDriverName: newDriverName || item.driverName || '—',
+              changedAt: new Date().toISOString(),
+              changedBy: currentAdmin?.name || 'TRD Admin',
+            }
+            : null;
 
-        const newTxEntry = {
-          id: `tx-edit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          type: (nameChanged ? 'Driver Change' : 'Information Edit') as any,
-          description: nameChanged
-            ? `Driver/Operator updated: Driver: "${newDriverName}", Operator: "${newOperatorName}"`
-            : `Franchise & Driver details updated for Unit ${item.cityPlateNumber || item.mtopNumber}`,
-          date: new Date().toISOString(),
-          processedBy: currentAdmin?.name || 'TRD Admin',
-          details: {
-            driverName: newDriverName,
-            driverAddress: newDriverAddress,
-            driverLicenseNo: driverData.licenseNo,
-            operatorName: newOperatorName,
-            operatorAddress: newOperatorAddress,
-            operatorContact: newOperatorContact,
-            routeParada: driverData.routeParada,
-          }
-        };
+          const newTxEntry = {
+            id: `tx-edit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            type: (nameChanged ? 'Driver Change' : 'Information Edit') as any,
+            description: nameChanged
+              ? `Driver/Operator updated: Driver: "${newDriverName}", Operator: "${newOperatorName}"`
+              : `Franchise & Driver details updated for Unit ${item.cityPlateNumber || item.mtopNumber}`,
+            date: new Date().toISOString(),
+            processedBy: currentAdmin?.name || 'TRD Admin',
+            details: {
+              driverName: newDriverName,
+              driverAddress: newDriverAddress,
+              driverLicenseNo: driverData.licenseNo,
+              operatorName: newOperatorName,
+              operatorAddress: newOperatorAddress,
+              operatorContact: newOperatorContact,
+              routeParada: driverData.routeParada,
+            }
+          };
 
-        const updatedItem: FranchiseRecord = {
-          ...item,
-          ownerLastName: driverData.ownerLastName ?? item.ownerLastName,
-          ownerFirstName: driverData.ownerFirstName ?? item.ownerFirstName,
-          ownerMiddleName: driverData.ownerMiddleName ?? item.ownerMiddleName,
-          ownerName: driverData.ownerName || newOperatorName || item.ownerName,
-          ownerContact: newOperatorContact ?? item.ownerContact,
-          ownerAddress: newOperatorAddress ?? item.ownerAddress,
-          residentialAddress: newOperatorAddress ?? item.residentialAddress,
-          age: driverData.age ?? item.age,
-          beneficiaryName: driverData.beneficiaryName ?? item.beneficiaryName,
-          beneficiaryAddress: driverData.beneficiaryAddress ?? item.beneficiaryAddress,
+          const updatedItem: FranchiseRecord = {
+            ...item,
+            ownerLastName: driverData.ownerLastName ?? item.ownerLastName,
+            ownerFirstName: driverData.ownerFirstName ?? item.ownerFirstName,
+            ownerMiddleName: driverData.ownerMiddleName ?? item.ownerMiddleName,
+            ownerName: driverData.ownerName || newOperatorName || item.ownerName,
+            ownerContact: newOperatorContact ?? item.ownerContact,
+            ownerAddress: newOperatorAddress ?? item.ownerAddress,
+            residentialAddress: newOperatorAddress ?? item.residentialAddress,
+            age: driverData.age ?? item.age,
+            beneficiaryName: driverData.beneficiaryName ?? item.beneficiaryName,
+            beneficiaryAddress: driverData.beneficiaryAddress ?? item.beneficiaryAddress,
 
-          operatorLastName: driverData.operatorLastName ?? driverData.ownerLastName ?? item.operatorLastName,
-          operatorFirstName: driverData.operatorFirstName ?? driverData.ownerFirstName ?? item.operatorFirstName,
-          operatorMiddleName: driverData.operatorMiddleName ?? driverData.ownerMiddleName ?? item.operatorMiddleName,
-          operatorName: newOperatorName || driverData.ownerName || item.operatorName,
-          operatorContact: newOperatorContact ?? item.operatorContact,
-          operatorAddress: newOperatorAddress ?? item.operatorAddress,
+            operatorLastName: driverData.operatorLastName ?? driverData.ownerLastName ?? item.operatorLastName,
+            operatorFirstName: driverData.operatorFirstName ?? driverData.ownerFirstName ?? item.operatorFirstName,
+            operatorMiddleName: driverData.operatorMiddleName ?? driverData.ownerMiddleName ?? item.operatorMiddleName,
+            operatorName: newOperatorName || driverData.ownerName || item.operatorName,
+            operatorContact: newOperatorContact ?? item.operatorContact,
+            operatorAddress: newOperatorAddress ?? item.operatorAddress,
 
-          driverLastName: driverData.driverLastName ?? item.driverLastName,
-          driverFirstName: driverData.driverFirstName ?? item.driverFirstName,
-          driverMiddleName: driverData.driverMiddleName ?? item.driverMiddleName,
-          driverName: newDriverName || item.driverName,
-          driverAddress: newDriverAddress ?? item.driverAddress,
-          driverPhoto: driverData.driverPhoto !== undefined ? driverData.driverPhoto : item.driverPhoto,
-          driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
+            driverLastName: driverData.driverLastName ?? item.driverLastName,
+            driverFirstName: driverData.driverFirstName ?? item.driverFirstName,
+            driverMiddleName: driverData.driverMiddleName ?? item.driverMiddleName,
+            driverName: newDriverName || item.driverName,
+            driverAddress: newDriverAddress ?? item.driverAddress,
+            driverPhoto: driverData.driverPhoto !== undefined ? driverData.driverPhoto : item.driverPhoto,
+            driverLicenseNo: driverData.licenseNo || item.driverLicenseNo,
 
-          applicationNo: driverData.applicationNo ?? item.applicationNo,
-          vehicleCategory: driverData.vehicleCategory ?? item.vehicleCategory,
-          cityPlateNumber: driverData.cityPlateNumber || item.cityPlateNumber,
-          mtopNumber: driverData.cityPlateNumber || item.mtopNumber,
-          routeParada: driverData.routeParada || item.routeParada,
-          makeModel: driverData.makeModel || driverData.modelMake || item.makeModel,
-          modelMake: driverData.modelMake || driverData.makeModel || item.modelMake,
-          color: driverData.color || item.color,
-          touristGuide: driverData.touristGuide ?? item.touristGuide,
-          status: driverData.status ?? item.status,
-          expirationDate: driverData.expirationDate || item.expirationDate,
+            applicationNo: driverData.applicationNo ?? item.applicationNo,
+            vehicleCategory: driverData.vehicleCategory ?? item.vehicleCategory,
+            cityPlateNumber: driverData.cityPlateNumber || item.cityPlateNumber,
+            mtopNumber: driverData.cityPlateNumber || item.mtopNumber,
+            routeParada: driverData.routeParada || item.routeParada,
+            makeModel: driverData.makeModel || driverData.modelMake || item.makeModel,
+            modelMake: driverData.modelMake || driverData.makeModel || item.modelMake,
+            color: driverData.color || item.color,
+            touristGuide: driverData.touristGuide ?? item.touristGuide,
+            status: driverData.status ?? item.status,
+            expirationDate: driverData.expirationDate || item.expirationDate,
 
-          receiptNumber: driverData.receiptNumber || driverData.orNumber || item.receiptNumber,
-          orNumber: driverData.orNumber || driverData.receiptNumber || item.orNumber,
-          paymentDate: driverData.paymentDate || item.paymentDate,
-          amountPaid: driverData.amountPaid ?? item.amountPaid,
+            receiptNumber: driverData.receiptNumber || driverData.orNumber || item.receiptNumber,
+            orNumber: driverData.orNumber || driverData.receiptNumber || item.orNumber,
+            paymentDate: driverData.paymentDate || item.paymentDate,
+            amountPaid: driverData.amountPaid ?? item.amountPaid,
 
-          fareMatrix: driverData.fareMatrix ?? item.fareMatrix,
-          availability: driverData.availability || item.availability,
-          engineNumber: driverData.engineNumber || item.engineNumber,
-          chassisNumber: driverData.chassisNumber || item.chassisNumber,
-          driverContact: driverData.contact ?? item.driverContact,
-          email: driverData.email ?? driverData.gmail ?? item.email ?? item.gmail,
-          gmail: driverData.gmail ?? driverData.email ?? item.gmail ?? item.email,
-          hasPermanentQr: driverData.hasPermanentQr !== undefined ? driverData.hasPermanentQr : item.hasPermanentQr,
-          qrGeneratedDate: driverData.qrGeneratedDate || item.qrGeneratedDate,
-          nameChangeHistory: newHistoryEntry
-            ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
-            : item.nameChangeHistory,
-          transactionHistory: [newTxEntry, ...(item.transactionHistory || [])],
-        };
-        return {
-          ...updatedItem,
-          qrCodeData: buildPermanentQrPayload(updatedItem),
-        };
-      }
-      return item;
+            fareMatrix: driverData.fareMatrix ?? item.fareMatrix,
+            availability: driverData.availability || item.availability,
+            engineNumber: driverData.engineNumber || item.engineNumber,
+            chassisNumber: driverData.chassisNumber || item.chassisNumber,
+            driverContact: driverData.contact ?? item.driverContact,
+            email: driverData.email ?? driverData.gmail ?? item.email ?? item.gmail,
+            gmail: driverData.gmail ?? driverData.email ?? item.gmail ?? item.email,
+            hasPermanentQr: driverData.hasPermanentQr !== undefined ? driverData.hasPermanentQr : item.hasPermanentQr,
+            qrGeneratedDate: driverData.qrGeneratedDate || item.qrGeneratedDate,
+            nameChangeHistory: newHistoryEntry
+              ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
+              : item.nameChangeHistory,
+            transactionHistory: [newTxEntry, ...(item.transactionHistory || [])],
+          };
+          return {
+            ...updatedItem,
+            qrCodeData: buildPermanentQrPayload(updatedItem),
+          };
+        }
+        return item;
       });
       try {
         localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));

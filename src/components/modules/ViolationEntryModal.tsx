@@ -61,6 +61,7 @@ export const ViolationEntryModal: React.FC = () => {
     lastDeletionNotice,
     clearDeletionNotice,
     clearDeletionLogs,
+    updateFranchiseStatus,
     updateViolationStatus,
     deleteViolation,
     updateComplaintStatus,
@@ -466,6 +467,7 @@ export const ViolationEntryModal: React.FC = () => {
           }
         };
         saveSanctionsMap(updatedSanctions);
+        await updateFranchiseStatus(plateKey, 'Active', sanctionReasonInput || 'Suspension lifted by Administrator.');
         setSyncFeedback({
           type: 'success',
           message: `Suspension LIFTED for Driver ${selectedOffenderForSuspend.driverName} (Plate ${plateKey}). Driver reinstated to Active status!`
@@ -491,6 +493,7 @@ export const ViolationEntryModal: React.FC = () => {
           }
         };
         saveSanctionsMap(updatedSanctions);
+        await updateFranchiseStatus(plateKey, 'Suspended', sanctionReasonInput || `Driver suspended for ${suspensionDurationInput} due to repeated violations.`);
         setSyncFeedback({
           type: 'success',
           message: `Driver ${selectedOffenderForSuspend.driverName} (Plate ${plateKey}) placed on ${suspensionDurationInput} SUSPENSION!`

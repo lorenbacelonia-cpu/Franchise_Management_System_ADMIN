@@ -917,6 +917,7 @@ export const DriverRegistryModal: React.FC = () => {
                     <option value="Active">Active</option>
                     <option value="Under Review">Under Review</option>
                     <option value="Pending Renewal">Pending Renewal</option>
+                    <option value="Suspended">Suspended</option>
                     <option value="Deactivated">Deactivated</option>
                   </select>
                 </div>
@@ -1229,9 +1230,11 @@ export const DriverRegistryModal: React.FC = () => {
                     <span className="font-semibold text-slate-500">Franchise Status:</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${editStatus === 'Active'
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                      : editStatus === 'Expired'
-                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : editStatus === 'Suspended'
+                        ? 'bg-rose-100 text-rose-800 border border-rose-300 font-extrabold'
+                        : editStatus === 'Expired'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
                       }`}>
                       {editStatus}
                     </span>
@@ -1466,9 +1469,11 @@ export const DriverRegistryModal: React.FC = () => {
                             <span className="font-semibold text-slate-500">Status:</span>
                             <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase font-mono ${item.status === 'Active'
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : item.status === 'Expired'
-                                ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              : item.status === 'Suspended'
+                                ? 'bg-rose-100 text-rose-800 border border-rose-300 font-extrabold'
+                                : item.status === 'Expired'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
                               }`}>
                               {item.status || 'Active'}
                             </span>

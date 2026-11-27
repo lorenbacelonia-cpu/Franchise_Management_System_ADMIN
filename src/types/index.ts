@@ -1,7 +1,7 @@
 
 export type VehicleCategory = 'Tricycle' | 'Pedicab';
 
-export type FranchiseStatus = 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review' | 'Expired';
+export type FranchiseStatus = 'Active' | 'Pending Renewal' | 'Deactivated' | 'Under Review' | 'Expired' | 'Suspended';
 
 export interface FareMatrixItem {
   id?: string;

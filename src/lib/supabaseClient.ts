@@ -974,6 +974,7 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
   contact_number?: string;
   residential_address?: string;
   availability?: string;
+  status?: FranchiseStatus | string;
   qr_payload?: string;
 }, category: VehicleCategory = 'Tricycle') {
   const { records, qrCodes } = getTableNames(category);
@@ -984,6 +985,7 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
     updated_at: new Date().toISOString()
   };
 
+  if (data.status !== undefined) updateBody.status = data.status;
   if (data.operator_name !== undefined) updateBody.operator_name = data.operator_name;
   if (data.operator_contact !== undefined || data.contact_number !== undefined) {
     updateBody.operator_contact = data.operator_contact ?? data.contact_number;
@@ -1078,6 +1080,39 @@ export async function saveDeactivationInSupabase(data: {
   } catch (e) {
     console.warn('Could not set status to Deactivated in master franchise records:', e);
   }
+}
+
+/** Update franchise permit / driver status directly in Supabase (e.g. Active, Suspended, Deactivated) */
+export async function updateFranchiseStatusInSupabase(
+  plateOrMtop: string,
+  status: FranchiseStatus | string,
+  category: VehicleCategory = 'Tricycle',
+  reason?: string
+) {
+  const { records } = getTableNames(category);
+  const cleanPlate = (plateOrMtop || '').trim();
+  if (!cleanPlate) return false;
+
+  const updatePayload: Record<string, any> = {
+    status,
+    updated_at: new Date().toISOString()
+  };
+  if (reason) {
+    updatePayload.deactivation_reason = reason;
+  }
+
+  const targetTables = [records, 'franchise_records_tricycle_admin', 'franchise_records_pedicab_admin'];
+  let success = false;
+  for (const tbl of targetTables) {
+    try {
+      const res1 = await patchWithFallback(tbl, `city_plate_number=eq.${encodeURIComponent(cleanPlate)}`, updatePayload);
+      const res2 = await patchWithFallback(tbl, `mtop_number=eq.${encodeURIComponent(cleanPlate)}`, updatePayload);
+      if (res1 || res2) success = true;
+    } catch (err) {
+      console.warn(`[Supabase Status Update] tbl ${tbl} notice:`, err);
+    }
+  }
+  return success;
 }
 
 /** 10. Fetch passenger complaints submitted from mobile web */
