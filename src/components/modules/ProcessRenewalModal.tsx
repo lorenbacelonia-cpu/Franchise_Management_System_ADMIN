@@ -520,13 +520,12 @@ export const ProcessRenewalModal: React.FC = () => {
                         const info = getFranchiseExpiryInfo(selectedForReminder);
                         if (info.daysRemaining <= 30) {
                           return (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              info.isExpired
-                                ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
-                                : info.daysRemaining <= 7
-                                  ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
-                                  : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${info.isExpired
+                              ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                              : info.daysRemaining <= 7
+                                ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                                : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                              }`}>
                               {info.isExpired
                                 ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
                                 : info.daysRemaining === 0
@@ -668,220 +667,220 @@ export const ProcessRenewalModal: React.FC = () => {
                       </span>
                     </div>
 
-                <div className="space-y-3">
-                  {/* Operator Mobile Number */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      <span className="inline-flex items-center space-x-1.5">
-                        <Phone className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Operator Mobile (SMS / Messenger)</span>
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      value={reminderOperatorPhone}
-                      onChange={(e) => setReminderOperatorPhone(e.target.value)}
-                      placeholder="09171234567 or +639171234567"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Delivered directly via TextBee Android SMS Gateway.
-                    </p>
-                  </div>
-
-                  {/* Operator Gmail / Email with + Add Email Button */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
-                        <Mail className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Operator Email / Gmail</span>
-                      </label>
-                      {reminderOperatorGmail && (
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
-                            ✓ On File
+                    <div className="space-y-3">
+                      {/* Operator Mobile Number */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          <span className="inline-flex items-center space-x-1.5">
+                            <Phone className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Operator Mobile (SMS / Messenger)</span>
                           </span>
-                          {!isAddingOperatorEmail && (
+                        </label>
+                        <input
+                          type="text"
+                          value={reminderOperatorPhone}
+                          onChange={(e) => setReminderOperatorPhone(e.target.value)}
+                          placeholder="09171234567 or +639171234567"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Delivered directly via TextBee Android SMS Gateway.
+                        </p>
+                      </div>
+
+                      {/* Operator Gmail / Email with + Add Email Button */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
+                            <Mail className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Operator Email / Gmail</span>
+                          </label>
+                          {reminderOperatorGmail && (
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
+                                ✓ On File
+                              </span>
+                              {!isAddingOperatorEmail && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingOperatorEmail(true)}
+                                  className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {!reminderOperatorGmail && !isAddingOperatorEmail ? (
+                          /* If operator DOES NOT have an email, show dedicated + Add Email button */
+                          <div className="p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <Mail className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="text-xs text-slate-600 italic truncate">
+                                No email registered for Operator
+                              </span>
+                            </div>
                             <button
                               type="button"
                               onClick={() => setIsAddingOperatorEmail(true)}
-                              className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+                              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
                             >
-                              Edit
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>+ Add Email</span>
                             </button>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        ) : (
+                          /* Email Input Field with Save Action */
+                          <div className="space-y-1.5">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="email"
+                                value={reminderOperatorGmail}
+                                onChange={(e) => setReminderOperatorGmail(e.target.value)}
+                                placeholder="e.g. operator@gmail.com"
+                                className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
+                              />
+                              <button
+                                type="button"
+                                disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
+                                onClick={handleSaveOperatorEmail}
+                                className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                                title="Save email to operator record"
+                              >
+                                {isSavingEmailDirectly ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5" />
+                                )}
+                                <span>Save Email</span>
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-slate-500">
+                              Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Driver Card */}
+                  <div className="p-4 rounded-2xl border-2 border-emerald-400 bg-emerald-50/30 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
+                      <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                        <span>🛺 Driver:</span>
+                        <strong className="text-emerald-950">{selectedForReminder.driverName}</strong>
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-black uppercase shadow-2xs">
+                        Assigned Driver
+                      </span>
                     </div>
 
-                    {!reminderOperatorGmail && !isAddingOperatorEmail ? (
-                      /* If operator DOES NOT have an email, show dedicated + Add Email button */
-                      <div className="p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="flex items-center space-x-2 min-w-0">
-                          <Mail className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span className="text-xs text-slate-600 italic truncate">
-                            No email registered for Operator
+                    <div className="space-y-3">
+                      {/* Driver Mobile Number */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          <span className="inline-flex items-center space-x-1.5">
+                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Driver Mobile (SMS)</span>
                           </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingOperatorEmail(true)}
-                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Add Email</span>
-                        </button>
-                      </div>
-                    ) : (
-                      /* Email Input Field with Save Action */
-                      <div className="space-y-1.5">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="email"
-                            value={reminderOperatorGmail}
-                            onChange={(e) => setReminderOperatorGmail(e.target.value)}
-                            placeholder="e.g. operator@gmail.com"
-                            className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                            autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
-                          />
-                          <button
-                            type="button"
-                            disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
-                            onClick={handleSaveOperatorEmail}
-                            className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
-                            title="Save email to operator record"
-                          >
-                            {isSavingEmailDirectly ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                            <span>Save Email</span>
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-slate-500">
-                          Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
+                        </label>
+                        <input
+                          type="text"
+                          value={reminderDriverPhone}
+                          onChange={(e) => setReminderDriverPhone(e.target.value)}
+                          placeholder="09171234567 or +639171234567"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Delivered directly via TextBee Android SMS Gateway.
                         </p>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
-              {/* Driver Card */}
-              <div className="p-4 rounded-2xl border-2 border-emerald-400 bg-emerald-50/30 shadow-2xs space-y-3.5">
-                <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
-                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                    <span>🛺 Driver:</span>
-                    <strong className="text-emerald-950">{selectedForReminder.driverName}</strong>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-black uppercase shadow-2xs">
-                    Assigned Driver
-                  </span>
-                </div>
+                      {/* Driver Gmail / Email with + Add Email Button */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
+                            <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Driver Email / Gmail</span>
+                          </label>
+                          {reminderDriverGmail && (
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
+                                ✓ On File
+                              </span>
+                              {!isAddingDriverEmail && (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingDriverEmail(true)}
+                                  className="text-[10px] text-emerald-800 hover:text-emerald-950 font-bold underline cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                <div className="space-y-3">
-                  {/* Driver Mobile Number */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      <span className="inline-flex items-center space-x-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Driver Mobile (SMS)</span>
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      value={reminderDriverPhone}
-                      onChange={(e) => setReminderDriverPhone(e.target.value)}
-                      placeholder="09171234567 or +639171234567"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Delivered directly via TextBee Android SMS Gateway.
-                    </p>
-                  </div>
-
-                  {/* Driver Gmail / Email with + Add Email Button */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
-                        <Mail className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Driver Email / Gmail</span>
-                      </label>
-                      {reminderDriverGmail && (
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
-                            ✓ On File
-                          </span>
-                          {!isAddingDriverEmail && (
+                        {!reminderDriverGmail && !isAddingDriverEmail ? (
+                          /* If driver DOES NOT have an email, show dedicated + Add Email button */
+                          <div className="p-3 bg-white border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center space-x-2 min-w-0">
+                              <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span className="text-xs text-slate-600 italic truncate">
+                                No email registered for Driver
+                              </span>
+                            </div>
                             <button
                               type="button"
                               onClick={() => setIsAddingDriverEmail(true)}
-                              className="text-[10px] text-emerald-800 hover:text-emerald-950 font-bold underline cursor-pointer"
+                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
                             >
-                              Edit
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>+ Add Email</span>
                             </button>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        ) : (
+                          /* Driver Email Input Field with Save Action */
+                          <div className="space-y-1.5">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="email"
+                                value={reminderDriverGmail}
+                                onChange={(e) => setReminderDriverGmail(e.target.value)}
+                                placeholder="e.g. driver@gmail.com"
+                                className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                autoFocus={isAddingDriverEmail && !reminderDriverGmail}
+                              />
+                              <button
+                                type="button"
+                                disabled={isSavingDriverEmailDirectly || !reminderDriverGmail.trim()}
+                                onClick={handleSaveDriverEmail}
+                                className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                                title="Save email to driver record"
+                              >
+                                {isSavingDriverEmailDirectly ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5" />
+                                )}
+                                <span>Save Email</span>
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-slate-500">
+                              Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-
-                    {!reminderDriverGmail && !isAddingDriverEmail ? (
-                      /* If driver DOES NOT have an email, show dedicated + Add Email button */
-                      <div className="p-3 bg-white border border-emerald-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="flex items-center space-x-2 min-w-0">
-                          <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="text-xs text-slate-600 italic truncate">
-                            No email registered for Driver
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingDriverEmail(true)}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Add Email</span>
-                        </button>
-                      </div>
-                    ) : (
-                      /* Driver Email Input Field with Save Action */
-                      <div className="space-y-1.5">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="email"
-                            value={reminderDriverGmail}
-                            onChange={(e) => setReminderDriverGmail(e.target.value)}
-                            placeholder="e.g. driver@gmail.com"
-                            className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                            autoFocus={isAddingDriverEmail && !reminderDriverGmail}
-                          />
-                          <button
-                            type="button"
-                            disabled={isSavingDriverEmailDirectly || !reminderDriverGmail.trim()}
-                            onClick={handleSaveDriverEmail}
-                            className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
-                            title="Save email to driver record"
-                          >
-                            {isSavingDriverEmailDirectly ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                            <span>Save Email</span>
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-slate-500">
-                          Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-          </>
-        )}
+              </>
+            )}
 
             {/* Official Notice Content Preview */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
@@ -1169,13 +1168,12 @@ export const ProcessRenewalModal: React.FC = () => {
                     const info = getFranchiseExpiryInfo(selectedForRenewal);
                     if (info.daysRemaining <= 30) {
                       return (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          info.isExpired
-                            ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
-                            : info.daysRemaining <= 7
-                              ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
-                              : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${info.isExpired
+                          ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                          : info.daysRemaining <= 7
+                            ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                            : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                          }`}>
                           {info.isExpired
                             ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
                             : info.daysRemaining === 0

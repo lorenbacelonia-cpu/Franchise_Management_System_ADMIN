@@ -42,7 +42,7 @@ export const playNotificationChime = () => {
     const ctx = new AudioContextClass();
 
     if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
+      ctx.resume().catch(() => { });
     }
 
     const now = ctx.currentTime;
@@ -111,7 +111,7 @@ export const NotificationBell: React.FC = () => {
       const next = !prev;
       try {
         localStorage.setItem(STORAGE_KEY_SOUND, String(next));
-      } catch {}
+      } catch { }
       if (next) {
         playNotificationChime();
       }
@@ -285,7 +285,7 @@ export const NotificationBell: React.FC = () => {
         if (item.targetData?.username || item.targetData?.fullname) {
           sessionStorage.setItem('tabaco_trd_citizen_search', item.targetData?.username || item.targetData?.fullname || '');
         }
-      } catch {}
+      } catch { }
       setActiveModule('system_access');
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
@@ -305,7 +305,7 @@ export const NotificationBell: React.FC = () => {
         if (item.targetData?.id) {
           sessionStorage.setItem('tabaco_trd_violation_expanded', item.targetData.id);
         }
-      } catch {}
+      } catch { }
       setActiveModule('violation_entry');
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
@@ -325,7 +325,7 @@ export const NotificationBell: React.FC = () => {
         if (item.plateOrMtop) {
           sessionStorage.setItem('tabaco_trd_violation_search', item.plateOrMtop);
         }
-      } catch {}
+      } catch { }
       setActiveModule('violation_entry');
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('tabaco_switch_tab', {
@@ -350,7 +350,7 @@ export const NotificationBell: React.FC = () => {
         aria-label="View notifications"
       >
         <Bell className="h-4 w-4 text-slate-700" />
-        
+
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white shadow-xs animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -385,11 +385,10 @@ export const NotificationBell: React.FC = () => {
               <button
                 type="button"
                 onClick={toggleSound}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center space-x-1 text-[10px] font-bold ${
-                  soundEnabled
-                    ? 'text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 border border-emerald-500/30'
-                    : 'text-slate-400 hover:text-slate-300 bg-slate-800 border border-slate-700'
-                }`}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center space-x-1 text-[10px] font-bold ${soundEnabled
+                  ? 'text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 border border-emerald-500/30'
+                  : 'text-slate-400 hover:text-slate-300 bg-slate-800 border border-slate-700'
+                  }`}
                 title={soundEnabled ? 'Notification chime ON (Click to mute)' : 'Notification chime OFF (Click to turn on)'}
               >
                 {soundEnabled ? (
@@ -438,11 +437,10 @@ export const NotificationBell: React.FC = () => {
                   key={type}
                   type="button"
                   onClick={() => setFilterType(type)}
-                  className={`px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    filterType === type
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                  }`}
+                  className={`px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer ${filterType === type
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                    }`}
                 >
                   {labelMap[type]}
                 </button>
@@ -465,9 +463,8 @@ export const NotificationBell: React.FC = () => {
                   <div
                     key={item.id}
                     onClick={() => handleNotificationClick(item)}
-                    className={`p-3 transition-colors cursor-pointer flex items-start space-x-3 hover:bg-slate-50 ${
-                      !isRead ? 'bg-emerald-50/40' : 'bg-white'
-                    }`}
+                    className={`p-3 transition-colors cursor-pointer flex items-start space-x-3 hover:bg-slate-50 ${!isRead ? 'bg-emerald-50/40' : 'bg-white'
+                      }`}
                   >
                     {/* Icon based on notification type */}
                     <div className="shrink-0 mt-0.5">
@@ -493,11 +490,10 @@ export const NotificationBell: React.FC = () => {
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center space-x-1.5 flex-wrap">
                           {item.vehicleCategory && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${
-                              item.vehicleCategory === 'Pedicab'
-                                ? 'bg-sky-50 text-sky-700 border-sky-200'
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            }`}>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${item.vehicleCategory === 'Pedicab'
+                              ? 'bg-sky-50 text-sky-700 border-sky-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
                               {item.vehicleCategory}
                             </span>
                           )}
