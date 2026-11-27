@@ -87,6 +87,7 @@ export const DriverRegistryModal: React.FC = () => {
   const [ownerMiddleName, setOwnerMiddleName] = useState('');
   const [age, setAge] = useState('');
   const [ownerContact, setOwnerContact] = useState('');
+  const [gmail, setGmail] = useState('');
   const [residentialAddress, setResidentialAddress] = useState('');
 
   const [driverLastName, setDriverLastName] = useState('');
@@ -155,6 +156,7 @@ export const DriverRegistryModal: React.FC = () => {
     setOwnerMiddleName(item.ownerMiddleName || item.operatorMiddleName || opParsed.middle);
     setAge(item.age || '');
     setOwnerContact(item.ownerContact || item.operatorContact || '');
+    setGmail(item.gmail || item.email || item.operatorEmail || '');
     setResidentialAddress(item.residentialAddress || item.ownerAddress || item.operatorAddress || '');
 
     setDriverLastName(item.driverLastName || drvParsed.last);
@@ -349,6 +351,8 @@ export const DriverRegistryModal: React.FC = () => {
         ownerMiddleName: cleanName(ownerMiddleName),
         ownerName: finalOwnerName,
         ownerContact: ownerContact.trim(),
+        gmail: gmail.trim(),
+        email: gmail.trim(),
         ownerAddress: cleanAddress(residentialAddress),
         residentialAddress: cleanAddress(residentialAddress),
         age: age.trim(),
@@ -612,7 +616,7 @@ export const DriverRegistryModal: React.FC = () => {
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
                   Operator
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     type="text"
                     required
@@ -639,8 +643,8 @@ export const DriverRegistryModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Age & Mobile Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Age, Mobile Number & Gmail */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
                     Age
@@ -658,34 +662,26 @@ export const DriverRegistryModal: React.FC = () => {
 
                 <div>
                   <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                    Mobile Number / Gmail (Optional)
+                    Mobile Number
                   </label>
                   <input
                     type="text"
                     value={ownerContact}
-                    onKeyDown={(e) => {
-                      if (
-                        ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
-                        e.ctrlKey ||
-                        e.metaKey
-                      ) {
-                        return;
-                      }
-                      if (/^[0-9]/.test(ownerContact.trimStart())) {
-                        if (!/[0-9]/.test(e.key)) {
-                          e.preventDefault();
-                        }
-                      }
-                    }}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (/^[0-9]/.test(raw.trimStart())) {
-                        setOwnerContact(cleanDigitsOnly(raw, 11));
-                      } else {
-                        setOwnerContact(raw);
-                      }
-                    }}
-                    placeholder="e.g. 09178821920 or operator@gmail.com"
+                    onChange={(e) => setOwnerContact(cleanDigitsOnly(e.target.value, 11))}
+                    placeholder="e.g. 09178821920"
+                    className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                    Gmail (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={gmail}
+                    onChange={(e) => setGmail(e.target.value.trim())}
+                    placeholder="e.g. operator@gmail.com"
                     className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                   />
                 </div>
@@ -773,7 +769,7 @@ export const DriverRegistryModal: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     type="text"
                     value={driverLastName}
@@ -1296,7 +1292,7 @@ export const DriverRegistryModal: React.FC = () => {
 
       {/* Search & Registry Grid Card */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 py-3.5 -mt-5 sm:-mt-6 rounded-t-3xl border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center space-x-2 text-xs font-bold text-slate-700">
               <Users className="h-4 w-4 text-indigo-600 shrink-0" />

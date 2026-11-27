@@ -112,8 +112,36 @@ export async function downloadFranchiseDocx(
             children: [
               new Paragraph({
                 children: [
+                  new TextRun({ text: 'DRIVER LICENSE REF\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ text: franchise.driverLicenseNo || `TRD-DRV-${plate}`, bold: true, size: 20, color: '059669', font: 'Arial' }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
+            children: [
+              new Paragraph({
+                children: [
                   new TextRun({ text: 'PERMIT EXPIRATION DATE\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
                   new TextRun({ text: formatExpDate(franchise.expirationDate), bold: true, size: 20, color: '1E293B', font: 'Arial' }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: 'CITY PLATE NO.\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ text: plate, bold: true, size: 20, color: '0F172A', font: 'Arial' }),
                 ],
               }),
             ],

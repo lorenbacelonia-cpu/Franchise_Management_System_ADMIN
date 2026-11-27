@@ -304,11 +304,30 @@ export const QRScannerModal: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Driver Name:</span>
-                      <span className="font-bold text-slate-900">{currentFranchise.driverName}</span>
+                      <div className="flex items-center space-x-2">
+                        {currentFranchise.driverPhoto && (
+                          <img
+                            src={currentFranchise.driverPhoto}
+                            alt="Driver"
+                            className="w-5 h-5 rounded-full object-cover border border-emerald-500 shadow-xs"
+                          />
+                        )}
+                        <span className="font-bold text-slate-900">{currentFranchise.driverName}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="font-medium text-slate-700">• Driver License Ref:</span>
+                      <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">
+                        {currentFranchise.driverLicenseNo || `TRD-DRV-${currentFranchise.mtopNumber}`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Route/Parada:</span>
                       <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24'}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="font-medium text-slate-700">• Expiration Date:</span>
+                      <span className="font-bold text-slate-900">{formatExpDate(currentFranchise.expirationDate)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Tourist Guide:</span>
@@ -452,12 +471,15 @@ export const QRScannerModal: React.FC = () => {
                         />
                       </div>
 
-                      <div className="text-center space-y-0.5">
+                      <div className="text-center space-y-1">
                         <p className="text-xs sm:text-sm font-bold font-mono text-slate-900 tracking-wider">
                           UNIT ID: {currentFranchise.mtopNumber}
                         </p>
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          Driver: {currentFranchise.driverName} • Tourist Guide: {currentFranchise.touristGuide || 'Yes'}
+                        <p className="text-[11px] font-semibold text-slate-600">
+                          Driver: <span className="text-slate-900 font-bold">{currentFranchise.driverName}</span> • License: <span className="font-mono text-emerald-800 font-bold">{currentFranchise.driverLicenseNo || `TRD-DRV-${currentFranchise.mtopNumber}`}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          Operator: {currentFranchise.operatorName} • Valid Until: {formatExpDate(currentFranchise.expirationDate)}
                         </p>
                       </div>
 

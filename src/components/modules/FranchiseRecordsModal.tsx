@@ -6,20 +6,15 @@ import {
   Users,
   Search,
   QrCode,
-  Lock,
   Sparkles,
   CheckCircle2,
   Check,
   Trash2,
-  RefreshCw,
-  Calendar,
-  FileText,
   X,
   Printer,
   FileDown,
   ExternalLink,
   Globe,
-  Receipt,
   Eye,
   History,
   ChevronLeft,
@@ -29,32 +24,8 @@ import {
   Car
 } from 'lucide-react';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
-import { isRecordExpired, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
+import { buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-
-function computeDefaultNextExpiry(currentExpiry?: string): string {
-  const today = new Date();
-  const nextYear = today.getFullYear() + 1;
-  if (currentExpiry && /^\d{4}-\d{2}-\d{2}$/.test(currentExpiry)) {
-    const currentExpYear = parseInt(currentExpiry.substring(0, 4), 10);
-    const monthDay = currentExpiry.substring(5);
-    const targetYear = Math.max(nextYear, (isNaN(currentExpYear) ? today.getFullYear() : currentExpYear) + 1);
-    let candidate = `${targetYear}-${monthDay}`;
-    if (isRecordExpired(candidate)) {
-      candidate = `${today.getFullYear() + 1}-${monthDay}`;
-      if (isRecordExpired(candidate)) {
-        candidate = `${today.getFullYear() + 2}-${monthDay}`;
-      }
-    }
-    return candidate;
-  }
-  return `${nextYear}-01-15`;
-}
-
-function generateNewApplicationNo(): string {
-  const year = new Date().getFullYear();
-  return `APP-${year}-${Math.floor(100 + Math.random() * 900)}`;
-}
 
 export const FranchiseRecordsModal: React.FC = () => {
   const {
@@ -62,7 +33,6 @@ export const FranchiseRecordsModal: React.FC = () => {
     franchises,
     generatePermanentQr,
     generateAllPermanentQr,
-    renewFranchise,
     deleteFranchise,
   } = useFranchise();
 
@@ -82,12 +52,6 @@ export const FranchiseRecordsModal: React.FC = () => {
   // Inline Action States (all actions happen right on this page without moving to another portal)
   const [inlineQrUnitId, setInlineQrUnitId] = useState<string | null>(null);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
-
-  const [franchiseToRenew, setFranchiseToRenew] = useState<FranchiseRecord | null>(null);
-  const [renewalExpiryDate, setRenewalExpiryDate] = useState('');
-  const [renewalApplicationNo, setRenewalApplicationNo] = useState('');
-  const [renewalOrNumber, setRenewalOrNumber] = useState('');
-  const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
 
   if (activeModule !== 'franchise_records') return null;
 
@@ -508,7 +472,6 @@ export const FranchiseRecordsModal: React.FC = () => {
   };
 
   const handleToggleInlineQr = (franchiseId: string) => {
-    setFranchiseToRenew(null);
     setInlineQrUnitId(prev => (prev === franchiseId ? null : franchiseId));
   };
 
@@ -525,34 +488,6 @@ export const FranchiseRecordsModal: React.FC = () => {
     } finally {
       setIsExportingDocx(false);
     }
-  };
-
-  const handleOpenRenewInline = (item: FranchiseRecord) => {
-    setInlineQrUnitId(null);
-    setFranchiseToRenew(item);
-    setRenewalExpiryDate(computeDefaultNextExpiry(item.expirationDate));
-    setRenewalApplicationNo(item.applicationNo || generateNewApplicationNo());
-    setRenewalOrNumber(item.orNumber || item.receiptNumber || generateNewApplicationNo());
-    setRenewalAmountPaid(item.amountPaid ? String(item.amountPaid) : '450.00');
-  };
-
-  const handleConfirmRenewFranchise = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!franchiseToRenew) return;
-
-    const cleanAppNo = renewalApplicationNo.trim() || generateNewApplicationNo();
-    await renewFranchise(franchiseToRenew.id, {
-      newExpiry: renewalExpiryDate,
-      applicationNo: cleanAppNo,
-      orNumber: renewalOrNumber.trim() || cleanAppNo,
-      amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
-    });
-
-    setNotification(
-      `Success! Franchise permit for unit ${franchiseToRenew.mtopNumber} (${franchiseToRenew.driverName}) renewed • App No: ${cleanAppNo} • Next Expiry: ${renewalExpiryDate}.`
-    );
-    setTimeout(() => setNotification(null), 4500);
-    setFranchiseToRenew(null);
   };
 
   return (
@@ -646,124 +581,6 @@ export const FranchiseRecordsModal: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* INLINE PANEL 2: Renew Permit Form right on this page */}
-      {franchiseToRenew && (
-        <div className="bg-white rounded-3xl shadow-md border-2 border-blue-500/40 overflow-hidden animate-fadeIn">
-          <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <RefreshCw className="h-5 w-5 text-blue-400" />
-              <div>
-                <h4 className="text-sm font-bold">
-                  Inline Renew Franchise Permit — Unit {franchiseToRenew.mtopNumber}
-                </h4>
-                <p className="text-[11px] text-slate-300">
-                  Operator: {franchiseToRenew.operatorName || franchiseToRenew.ownerName} • Driver: {franchiseToRenew.driverName} • Current Expiry: {franchiseToRenew.expirationDate}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setFranchiseToRenew(null)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <form onSubmit={handleConfirmRenewFranchise} className="p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Application No.
-                </label>
-                <div className="flex items-center space-x-1.5">
-                  <div className="relative flex-1">
-                    <FileText className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      required
-                      value={renewalApplicationNo}
-                      onChange={(e) => setRenewalApplicationNo(e.target.value.toUpperCase())}
-                      className="w-full pl-8 pr-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRenewalApplicationNo(generateNewApplicationNo())}
-                    className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-[11px] font-bold cursor-pointer"
-                  >
-                    New
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Next Expiration Date
-                </label>
-                <div className="relative">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="date"
-                    required
-                    value={renewalExpiryDate}
-                    onChange={(e) => setRenewalExpiryDate(e.target.value)}
-                    className="w-full pl-8 pr-2.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Receipt No. (OR No.)
-                </label>
-                <div className="relative">
-                  <Receipt className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    required
-                    value={renewalOrNumber}
-                    onChange={(e) => setRenewalOrNumber(e.target.value.toUpperCase())}
-                    className="w-full pl-8 pr-2.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Amount Paid (PHP)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={renewalAmountPaid}
-                  onChange={(e) => setRenewalAmountPaid(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setFranchiseToRenew(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Confirm Renewal</span>
-              </button>
-            </div>
-          </form>
         </div>
       )}
 
@@ -984,7 +801,7 @@ export const FranchiseRecordsModal: React.FC = () => {
 
       {/* Main Content Container */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-6 px-6 py-3.5 -mt-6 rounded-t-3xl border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Registered Franchise Data</h3>
             <p className="text-xs text-slate-400 font-medium italic">
@@ -1069,50 +886,39 @@ export const FranchiseRecordsModal: React.FC = () => {
               )}
             </button>
 
-            {/* Prominent Search bar & Dedicated Visible Search Button on the Right */}
-            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => {
-                    setSearchInput(e.target.value);
-                    setSearch(e.target.value);
+            {/* Prominent Search bar */}
+            <div className="relative flex-1 sm:w-72 sm:ml-auto">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleExecuteSearch();
+                  }
+                }}
+                placeholder="Search plate, MTOP, driver, operator..."
+                className="w-full pl-9 pr-8 py-2 bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-all"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
                     setCurrentPage(1);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleExecuteSearch();
-                    }
-                  }}
-                  placeholder="Search plate, MTOP, driver, operator..."
-                  className="w-full pl-9 pr-8 py-2 bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-all"
-                />
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchInput('');
-                      setSearch('');
-                      setCurrentPage(1);
-                    }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full"
-                    title="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleExecuteSearch()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
-                title="Search Franchise Records"
-              >
-                <Search className="h-3.5 w-3.5 text-white" />
-                <span>Search</span>
-              </button>
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded-full cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1127,14 +933,13 @@ export const FranchiseRecordsModal: React.FC = () => {
                 <th className="px-4 py-3">Driver Name</th>
                 <th className="px-4 py-3">Route/Parada</th>
                 <th className="px-4 py-3">Permit Status</th>
-                <th className="px-4 py-3">QR Status</th>
                 <th className="px-4 py-3 text-center">All-in-One Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Users className="h-8 w-8 text-slate-300" />
                       <p className="text-sm font-semibold text-slate-600">No Franchise Records Found</p>
@@ -1146,7 +951,7 @@ export const FranchiseRecordsModal: React.FC = () => {
                 paginatedRecords.map((item) => (
                   <tr
                     key={item.id}
-                    className={`transition-colors ${inlineQrUnitId === item.id || franchiseToRenew?.id === item.id || viewDetailsRecord?.id === item.id
+                    className={`transition-colors ${inlineQrUnitId === item.id || viewDetailsRecord?.id === item.id
                       ? 'bg-emerald-50/40'
                       : 'hover:bg-slate-50'
                       }`}
@@ -1185,19 +990,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      {item.hasPermanentQr ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200 whitespace-nowrap">
-                          <Lock className="h-3 w-3 text-emerald-600 shrink-0" />
-                          <span>Permanent QR Active</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap">
-                          <QrCode className="h-3 w-3 text-amber-600 shrink-0" />
-                          <span>Ready for QR</span>
-                        </span>
-                      )}
-                    </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-wrap">
                         {/* VIEW DETAILS & PREVIOUS TRANSACTIONS BUTTON */}
@@ -1234,20 +1026,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                             <span>Generate QR</span>
                           </button>
                         )}
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenRenewInline(item)}
-                          className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${franchiseToRenew?.id === item.id
-                            ? 'bg-slate-900 text-white'
-                            : item.status === 'Expired' || item.status === 'Pending Renewal' || isRecordExpired(item.expirationDate)
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                              : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
-                            }`}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-                          <span>Renew</span>
-                        </button>
 
                         <button
                           type="button"

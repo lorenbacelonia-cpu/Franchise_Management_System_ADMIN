@@ -181,6 +181,25 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     url.searchParams.set('tg', f.touristGuide || 'Yes');
     url.searchParams.set('tourist', f.touristGuide || 'Yes');
     url.searchParams.set('fare', standardFareText);
+    if (f.driverLicenseNo) {
+      url.searchParams.set('license', f.driverLicenseNo);
+      url.searchParams.set('license_ref', f.driverLicenseNo);
+    }
+    if (f.id) {
+      url.searchParams.set('driver_id', f.id);
+    }
+    if (f.driverPhoto) {
+      url.searchParams.set('photo', f.driverPhoto);
+    }
+    if (f.applicationNo) {
+      url.searchParams.set('app_no', f.applicationNo);
+    }
+    if (f.driverContact) {
+      url.searchParams.set('driver_contact', f.driverContact);
+    }
+    if (f.operatorContact) {
+      url.searchParams.set('operator_contact', f.operatorContact);
+    }
     return url.toString();
   } catch (err) {
     console.warn('Failed to build QR URL, falling back to clean URL string:', err);
@@ -213,6 +232,8 @@ export function buildLegacyTextQrPayload(f: FranchiseRecord): string {
     `CityPlate Number: ${plate}`,
     `Operator: ${f.operatorName}`,
     `Driver Name: ${f.driverName}`,
+    `Driver License Ref: ${f.driverLicenseNo || ('TRD-DRV-' + plate)}`,
+    `Driver License: ${f.driverLicenseNo || ('TRD-DRV-' + plate)}`,
     `Plate No.: ${f.plateNumber || (category === 'Pedicab' ? `${plate}-PED` : `${plate}-TR`)}`,
     `Parada/Route: ${f.routeParada || 'Sua-Igot 24 Tabaco'}`,
     `Route/Parada: ${f.routeParada || 'Sua-Igot 24 Tabaco'}`,

@@ -44,6 +44,7 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [ownerMiddleName, setOwnerMiddleName] = useState('');
   const [age, setAge] = useState('');
   const [ownerContact, setOwnerContact] = useState('');
+  const [gmail, setGmail] = useState('');
   const [residentialAddress, setResidentialAddress] = useState('');
 
   // Left Column - Driver Details
@@ -163,6 +164,7 @@ export const RegisterFranchiseModal: React.FC = () => {
     setOwnerMiddleName('');
     setAge('');
     setOwnerContact('');
+    setGmail('');
     setResidentialAddress('');
     setDriverLastName('');
     setDriverFirstName('');
@@ -213,10 +215,9 @@ export const RegisterFranchiseModal: React.FC = () => {
       };
     });
 
-    const isPhone = /^[0-9+]/.test(ownerContact.trim());
-    const cleanPhone = isPhone ? ownerContact.replace(/\D/g, '').slice(0, 11) : '';
-    const cleanEmail = !isPhone || ownerContact.includes('@') ? ownerContact.trim() : '';
-    const contactValue = cleanPhone || cleanEmail || ownerContact;
+    const cleanPhone = ownerContact.replace(/\D/g, '').slice(0, 11);
+    const contactValue = cleanPhone || ownerContact.trim();
+    const cleanEmail = gmail.trim();
 
     const newId = await addFranchise({
       applicationNo: applicationNo || `APP-2026-${Math.floor(100 + Math.random() * 900)}`,
@@ -232,6 +233,7 @@ export const RegisterFranchiseModal: React.FC = () => {
       ownerContact: contactValue,
       email: cleanEmail,
       gmail: cleanEmail,
+      operatorEmail: cleanEmail,
       ownerAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       age: age.trim(),
       beneficiaryName: driverFullName,
@@ -526,18 +528,13 @@ export const RegisterFranchiseModal: React.FC = () => {
 
       {/* Main Registration Form Card */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-              {vehicleCategory} Registration Form
-            </h3>
-            <p className="text-xs text-slate-400 font-medium italic mt-0.5">
-              Enter operator, driver, vehicle, official receipt, and fare matrix details
-            </p>
-          </div>
-          <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            All-in-One Registration Page
-          </span>
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            {vehicleCategory} Registration Form
+          </h3>
+          <p className="text-xs text-slate-400 font-medium italic mt-0.5">
+            Enter operator, driver, vehicle, official receipt, and fare matrix details
+          </p>
         </div>
 
         {/* 2-Column Responsive Layout */}
@@ -549,7 +546,7 @@ export const RegisterFranchiseModal: React.FC = () => {
               <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
                 Operator
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <input
                   type="text"
                   required
@@ -576,8 +573,8 @@ export const RegisterFranchiseModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Age & Mobile Number */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Age, Mobile Number & Gmail */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
                   Age
@@ -595,37 +592,27 @@ export const RegisterFranchiseModal: React.FC = () => {
 
               <div>
                 <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Mobile Number / Gmail (Optional)
+                  Mobile Number
                 </label>
                 <input
                   type="text"
                   required
                   value={ownerContact}
-                  onKeyDown={(e) => {
-                    if (
-                      ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) ||
-                      e.ctrlKey ||
-                      e.metaKey
-                    ) {
-                      return;
-                    }
-                    // If the user first puts a number, do not allow words or letters
-                    if (/^[0-9]/.test(ownerContact.trimStart())) {
-                      if (!/[0-9]/.test(e.key)) {
-                        e.preventDefault();
-                      }
-                    }
-                  }}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    // If first character is a number, restrict to digits only (max 11 digits)
-                    if (/^[0-9]/.test(raw.trimStart())) {
-                      setOwnerContact(raw.replace(/\D/g, '').slice(0, 11));
-                    } else {
-                      setOwnerContact(raw);
-                    }
-                  }}
-                  placeholder="e.g. 09178821920 or operator@gmail.com"
+                  onChange={(e) => setOwnerContact(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="e.g. 09178821920"
+                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
+                  Gmail (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={gmail}
+                  onChange={(e) => setGmail(e.target.value.trim())}
+                  placeholder="e.g. operator@gmail.com"
                   className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                 />
               </div>
@@ -652,7 +639,7 @@ export const RegisterFranchiseModal: React.FC = () => {
               <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
                 Driver
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <input
                   type="text"
                   value={driverLastName}
@@ -876,9 +863,14 @@ export const RegisterFranchiseModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-800 mb-1">
-                    Payment Date
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-800">
+                      Payment Date
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Auto UTC
+                    </span>
+                  </div>
                   <input
                     type="date"
                     required

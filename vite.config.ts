@@ -50,7 +50,7 @@ function emailDispatchPlugin(env: Record<string, string> = {}) {
       env.VITE_TEXTBEE_DEVICE_ID ||
       process.env.TEXTBEE_DEVICE_ID ||
       process.env.VITE_TEXTBEE_DEVICE_ID ||
-      '6b0750bb96bbd64a70a96de5'
+      '6b095bed655edd43af8bf896'
     ).trim();
 
   const getTextBeeSimSlot = () =>

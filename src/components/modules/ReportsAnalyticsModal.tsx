@@ -452,7 +452,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
           </button>
         </div>
         {/* Top KPI row (100% DYNAMIC FROM DATABASE) */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="sm:sticky sm:top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 -my-2 border-y border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shadow-xs">
           {/* 1. Active Compliance Rate */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">

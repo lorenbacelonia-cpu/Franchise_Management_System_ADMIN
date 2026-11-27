@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import { ShieldCheck, Menu, RefreshCw, Search, X } from 'lucide-react';
+import { ShieldCheck, Menu, RefreshCw, Clock } from 'lucide-react';
 import type { ActiveModule } from '../types';
 import { NotificationBell } from './NotificationBell';
 
@@ -61,15 +61,32 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
     activeModule,
     isSyncing,
     syncFromDatabase,
-    searchQuery,
-    setSearchQuery,
   } = useFranchise();
 
   const currentMeta = MODULE_TITLES[activeModule] || MODULE_TITLES.overview;
 
+  const [utcTime, setUtcTime] = useState<string>(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+  });
+
+  useEffect(() => {
+    const updateUtc = () => {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setUtcTime(
+        `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`
+      );
+    };
+    updateUtc();
+    const timer = setInterval(updateUtc, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-3.5 no-print">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 lg:px-8 py-3 sm:py-0 sm:h-[72px] flex items-center no-print">
+      <div className="flex items-center justify-between gap-4 flex-wrap w-full">
         {/* Left: Mobile Menu Button + Module Title */}
         <div className="flex items-center space-x-3 min-w-0">
           {onOpenMobileSidebar && (
@@ -98,28 +115,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
           </div>
         </div>
 
-        {/* Center: Search Bar */}
-        <div className="flex-1 max-w-md mx-2 min-w-[200px] order-last sm:order-none w-full sm:w-auto">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search plate, MTOP, driver, operator..."
-              className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-100 hover:bg-slate-200/80 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-full outline-none transition-all placeholder:text-slate-400 shadow-2xs font-medium"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"
-                title="Clear search"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+        {/* Center: Live Automatic UTC Date & Time */}
+        <div className="hidden md:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-slate-700 shadow-2xs font-mono text-xs">
+          <Clock className="h-3.5 w-3.5 text-emerald-600 animate-pulse shrink-0" />
+          <span className="font-semibold text-slate-800 tracking-tight">{utcTime}</span>
+          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/60">
+            UTC
+          </span>
         </div>
 
         {/* Right Actions */}

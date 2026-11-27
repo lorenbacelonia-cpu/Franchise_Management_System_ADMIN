@@ -207,6 +207,42 @@ export const NotificationBell: React.FC = () => {
       }
     });
 
+    // 5. Excessive Violations / Multiple Offender Warning for Admin
+    const offenderCounts = new Map<string, { plate: string; driver: string; count: number; category?: any }>();
+    violations.forEach(v => {
+      const key = (v.cityPlateNumber || v.mtopNumber || '').trim().toUpperCase();
+      if (!key) return;
+      const existing = offenderCounts.get(key) || { plate: key, driver: v.driverName || 'Driver', count: 0, category: (v as any).vehicleCategory };
+      existing.count += 1;
+      if (v.driverName && (existing.driver === 'Driver' || !existing.driver)) {
+        existing.driver = v.driverName;
+      }
+      offenderCounts.set(key, existing);
+    });
+    complaints.forEach(c => {
+      const key = (c.cityPlateNumber || c.mtopNumber || '').trim().toUpperCase();
+      if (!key) return;
+      const existing = offenderCounts.get(key) || { plate: key, driver: 'Driver', count: 0, category: c.vehicleCategory };
+      existing.count += 1;
+      offenderCounts.set(key, existing);
+    });
+
+    offenderCounts.forEach((info, key) => {
+      if (info.count >= 2) {
+        list.push({
+          id: `repeat-${key}`,
+          type: 'violation',
+          title: `⚠️ Excessive Violations: ${info.driver}`,
+          description: `Plate ${info.plate} has ${info.count} recorded violations. Admin reminder: Suspend driver recommended!`,
+          vehicleCategory: info.category || 'Tricycle',
+          plateOrMtop: info.plate,
+          date: 'Action Advised',
+          severity: 'high',
+          targetData: { multipleOffender: true, plate: info.plate }
+        });
+      }
+    });
+
     return list;
   }, [pendingReviews, franchises, complaints, violations]);
 
@@ -270,6 +306,11 @@ export const NotificationBell: React.FC = () => {
         el?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } else if (item.type === 'violation') {
+      if (item.targetData?.multipleOffender) {
+        try {
+          sessionStorage.setItem('tabaco_trd_active_violation_tab', 'multiple_violations');
+        } catch {}
+      }
       setActiveModule('violation_entry');
     }
   };

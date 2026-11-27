@@ -994,9 +994,14 @@ export const ProcessRenewalModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Payment Date
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      Payment Date
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                      Auto UTC
+                    </span>
+                  </div>
                   <input
                     type="date"
                     required

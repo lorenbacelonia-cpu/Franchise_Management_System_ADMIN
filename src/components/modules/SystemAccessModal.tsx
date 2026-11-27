@@ -683,7 +683,7 @@ City Government of Tabaco, Albay`;
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* ── TOP ROLE TAB SELECTOR & MOBILE WEB PORTAL LINK ── */}
-      <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-slate-200 shadow-md flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Tab 1: Admin Users (First) */}
           <button

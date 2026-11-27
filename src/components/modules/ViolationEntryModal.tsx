@@ -18,10 +18,7 @@ import {
   History,
   UserCheck,
   Loader2,
-  Ban,
   PauseCircle,
-  FileEdit,
-  Gavel,
   AlertCircle,
   Image as ImageIcon,
   ZoomIn
@@ -30,15 +27,10 @@ import { maskName } from '../../utils/formatters';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 
 interface SanctionDetail {
-  investigationStatus: 'Under Investigation' | 'Pending Review' | 'Sanction Recommended' | 'Cleared';
-  sanctionStatus: 'Active' | 'Suspended' | 'Deactivated';
+  sanctionStatus: 'Active' | 'Suspended';
   suspensionDuration?: string;
   suspensionEndDate?: string;
-  resolutionNo?: string;
-  hearingDate?: string;
-  hearingTime?: string;
-  investigatorNotes?: string;
-  assignedOfficer?: string;
+  sanctionReason?: string;
   lastUpdated?: string;
   updatedBy?: string;
 }
@@ -74,11 +66,19 @@ export const ViolationEntryModal: React.FC = () => {
     updateComplaintStatus,
     deleteComplaint,
     addComplaintReply,
-    deactivateFranchise,
     currentAdmin,
   } = useFranchise();
 
-  const [activeTab, setActiveTab] = useState<'violations' | 'reports' | 'logs' | 'multiple_violations'>('violations');
+  const [activeTab, setActiveTab] = useState<'violations' | 'reports' | 'logs' | 'multiple_violations'>(() => {
+    try {
+      const saved = sessionStorage.getItem('tabaco_trd_active_violation_tab');
+      if (saved === 'multiple_violations' || saved === 'reports' || saved === 'logs' || saved === 'violations') {
+        sessionStorage.removeItem('tabaco_trd_active_violation_tab');
+        return saved;
+      }
+    } catch {}
+    return 'violations';
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [multipleCategoryFilter, setMultipleCategoryFilter] = useState<'All' | 'Tricycle' | 'Pedicab'>('All');
@@ -114,27 +114,10 @@ export const ViolationEntryModal: React.FC = () => {
 
   // Modals for Multiple Violations Actions
   const [selectedOffenderForSuspend, setSelectedOffenderForSuspend] = useState<MultipleOffenderRow | null>(null);
-  const [suspendActionType, setSuspendActionType] = useState<'suspend' | 'deactivate'>('suspend');
+  const [suspendActionType, setSuspendActionType] = useState<'suspend' | 'lift'>('suspend');
   const [suspensionDurationInput, setSuspensionDurationInput] = useState('15 Days');
   const [sanctionReasonInput, setSanctionReasonInput] = useState('');
   const [isSubmittingSanction, setIsSubmittingSanction] = useState(false);
-
-  const [selectedOffenderForDetails, setSelectedOffenderForDetails] = useState<MultipleOffenderRow | null>(null);
-  const [detailsForm, setDetailsForm] = useState<{
-    investigationStatus: 'Under Investigation' | 'Pending Review' | 'Sanction Recommended' | 'Cleared';
-    resolutionNo: string;
-    hearingDate: string;
-    hearingTime: string;
-    assignedOfficer: string;
-    investigatorNotes: string;
-  }>({
-    investigationStatus: 'Under Investigation',
-    resolutionNo: '',
-    hearingDate: '',
-    hearingTime: '',
-    assignedOfficer: '',
-    investigatorNotes: ''
-  });
 
   if (activeModule !== 'violation_entry') return null;
 
@@ -288,15 +271,14 @@ export const ViolationEntryModal: React.FC = () => {
     // Convert to list & filter for units with multiple infractions (>= 2 real database offenses)
     const list: MultipleOffenderRow[] = [];
     buckets.forEach((bucket, key) => {
-      const sanction = sanctionsMap[key] || {
-        investigationStatus: 'Under Investigation',
-        sanctionStatus: bucket.franchiseStatus === 'Deactivated' ? 'Deactivated' : 'Active',
+      const sanction: SanctionDetail = (sanctionsMap[key] as any) || {
+        sanctionStatus: 'Active',
         lastUpdated: new Date().toISOString(),
         updatedBy: 'System'
       };
 
       const totalCount = bucket.offenses.length;
-      if (totalCount >= 2 || (sanctionsMap[key] && sanctionsMap[key].sanctionStatus !== 'Active')) {
+      if (totalCount >= 2 || (sanctionsMap[key] && sanctionsMap[key].sanctionStatus === 'Suspended')) {
         list.push({
           ...bucket,
           totalCount,
@@ -317,9 +299,8 @@ export const ViolationEntryModal: React.FC = () => {
           return false;
         }
         if (statusFilter !== 'All') {
-          if (statusFilter === 'Under Investigation' && item.sanction.investigationStatus !== 'Under Investigation') return false;
           if (statusFilter === 'Suspended' && item.sanction.sanctionStatus !== 'Suspended') return false;
-          if (statusFilter === 'Deactivated' && item.sanction.sanctionStatus !== 'Deactivated') return false;
+          if (statusFilter === 'Active' && item.sanction.sanctionStatus === 'Suspended') return false;
         }
         const term = searchTerm.toLowerCase();
         if (!term) return true;
@@ -401,43 +382,35 @@ export const ViolationEntryModal: React.FC = () => {
     setExpandedId(null);
   };
 
-  // Open Suspend or Deactivate Modal
-  const openSuspendDeactivateModal = (row: MultipleOffenderRow) => {
+  // Open Suspend Modal
+  const openSuspendModal = (row: MultipleOffenderRow) => {
     setSelectedOffenderForSuspend(row);
-    setSuspendActionType('suspend');
+    setSuspendActionType(row.sanction.sanctionStatus === 'Suspended' ? 'lift' : 'suspend');
     setSuspensionDurationInput(row.sanction.suspensionDuration || '15 Days');
     setSanctionReasonInput(
-      row.sanction.investigatorNotes ||
-      `Sanction due to ${row.totalCount} repeated violations including: ${row.offenses.map(o => o.type).slice(0, 2).join(', ')}.`
+      row.sanction.sanctionReason ||
+      `Driver temporary suspension due to ${row.totalCount} repeated violations including: ${row.offenses.map(o => o.type).slice(0, 2).join(', ')}.`
     );
   };
 
-  // Confirm Suspend or Deactivate
+  // Confirm Suspend or Lift
   const handleConfirmSanction = async () => {
     if (!selectedOffenderForSuspend) return;
     setIsSubmittingSanction(true);
 
     const plateKey = selectedOffenderForSuspend.cityPlateNumber || selectedOffenderForSuspend.mtopNumber;
     const currentSanction = sanctionsMap[plateKey] || {
-      investigationStatus: 'Under Investigation',
       sanctionStatus: 'Active'
     };
 
     try {
-      if (suspendActionType === 'deactivate') {
-        if (selectedOffenderForSuspend.franchiseId) {
-          await deactivateFranchise(
-            selectedOffenderForSuspend.franchiseId,
-            sanctionReasonInput || 'Permanent deactivation due to multiple repeat traffic offenses.'
-          );
-        }
+      if (suspendActionType === 'lift') {
         const updatedSanctions: Record<string, SanctionDetail> = {
           ...sanctionsMap,
           [plateKey]: {
             ...currentSanction,
-            sanctionStatus: 'Deactivated',
-            investigationStatus: 'Sanction Recommended',
-            investigatorNotes: sanctionReasonInput,
+            sanctionStatus: 'Active',
+            sanctionReason: sanctionReasonInput || 'Suspension lifted by Administrator. Driver reinstated to Active status.',
             lastUpdated: new Date().toISOString(),
             updatedBy: currentAdmin?.name || 'Administrator'
           }
@@ -445,18 +418,24 @@ export const ViolationEntryModal: React.FC = () => {
         saveSanctionsMap(updatedSanctions);
         setSyncFeedback({
           type: 'success',
-          message: `Franchise ${plateKey} permanently DEACTIVATED & revoked due to multiple repeat violations!`
+          message: `Suspension LIFTED for Driver ${selectedOffenderForSuspend.driverName} (Plate ${plateKey}). Driver reinstated to Active status!`
         });
       } else {
-        // Temporary Suspension
+        const days = parseInt(suspensionDurationInput) || 15;
+        const endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
         const updatedSanctions: Record<string, SanctionDetail> = {
           ...sanctionsMap,
           [plateKey]: {
             ...currentSanction,
             sanctionStatus: 'Suspended',
             suspensionDuration: suspensionDurationInput,
-            investigationStatus: 'Under Investigation',
-            investigatorNotes: sanctionReasonInput,
+            suspensionEndDate: endDate,
+            sanctionReason: sanctionReasonInput || `Driver suspended for ${suspensionDurationInput} due to ${selectedOffenderForSuspend.totalCount} repeated violations.`,
             lastUpdated: new Date().toISOString(),
             updatedBy: currentAdmin?.name || 'Administrator'
           }
@@ -464,7 +443,7 @@ export const ViolationEntryModal: React.FC = () => {
         saveSanctionsMap(updatedSanctions);
         setSyncFeedback({
           type: 'success',
-          message: `Franchise ${plateKey} placed on ${suspensionDurationInput} SUSPENSION. Marked in records!`
+          message: `Driver ${selectedOffenderForSuspend.driverName} (Plate ${plateKey}) placed on ${suspensionDurationInput} SUSPENSION!`
         });
       }
       setTimeout(() => setSyncFeedback(null), 5000);
@@ -474,52 +453,6 @@ export const ViolationEntryModal: React.FC = () => {
     } finally {
       setIsSubmittingSanction(false);
     }
-  };
-
-  // Open Add Details Modal
-  const openAddDetailsModal = (row: MultipleOffenderRow) => {
-    setSelectedOffenderForDetails(row);
-    setDetailsForm({
-      investigationStatus: row.sanction.investigationStatus || 'Under Investigation',
-      resolutionNo: row.sanction.resolutionNo || `TRD-RES-2026-${Math.floor(100 + Math.random() * 900)}`,
-      hearingDate: row.sanction.hearingDate || new Date().toISOString().split('T')[0],
-      hearingTime: row.sanction.hearingTime || '10:00 AM',
-      assignedOfficer: row.sanction.assignedOfficer || currentAdmin?.name || 'Hearing Officer',
-      investigatorNotes: row.sanction.investigatorNotes || ''
-    });
-  };
-
-  // Save Add Details
-  const handleSaveDetails = () => {
-    if (!selectedOffenderForDetails) return;
-    const plateKey = selectedOffenderForDetails.cityPlateNumber || selectedOffenderForDetails.mtopNumber;
-    const currentSanction = sanctionsMap[plateKey] || {
-      investigationStatus: 'Under Investigation',
-      sanctionStatus: 'Active'
-    };
-
-    const updatedSanctions: Record<string, SanctionDetail> = {
-      ...sanctionsMap,
-      [plateKey]: {
-        ...currentSanction,
-        investigationStatus: detailsForm.investigationStatus,
-        resolutionNo: detailsForm.resolutionNo,
-        hearingDate: detailsForm.hearingDate,
-        hearingTime: detailsForm.hearingTime,
-        assignedOfficer: detailsForm.assignedOfficer,
-        investigatorNotes: detailsForm.investigatorNotes,
-        lastUpdated: new Date().toISOString(),
-        updatedBy: currentAdmin?.name || 'Administrator'
-      }
-    };
-
-    saveSanctionsMap(updatedSanctions);
-    setSyncFeedback({
-      type: 'success',
-      message: `Investigation details for ${plateKey} saved successfully!`
-    });
-    setTimeout(() => setSyncFeedback(null), 4000);
-    setSelectedOffenderForDetails(null);
   };
 
   const violationStatusOptions = ['Pending', 'Settled'] as const;
@@ -557,8 +490,8 @@ export const ViolationEntryModal: React.FC = () => {
   const pendingComplaints = (complaints || []).filter(c => c.status === 'Pending').length;
   const resolvedComplaints = (complaints || []).filter(c => c.status === 'Resolved').length;
 
-  const underInvestigationMultipleCount = multipleOffenders.filter(o => o.sanction.investigationStatus === 'Under Investigation').length;
-  const sanctionedMultipleCount = multipleOffenders.filter(o => o.sanction.sanctionStatus === 'Suspended' || o.sanction.sanctionStatus === 'Deactivated').length;
+  const suspendedMultipleCount = multipleOffenders.filter(o => o.sanction.sanctionStatus === 'Suspended').length;
+  const activePendingMultipleCount = multipleOffenders.filter(o => o.sanction.sanctionStatus !== 'Suspended').length;
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -637,11 +570,11 @@ export const ViolationEntryModal: React.FC = () => {
         )}
 
         {/* Tab pills */}
-        <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="sticky top-[72px] z-20 flex items-center gap-2 bg-white/95 backdrop-blur-md p-2 sm:p-2.5 rounded-2xl border border-slate-200 shadow-md overflow-x-auto no-scrollbar flex-nowrap sm:flex-wrap">
           {/* Tab 1: Violations */}
           <button
             onClick={() => switchTab('violations')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === 'violations'
                 ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -654,7 +587,7 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 2: Passenger Reports */}
           <button
             onClick={() => switchTab('reports')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === 'reports'
                 ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -667,7 +600,7 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 3: Removed Records Audit Log */}
           <button
             onClick={() => switchTab('logs')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === 'logs'
                 ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/30'
                 : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -680,7 +613,7 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 4: Total of Multiple Violations (Placed right beside Removed Records Audit Log) */}
           <button
             onClick={() => switchTab('multiple_violations')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === 'multiple_violations'
                 ? 'bg-rose-700 text-white shadow-md shadow-rose-700/30 ring-2 ring-rose-400'
                 : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
@@ -691,7 +624,7 @@ export const ViolationEntryModal: React.FC = () => {
           </button>
 
           {/* Read-only notice */}
-          <span className="ml-auto inline-flex items-center space-x-1.5 text-slate-500 font-semibold bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-[11px]">
+          <span className="ml-auto hidden md:inline-flex items-center space-x-1.5 text-slate-500 font-semibold bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-[11px] shrink-0 whitespace-nowrap">
             <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
             <span>Admin Clearance Required to Purge</span>
           </span>
@@ -733,26 +666,21 @@ export const ViolationEntryModal: React.FC = () => {
         )}
 
         {activeTab === 'multiple_violations' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Total Multiple Violations</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400">Total Flagged Drivers</span>
               <p className="text-xl font-black text-rose-700">{multipleOffenders.length}</p>
               <p className="text-[10px] text-slate-500 font-medium">Franchises with 2+ Offenses</p>
             </div>
             <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-amber-700">Under Investigation</span>
-              <p className="text-xl font-black text-amber-800">{underInvestigationMultipleCount}</p>
-              <p className="text-[10px] text-amber-600 font-medium">Pending hearing &amp; inquiry</p>
+              <span className="text-[10px] uppercase font-bold text-amber-700">Action Required (Active)</span>
+              <p className="text-xl font-black text-amber-800">{activePendingMultipleCount}</p>
+              <p className="text-[10px] text-amber-600 font-medium">Excessive infractions awaiting sanction</p>
             </div>
             <div className="bg-purple-50 p-3.5 rounded-2xl border border-purple-200 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-purple-700">Suspended / Deactivated</span>
-              <p className="text-xl font-black text-purple-800">{sanctionedMultipleCount}</p>
-              <p className="text-[10px] text-purple-600 font-medium">Sanctions enacted</p>
-            </div>
-            <div className="bg-slate-900 text-white p-3.5 rounded-2xl shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Sanction Authority</span>
-              <p className="text-sm font-bold text-emerald-400 mt-1">TRD Legal Board</p>
-              <p className="text-[10px] text-slate-400">Ordinance No. 04-2024</p>
+              <span className="text-[10px] uppercase font-bold text-purple-700">Suspended Drivers</span>
+              <p className="text-xl font-black text-purple-800">{suspendedMultipleCount}</p>
+              <p className="text-[10px] text-purple-600 font-medium">Currently on active driver suspension</p>
             </div>
           </div>
         )}
@@ -818,7 +746,7 @@ export const ViolationEntryModal: React.FC = () => {
                 </div>
 
                 <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs">
-                  {(['All', 'Under Investigation', 'Suspended', 'Deactivated'] as const).map(s => (
+                  {(['All', 'Active', 'Suspended'] as const).map(s => (
                     <button
                       key={s}
                       type="button"
@@ -829,7 +757,7 @@ export const ViolationEntryModal: React.FC = () => {
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      {s}
+                      {s === 'Active' ? 'Active Flagged' : s}
                     </button>
                   ))}
                 </div>
@@ -933,7 +861,7 @@ export const ViolationEntryModal: React.FC = () => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-semibold text-slate-900">{v.operatorName || '—'}</div>
-                            <div className="text-[11px] text-slate-500">Driver: {v.driverName || '—'}</div>
+                            <div className="text-[11px] text-slate-500">Driver: <strong className="text-slate-800">{v.driverName || '—'}</strong></div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-bold text-rose-600">{v.violationType || 'General Violation'}</div>
@@ -964,7 +892,11 @@ export const ViolationEntryModal: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleToggleExpand(v.id)}
-                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
+                                  expandedId === v.id
+                                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-slate-400'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                                 <span>Manage</span>
@@ -989,85 +921,87 @@ export const ViolationEntryModal: React.FC = () => {
                           </td>
                         </tr>
 
-                        {/* Expandable manage panel */}
+                        {/* Expandable manage panel with prominent border drop shadow */}
                         {expandedId === v.id && (
-                          <tr className="bg-slate-50/60">
-                            <td colSpan={8} className="px-6 py-4">
-                              <div className="flex flex-col sm:flex-row gap-4">
-                                {/* Status change */}
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[220px]">
-                                  <p className="text-xs font-bold text-slate-700 mb-3">
-                                    Update Violation Status
-                                  </p>
-                                  <div className="flex flex-col gap-2">
-                                    {violationStatusOptions.map(s => (
-                                      <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() =>
-                                          handleViolationStatusUpdate(v.id, s)
-                                        }
-                                        className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
-                                          v.status === s
-                                            ? getViolationStatusStyle(s) +
-                                              ' ring-2 ring-offset-1 ring-slate-300'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                        }`}
-                                      >
-                                        {s === 'Settled' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                        {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
-                                        <span>{s}</span>
-                                      </button>
-                                    ))}
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeletingViolation(v)}
-                                      className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      <span>Delete Citation</span>
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Evidence photo preview */}
-                                {evidenceImg && (
-                                  <div className="bg-white p-4 rounded-xl border border-slate-200 shrink-0">
-                                    <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
-                                      <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
-                                      <span>Attached Photo Evidence</span>
+                          <tr className="bg-slate-50/50">
+                            <td colSpan={8} className="px-4 sm:px-6 py-4">
+                              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                  {/* Status change */}
+                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
+                                    <p className="text-xs font-bold text-slate-700 mb-3">
+                                      Update Violation Status
                                     </p>
-                                    <div
-                                      onClick={() => setLightboxImage({ url: evidenceImg, title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}` })}
-                                      className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all"
-                                    >
-                                      <img src={evidenceImg} alt="Proof" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
-                                        <ZoomIn className="h-4 w-4" />
-                                        <span>Click to Zoom</span>
-                                      </div>
+                                    <div className="flex flex-col gap-2">
+                                      {violationStatusOptions.map(s => (
+                                        <button
+                                          key={s}
+                                          type="button"
+                                          onClick={() =>
+                                            handleViolationStatusUpdate(v.id, s)
+                                          }
+                                          className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
+                                            v.status === s
+                                              ? getViolationStatusStyle(s) +
+                                                ' ring-2 ring-offset-1 ring-slate-300'
+                                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                          }`}
+                                        >
+                                          {s === 'Settled' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                          {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
+                                          <span>{s}</span>
+                                        </button>
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeletingViolation(v)}
+                                        className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span>Delete Citation</span>
+                                      </button>
                                     </div>
                                   </div>
-                                )}
 
-                                {/* Admin notes */}
-                                <div className="flex-1 bg-white p-4 rounded-xl border border-slate-200 space-y-3">
-                                  <p className="text-xs font-bold text-slate-700">Internal Admin Notes</p>
-                                  <textarea
-                                    rows={3}
-                                    value={adminNotes[v.id] ?? (v.remarks || '')}
-                                    onChange={e =>
-                                      setAdminNotes(prev => ({ ...prev, [v.id]: e.target.value }))
-                                    }
-                                    placeholder="Add internal admin notes about this violation citation..."
-                                    className="w-full p-2.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium text-slate-800 resize-none"
-                                  />
-                                  {v.remarks && (
-                                    <p className="text-[10px] text-slate-400">
-                                      <span className="font-semibold">Issuing citation remark:</span>{' '}
-                                      {v.remarks}
-                                    </p>
+                                  {/* Evidence photo preview */}
+                                  {evidenceImg && (
+                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
+                                      <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                        <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
+                                        <span>Attached Photo Evidence</span>
+                                      </p>
+                                      <div
+                                        onClick={() => setLightboxImage({ url: evidenceImg, title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}` })}
+                                        className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all"
+                                      >
+                                        <img src={evidenceImg} alt="Proof" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                          <ZoomIn className="h-4 w-4" />
+                                          <span>Click to Zoom</span>
+                                        </div>
+                                      </div>
+                                    </div>
                                   )}
+
+                                  {/* Admin notes */}
+                                  <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
+                                    <p className="text-xs font-bold text-slate-700">Internal Admin Notes</p>
+                                    <textarea
+                                      rows={3}
+                                      value={adminNotes[v.id] ?? (v.remarks || '')}
+                                      onChange={e =>
+                                        setAdminNotes(prev => ({ ...prev, [v.id]: e.target.value }))
+                                      }
+                                      placeholder="Add internal admin notes about this violation citation..."
+                                      className="w-full p-2.5 text-[11px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium text-slate-800 resize-none shadow-2xs"
+                                    />
+                                    {v.remarks && (
+                                      <p className="text-[10px] text-slate-400">
+                                        <span className="font-semibold">Issuing citation remark:</span>{' '}
+                                        {v.remarks}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -1176,7 +1110,11 @@ export const ViolationEntryModal: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleToggleExpand(c.id)}
-                                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
+                                  expandedId === c.id
+                                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-slate-400'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                }`}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                                 <span>Respond</span>
@@ -1203,65 +1141,66 @@ export const ViolationEntryModal: React.FC = () => {
 
                         {/* Expandable chat response panel */}
                         {expandedId === c.id && (
-                          <tr className="bg-slate-50/60">
-                            <td colSpan={6} className="px-6 py-4">
-                              <div className="flex flex-col lg:flex-row gap-4">
-                                {/* Complainant attached photo preview */}
-                                {compEvidenceImg && (
-                                  <div className="bg-white p-4 rounded-xl border border-slate-200 shrink-0">
-                                    <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
-                                      <ImageIcon className="h-3.5 w-3.5 text-sky-600" />
-                                      <span>Attached Citizen Photo</span>
-                                    </p>
-                                    <div
-                                      onClick={() => setLightboxImage({ url: compEvidenceImg, title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}` })}
-                                      className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-sky-500 transition-all"
-                                    >
-                                      <img src={compEvidenceImg} alt="Report evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
-                                        <ZoomIn className="h-4 w-4" />
-                                        <span>Click to Zoom</span>
+                          <tr className="bg-slate-50/50">
+                            <td colSpan={6} className="px-4 sm:px-6 py-4">
+                              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
+                                <div className="flex flex-col lg:flex-row gap-4">
+                                  {/* Complainant attached photo preview */}
+                                  {compEvidenceImg && (
+                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
+                                      <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                        <ImageIcon className="h-3.5 w-3.5 text-sky-600" />
+                                        <span>Attached Citizen Photo</span>
+                                      </p>
+                                      <div
+                                        onClick={() => setLightboxImage({ url: compEvidenceImg, title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}` })}
+                                        className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-sky-500 transition-all"
+                                      >
+                                        <img src={compEvidenceImg} alt="Report evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                          <ZoomIn className="h-4 w-4" />
+                                          <span>Click to Zoom</span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
 
-                                {/* Status update options */}
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 min-w-[220px]">
-                                  <p className="text-xs font-bold text-slate-700 mb-3">
-                                    Update Report Status
-                                  </p>
-                                  <div className="flex flex-col gap-2">
-                                    {reportStatusOptions.map(s => (
+                                  {/* Status update options */}
+                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
+                                    <p className="text-xs font-bold text-slate-700 mb-3">
+                                      Update Report Status
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                      {reportStatusOptions.map(s => (
+                                        <button
+                                          key={s}
+                                          type="button"
+                                          onClick={() => handleReportStatusUpdate(c.id, s)}
+                                          className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
+                                            c.status === s
+                                              ? getComplaintStatusStyle(s) + ' ring-2 ring-offset-1 ring-slate-300'
+                                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                          }`}
+                                        >
+                                          {s === 'Resolved' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                          {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
+                                          {s === 'Escalated' && <ShieldAlert className="h-3.5 w-3.5" />}
+                                          <span>{s}</span>
+                                        </button>
+                                      ))}
                                       <button
-                                        key={s}
                                         type="button"
-                                        onClick={() => handleReportStatusUpdate(c.id, s)}
-                                        className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
-                                          c.status === s
-                                            ? getComplaintStatusStyle(s) + ' ring-2 ring-offset-1 ring-slate-300'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                                        }`}
+                                        onClick={() => setDeletingComplaint(c)}
+                                        className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
                                       >
-                                        {s === 'Resolved' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                        {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
-                                        {s === 'Escalated' && <ShieldAlert className="h-3.5 w-3.5" />}
-                                        <span>{s}</span>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span>Delete Report</span>
                                       </button>
-                                    ))}
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeletingComplaint(c)}
-                                      className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      <span>Delete Report</span>
-                                    </button>
+                                    </div>
                                   </div>
-                                </div>
 
-                                {/* Citizen message details & respond thread */}
-                                <div className="flex-1 bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                                  {/* Citizen message details & respond thread */}
+                                  <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
                                   <div>
                                     <span className="text-[10px] uppercase font-bold text-slate-400">Original Citizen Report:</span>
                                     <p className="text-xs font-medium text-slate-800 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
@@ -1333,8 +1272,9 @@ export const ViolationEntryModal: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                            </td>
-                          </tr>
+                            </div>
+                          </td>
+                        </tr>
                         )}
                       </React.Fragment>
                       );
@@ -1445,18 +1385,46 @@ export const ViolationEntryModal: React.FC = () => {
         {/* ── 4. TOTAL OF MULTIPLE VIOLATIONS TABLE (Beside Removed Audit Log) ─── */}
         {activeTab === 'multiple_violations' && (
           <div className="space-y-4">
+            {/* ── ADMIN REMINDER BANNER: EXCESSIVE DRIVER VIOLATIONS ── */}
+            <div className="bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-400 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 bg-amber-500 text-slate-950 rounded-xl font-black shrink-0 shadow-xs">
+                  <AlertTriangle className="h-5 w-5 text-slate-950" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white px-2 py-0.5 rounded-md shadow-2xs">
+                      Admin Action Required
+                    </span>
+                    <h4 className="text-xs font-black text-slate-900">
+                      Driver Excessive Violations Reminder
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-700 mt-1 font-medium leading-relaxed">
+                    The system flagged <strong className="text-rose-700 font-bold">{filteredMultipleOffenders.length} driver(s) / unit(s)</strong> with repeated offenses (2 or more citations &amp; passenger reports). 
+                    Immediate administrative sanction (<strong className="text-amber-900 font-bold">Suspend Driver</strong>) is recommended for drivers with too many violations.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 flex items-center space-x-2">
+                <span className="text-xs font-mono font-black px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-950 shadow-2xs">
+                  {filteredMultipleOffenders.filter(o => o.sanction.sanctionStatus === 'Suspended').length} Suspended / {filteredMultipleOffenders.length} Flagged
+                </span>
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-rose-600" />
-                    <span>Total of Multiple Violations to Suspend or Deactivate Franchise</span>
+                    <span>Total of Multiple Violations — Driver Suspension</span>
                     <span className="bg-rose-100 text-rose-800 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-200">
                       {filteredMultipleOffenders.length} Franchises Flagged
                     </span>
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Units with repeated citations and citizen reports under investigation for administrative sanctions (Suspension / Deactivation).
+                    Drivers and vehicles with repeated citations and citizen reports flagged for administrative suspension.
                   </p>
                 </div>
               </div>
@@ -1470,15 +1438,14 @@ export const ViolationEntryModal: React.FC = () => {
                       <th className="px-4 py-3">Operator &amp; Driver</th>
                       <th className="px-4 py-3 text-center">Total Violations</th>
                       <th className="px-4 py-3">Offenses Recorded</th>
-                      <th className="px-4 py-3">Investigation Status</th>
-                      <th className="px-4 py-3">Sanction State</th>
+                      <th className="px-4 py-3">Driver Status</th>
                       <th className="px-4 py-3 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredMultipleOffenders.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-14 text-center">
+                        <td colSpan={7} className="px-6 py-14 text-center">
                           <div className="flex flex-col items-center space-y-2">
                             <ShieldCheck className="h-8 w-8 text-emerald-400" />
                             <p className="text-xs font-bold text-slate-700">No multiple violations found</p>
@@ -1490,9 +1457,7 @@ export const ViolationEntryModal: React.FC = () => {
                       </tr>
                     ) : (
                       filteredMultipleOffenders.map((row) => {
-                        const isUnderInvestigation = row.sanction.investigationStatus === 'Under Investigation';
                         const isSuspended = row.sanction.sanctionStatus === 'Suspended';
-                        const isDeactivated = row.sanction.sanctionStatus === 'Deactivated';
 
                         return (
                           <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1522,7 +1487,20 @@ export const ViolationEntryModal: React.FC = () => {
                             {/* Operator & Driver */}
                             <td className="px-4 py-3.5">
                               <div className="font-semibold text-slate-900">{row.operatorName || '—'}</div>
-                              <div className="text-[11px] text-slate-500">Driver: {row.driverName || '—'}</div>
+                              <div className="text-[11px] text-slate-600 font-medium">Driver: <strong className="text-slate-900">{row.driverName || '—'}</strong></div>
+                              <div className="mt-1">
+                                {row.totalCount >= 3 ? (
+                                  <span className="inline-flex items-center space-x-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-300 px-2 py-0.5 rounded-full shadow-2xs">
+                                    <AlertTriangle className="h-2.5 w-2.5 text-rose-600" />
+                                    <span>⚠️ Excessive Violations ({row.totalCount}x) — Suspend Driver</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full shadow-2xs">
+                                    <AlertCircle className="h-2.5 w-2.5 text-amber-600" />
+                                    <span>Repeat Offender ({row.totalCount}x)</span>
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Total Violations Badge */}
@@ -1534,7 +1512,7 @@ export const ViolationEntryModal: React.FC = () => {
 
                             {/* Offenses list */}
                             <td className="px-4 py-3.5">
-                              <div className="flex flex-wrap gap-1 max-w-[260px]">
+                              <div className="flex flex-wrap gap-1 max-w-[280px]">
                                 {row.offenses.slice(0, 3).map((offense, i) => (
                                   <span
                                     key={i}
@@ -1552,81 +1530,43 @@ export const ViolationEntryModal: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* Under Investigation Status */}
+                            {/* Driver Status (Active / Suspended) */}
                             <td className="px-4 py-3.5 whitespace-nowrap">
-                              {isUnderInvestigation ? (
-                                <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-full shadow-xs animate-pulse">
-                                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping mr-0.5" />
-                                  <span>under investigation</span>
-                                </span>
-                              ) : (
-                                <span className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                  row.sanction.investigationStatus === 'Sanction Recommended'
-                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                    : row.sanction.investigationStatus === 'Pending Review'
-                                    ? 'bg-sky-50 text-sky-700 border-sky-200'
-                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                }`}>
-                                  <span>{row.sanction.investigationStatus}</span>
-                                </span>
-                              )}
-                              {row.sanction.resolutionNo && (
-                                <div className="text-[9px] text-slate-400 font-mono mt-0.5">
-                                  {row.sanction.resolutionNo}
-                                </div>
-                              )}
-                            </td>
-
-                            {/* Sanction State (Active / Suspended / Deactivated) */}
-                            <td className="px-4 py-3.5 whitespace-nowrap">
-                              {isDeactivated ? (
-                                <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-rose-800 bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-full">
-                                  <Ban className="h-3 w-3 text-rose-600" />
-                                  <span>Deactivated</span>
-                                </span>
-                              ) : isSuspended ? (
+                              {isSuspended ? (
                                 <div>
-                                  <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-purple-800 bg-purple-100 border border-purple-300 px-2.5 py-1 rounded-full">
+                                  <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-purple-800 bg-purple-100 border border-purple-300 px-2.5 py-1 rounded-full shadow-xs">
                                     <PauseCircle className="h-3 w-3 text-purple-600" />
                                     <span>Suspended ({row.sanction.suspensionDuration || '15 Days'})</span>
                                   </span>
                                   {row.sanction.suspensionEndDate && (
-                                    <div className="text-[9px] text-purple-700 font-medium mt-0.5">
+                                    <div className="text-[10px] text-purple-700 font-medium mt-0.5">
                                       Until {row.sanction.suspensionEndDate}
                                     </div>
                                   )}
                                 </div>
                               ) : (
                                 <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                                  <AlertCircle className="h-3 w-3" />
-                                  <span>Action Recommended</span>
+                                  <AlertCircle className="h-3 w-3 text-amber-600" />
+                                  <span>Active (Action Recommended)</span>
                                 </span>
                               )}
                             </td>
 
-                            {/* Actions: Suspend or Deactivate & Add Details */}
+                            {/* Actions: Suspend Driver Button */}
                             <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center space-x-2">
-                                {/* Suspend or Deactivate Button */}
+                              <div className="flex items-center justify-center">
                                 <button
                                   type="button"
-                                  onClick={() => openSuspendDeactivateModal(row)}
-                                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
-                                  title="Enact Suspension or Deactivation on this Franchise"
+                                  onClick={() => openSuspendModal(row)}
+                                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                    isSuspended
+                                      ? 'bg-purple-700 hover:bg-purple-800 text-white ring-2 ring-purple-400'
+                                      : 'bg-amber-600 hover:bg-amber-700 text-white'
+                                  }`}
+                                  title={isSuspended ? "Driver is currently Suspended. Click to manage or lift suspension." : "Suspend Driver for excessive repeated violations"}
                                 >
-                                  <Gavel className="h-3.5 w-3.5" />
-                                  <span>suspend or deactivate</span>
-                                </button>
-
-                                {/* Add details Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => openAddDetailsModal(row)}
-                                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
-                                  title="Add or update investigation hearing details, resolution # and notes"
-                                >
-                                  <FileEdit className="h-3.5 w-3.5 text-slate-500" />
-                                  <span>Add details</span>
+                                  <PauseCircle className="h-3.5 w-3.5" />
+                                  <span>{isSuspended ? 'Suspended (Manage)' : 'Suspend Driver'}</span>
                                 </button>
                               </div>
                             </td>
@@ -1643,18 +1583,18 @@ export const ViolationEntryModal: React.FC = () => {
 
       </div>
 
-      {/* ── MODAL: SUSPEND OR DEACTIVATE FRANCHISE ───────────────────────────── */}
+      {/* ── MODAL: SUSPEND DRIVER ───────────────────────────── */}
       {selectedOffenderForSuspend && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-rose-900 to-slate-900 text-white p-5 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30">
-                  <Gavel className="h-5 w-5" />
+                <div className="p-2 bg-amber-500/20 text-amber-300 rounded-xl border border-amber-500/30">
+                  <PauseCircle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold">Sanction Franchise: Suspend or Deactivate</h3>
+                  <h3 className="text-sm font-bold">Driver Sanction: Suspend Driver</h3>
                   <p className="text-[11px] text-slate-300">
                     City Plate: <span className="font-mono font-bold text-white">{selectedOffenderForSuspend.cityPlateNumber}</span> ({selectedOffenderForSuspend.vehicleCategory})
                   </p>
@@ -1670,67 +1610,75 @@ export const ViolationEntryModal: React.FC = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-5 space-y-4 text-xs">
-              {/* Unit Info Summary */}
-              <div className="bg-rose-50 p-3.5 rounded-xl border border-rose-200 space-y-1">
+            <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1">
+              {/* Unit Info Summary & Admin Reminder */}
+              <div className="bg-gradient-to-r from-amber-50 to-rose-50 p-4 rounded-xl border-2 border-amber-300 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-rose-900">Total Recorded Infractions:</span>
-                  <span className="px-2 py-0.5 rounded-full bg-rose-200 text-rose-800 font-black text-xs">
-                    {selectedOffenderForSuspend.totalCount} Violations
+                  <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 animate-pulse" />
+                    <span>Admin Reminder: Excessive Driver Violations</span>
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-600 text-white font-black text-xs shadow-2xs">
+                    {selectedOffenderForSuspend.totalCount} Recorded Offenses
                   </span>
                 </div>
-                <p className="text-[11px] text-rose-700">
-                  Operator: <span className="font-semibold">{selectedOffenderForSuspend.operatorName}</span> • Driver: <span className="font-semibold">{selectedOffenderForSuspend.driverName}</span>
+                <p className="text-[11px] text-slate-800">
+                  Driver: <strong className="text-slate-950 font-bold text-xs">{selectedOffenderForSuspend.driverName}</strong> • Operator: <strong className="text-slate-900 font-semibold">{selectedOffenderForSuspend.operatorName}</strong>
+                </p>
+                <p className="text-[10px] text-rose-700 font-semibold leading-relaxed">
+                  Notice: This driver has accumulated too many citations and reports. Under city transport regulation, temporary driver suspension is strongly advised to prevent further safety violations.
                 </p>
               </div>
 
               {/* Action Chooser */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800">Select Sanction Action:</label>
-                <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs font-bold text-slate-800">Action Type:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setSuspendActionType('suspend')}
                     className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                       suspendActionType === 'suspend'
-                        ? 'bg-purple-50 border-purple-500 text-purple-900 ring-2 ring-purple-400 shadow-xs'
+                        ? 'bg-amber-50 border-amber-500 text-amber-950 ring-2 ring-amber-400 shadow-xs'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="flex items-center space-x-1.5 font-bold">
-                      <PauseCircle className="h-4 w-4 text-purple-600" />
-                      <span>Suspend Franchise</span>
+                    <div className="flex items-center space-x-1.5 font-bold text-amber-800">
+                      <PauseCircle className="h-4 w-4 text-amber-600" />
+                      <span>{selectedOffenderForSuspend.sanction.sanctionStatus === 'Suspended' ? 'Update Suspension' : 'Suspend Driver'}</span>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1">
-                      Temporary suspension of operating privileges (7 to 60 days).
+                      Enact or adjust driver suspension ({suspensionDurationInput}).
                     </p>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSuspendActionType('deactivate')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                      suspendActionType === 'deactivate'
-                        ? 'bg-rose-50 border-rose-500 text-rose-900 ring-2 ring-rose-400 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-1.5 font-bold">
-                      <Ban className="h-4 w-4 text-rose-600" />
-                      <span>Deactivate Franchise</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Full permit deactivation and revocation from registry.
-                    </p>
-                  </button>
+                  {selectedOffenderForSuspend.sanction.sanctionStatus === 'Suspended' ? (
+                    <button
+                      type="button"
+                      onClick={() => setSuspendActionType('lift')}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        suspendActionType === 'lift'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400 shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1.5 font-bold text-emerald-800">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span>Lift Suspension</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Reinstate driver to Active status.
+                      </p>
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
               {/* Suspension Duration selector (if suspend) */}
               {suspendActionType === 'suspend' && (
                 <div className="space-y-1.5 animate-fadeIn">
-                  <label className="text-xs font-bold text-slate-800">Suspension Duration:</label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <label className="text-xs font-bold text-slate-800">Suspension Duration for Driver:</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {['7 Days', '15 Days', '30 Days', '60 Days'].map(dur => (
                       <button
                         key={dur}
@@ -1738,7 +1686,7 @@ export const ViolationEntryModal: React.FC = () => {
                         onClick={() => setSuspensionDurationInput(dur)}
                         className={`py-2 px-2 text-center rounded-lg font-bold text-xs border cursor-pointer transition-all ${
                           suspensionDurationInput === dur
-                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
                             : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                         }`}
                       >
@@ -1752,14 +1700,14 @@ export const ViolationEntryModal: React.FC = () => {
               {/* Reason / Legal ground */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800">
-                  Legal Grounds &amp; Sanction Reference:
+                  Administrative Reason / Note:
                 </label>
                 <textarea
                   rows={3}
                   value={sanctionReasonInput}
                   onChange={e => setSanctionReasonInput(e.target.value)}
-                  placeholder="State the administrative finding and ordinance clause (e.g., Repeat offense under Ordinance 04-2024)..."
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium text-slate-800 resize-none"
+                  placeholder="State the administrative finding or citation reference..."
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium text-slate-800 resize-none"
                 />
               </div>
 
@@ -1783,152 +1731,17 @@ export const ViolationEntryModal: React.FC = () => {
                 disabled={isSubmittingSanction}
                 onClick={handleConfirmSanction}
                 className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer flex items-center space-x-1.5 ${
-                  suspendActionType === 'deactivate'
-                    ? 'bg-rose-700 hover:bg-rose-800'
-                    : 'bg-purple-700 hover:bg-purple-800'
+                  suspendActionType === 'lift'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-amber-600 hover:bg-amber-700'
                 }`}
               >
                 {isSubmittingSanction && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>
-                  {suspendActionType === 'deactivate'
-                    ? 'Confirm Deactivation'
-                    : `Confirm ${suspensionDurationInput} Suspension`}
+                  {suspendActionType === 'lift'
+                    ? 'Confirm Lift Suspension'
+                    : `Confirm ${suspensionDurationInput} Driver Suspension`}
                 </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: ADD DETAILS (Under Investigation / Hearing Details) ────────── */}
-      {selectedOffenderForDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-slate-800 text-sky-400 rounded-xl border border-slate-700">
-                  <FileEdit className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold">Add Investigation &amp; Hearing Details</h3>
-                  <p className="text-[11px] text-slate-300">
-                    Plate: <span className="font-mono font-bold text-white">{selectedOffenderForDetails.cityPlateNumber}</span> ({selectedOffenderForDetails.vehicleCategory})
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedOffenderForDetails(null)}
-                className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Modal Form */}
-            <div className="p-5 space-y-3.5 text-xs">
-              {/* Investigation Status selector */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800">Investigation Status:</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['Under Investigation', 'Pending Review', 'Sanction Recommended', 'Cleared'] as const).map(status => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setDetailsForm(prev => ({ ...prev, investigationStatus: status }))}
-                      className={`p-2 rounded-xl text-xs font-bold border text-left cursor-pointer transition-all flex items-center space-x-1.5 ${
-                        detailsForm.investigationStatus === status
-                          ? status === 'Under Investigation'
-                            ? 'bg-amber-50 border-amber-500 text-amber-900 ring-2 ring-amber-400'
-                            : status === 'Sanction Recommended'
-                            ? 'bg-rose-50 border-rose-500 text-rose-900 ring-2 ring-rose-400'
-                            : 'bg-sky-50 border-sky-500 text-sky-900 ring-2 ring-sky-400'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {status === 'Under Investigation' && <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />}
-                      {status === 'Sanction Recommended' && <Gavel className="h-3.5 w-3.5 text-rose-600" />}
-                      {status === 'Cleared' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
-                      {status === 'Pending Review' && <Clock className="h-3.5 w-3.5 text-sky-600" />}
-                      <span>{status}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Resolution # and Hearing Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800">Resolution / Docket #:</label>
-                  <input
-                    type="text"
-                    value={detailsForm.resolutionNo}
-                    onChange={e => setDetailsForm(prev => ({ ...prev, resolutionNo: e.target.value }))}
-                    placeholder="e.g. TRD-RES-2026-089"
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-800">Hearing Date &amp; Time:</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={detailsForm.hearingDate}
-                      onChange={e => setDetailsForm(prev => ({ ...prev, hearingDate: e.target.value }))}
-                      className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    />
-                    <input
-                      type="text"
-                      value={detailsForm.hearingTime}
-                      onChange={e => setDetailsForm(prev => ({ ...prev, hearingTime: e.target.value }))}
-                      placeholder="10:00 AM"
-                      className="w-24 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Assigned Officer */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800">Assigned Hearing / Investigation Officer:</label>
-                <input
-                  type="text"
-                  value={detailsForm.assignedOfficer}
-                  onChange={e => setDetailsForm(prev => ({ ...prev, assignedOfficer: e.target.value }))}
-                  placeholder="Officer name..."
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* Detailed Findings & Investigation Notes */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800">Investigation Notes &amp; Minutes:</label>
-                <textarea
-                  rows={4}
-                  value={detailsForm.investigatorNotes}
-                  onChange={e => setDetailsForm(prev => ({ ...prev, investigatorNotes: e.target.value }))}
-                  placeholder="Document specific violation occurrences, passenger testimonies, driver responses, or committee recommendations..."
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium text-slate-800 resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setSelectedOffenderForDetails(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveDetails}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                Save Details
               </button>
             </div>
           </div>
