@@ -26,7 +26,7 @@ import {
   buildPermanentQrPayload
 } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-import { generateQrDataUrl } from '../../utils/qrGenerator';
+import { generateQrDataUrl, getSvgQrDataUrl } from '../../utils/qrGenerator';
 
 export const QRScannerModal: React.FC = () => {
   const { 
@@ -484,6 +484,12 @@ export const QRScannerModal: React.FC = () => {
                             src={qrDataUrl}
                             alt="System QR Code"
                             className="w-52 h-52 sm:w-60 sm:h-60 object-contain"
+                            onError={async (e) => {
+                              if (permanentQrPayload) {
+                                const svgData = await getSvgQrDataUrl(permanentQrPayload, 280);
+                                if (svgData) (e.target as HTMLImageElement).src = svgData;
+                              }
+                            }}
                           />
                         ) : (
                           <div className="w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center bg-slate-50 text-slate-400">

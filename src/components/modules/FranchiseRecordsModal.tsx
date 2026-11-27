@@ -27,7 +27,7 @@ import {
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { buildPermanentQrPayload, formatExpDate, getDefaultFareMatrix } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
-import { generateQrDataUrl } from '../../utils/qrGenerator';
+import { generateQrDataUrl, getSvgQrDataUrl } from '../../utils/qrGenerator';
 
 export const FranchiseRecordsModal: React.FC = () => {
   const {
@@ -516,6 +516,12 @@ export const FranchiseRecordsModal: React.FC = () => {
                   src={inlineQrDataUrl}
                   alt={`Official QR Badge for Unit ${inlineQrUnit.mtopNumber}`}
                   className="w-44 h-44 object-contain bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs"
+                  onError={async (e) => {
+                    if (inlineQrPayload) {
+                      const svgData = await getSvgQrDataUrl(inlineQrPayload, 280);
+                      if (svgData) (e.target as HTMLImageElement).src = svgData;
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-44 h-44 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 text-slate-400 space-y-2">
@@ -1286,6 +1292,12 @@ export const FranchiseRecordsModal: React.FC = () => {
                   src={inlineQrDataUrl}
                   alt="Official System QR Code"
                   className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
+                  onError={async (e) => {
+                    if (inlineQrPayload) {
+                      const svgData = await getSvgQrDataUrl(inlineQrPayload, 280);
+                      if (svgData) (e.target as HTMLImageElement).src = svgData;
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-52 h-52 flex items-center justify-center bg-slate-50 text-slate-400">
