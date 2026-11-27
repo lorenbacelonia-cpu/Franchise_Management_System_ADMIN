@@ -77,6 +77,9 @@ export const ProcessRenewalModal: React.FC = () => {
   const [renewalOrNumber, setRenewalOrNumber] = useState('');
   const [renewalPaymentDate, setRenewalPaymentDate] = useState('');
   const [renewalAmountPaid, setRenewalAmountPaid] = useState('');
+  const [renewalDriverEmail, setRenewalDriverEmail] = useState('');
+  const [renewalOperatorEmail, setRenewalOperatorEmail] = useState('');
+  const [autoSendRenewalEmail, setAutoSendRenewalEmail] = useState(true);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Floating Completion Card State
@@ -93,6 +96,8 @@ export const ProcessRenewalModal: React.FC = () => {
     amountPaid: string;
     paymentDate: string;
     processedAt: string;
+    emailDispatched?: boolean;
+    emailRecipient?: string;
   } | null>(null);
 
   // Inline Single Reminder State (No separate portal) - Dedicated to Operator & Driver
@@ -165,6 +170,10 @@ export const ProcessRenewalModal: React.FC = () => {
     setRenewalOrNumber(item.orNumber || item.receiptNumber || `OR-2026-${Math.floor(10000 + Math.random() * 90000)}`);
     setRenewalPaymentDate(new Date().toISOString().split('T')[0]);
     setRenewalAmountPaid(item.vehicleCategory === 'Pedicab' ? '250.00' : '450.00');
+    setRenewalDriverEmail(getDriverGmail(item));
+    setRenewalOperatorEmail(getOperatorGmail(item));
+    setAutoSendRenewalEmail(true);
+    setRenewalConfirmationFeedback(null);
   };
 
   // Confirm Renewal
@@ -183,12 +192,63 @@ export const ProcessRenewalModal: React.FC = () => {
     const amt = parseFloat(renewalAmountPaid || '0').toFixed(2);
     const payDate = renewalPaymentDate || new Date().toISOString().split('T')[0];
 
+    // Persist updated email to driver record if entered
+    const drvEmailClean = renewalDriverEmail.trim().toLowerCase();
+    const opEmailClean = renewalOperatorEmail.trim().toLowerCase();
+    if (drvEmailClean || opEmailClean) {
+      try {
+        await updateDriver(plate, {
+          driverName: dr,
+          gmail: drvEmailClean || opEmailClean,
+          email: drvEmailClean || opEmailClean,
+        });
+      } catch (err) {
+        console.debug('Failed to update driver email on renewal:', err);
+      }
+    }
+
     await renewFranchise(selectedForRenewal.id, {
       newExpiry: renewalExpiryDate,
       applicationNo: appNo,
       orNumber: orNo,
       amountPaid: renewalAmountPaid ? parseFloat(renewalAmountPaid) : undefined,
     });
+
+    // Automatically send confirmation email if there is a Gmail on file
+    const effectiveDrvEmail = drvEmailClean || getDriverGmail(selectedForRenewal);
+    const effectiveOpEmail = opEmailClean || getOperatorGmail(selectedForRenewal);
+    const validEmails = [effectiveDrvEmail, effectiveOpEmail].filter(em => em && em.includes('@'));
+
+    let autoEmailDispatched = false;
+    let autoEmailMsg = '';
+
+    if (autoSendRenewalEmail && validEmails.length > 0) {
+      try {
+        const emailResult = await sendRenewalConfirmationNotice(
+          {
+            mtopNumber: mtop,
+            cityPlateNumber: plate,
+            vehicleCategory: cat,
+            operatorName: op,
+            driverName: dr,
+            newExpiry: renewalExpiryDate,
+            orNumber: orNo,
+            applicationNo: appNo,
+            amountPaid: amt,
+          },
+          {
+            driverEmail: effectiveDrvEmail,
+            operatorEmail: effectiveOpEmail,
+            driverPhone: getDriverContactNumber(selectedForRenewal),
+            operatorPhone: getOperatorContactNumber(selectedForRenewal),
+          }
+        );
+        autoEmailDispatched = emailResult.success;
+        autoEmailMsg = `Official renewal confirmation email automatically dispatched to ${validEmails.join(', ')}`;
+      } catch (err: any) {
+        console.error('Auto renewal confirmation email dispatch error:', err);
+      }
+    }
 
     setCompletedRenewalSummary({
       mtopNumber: mtop,
@@ -202,12 +262,20 @@ export const ProcessRenewalModal: React.FC = () => {
       orNumber: orNo,
       amountPaid: amt,
       paymentDate: payDate,
-      processedAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+      processedAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+      emailDispatched: autoEmailDispatched,
+      emailRecipient: validEmails.join(', ')
     });
 
-    setNotification(
-      `Renewed unit ${mtop} (${dr}) • OR No: ${orNo} • Paid: ₱${amt} • Next Expiry: ${renewalExpiryDate}`
-    );
+    if (autoEmailMsg) {
+      setRenewalConfirmationFeedback(autoEmailMsg);
+      setNotification(`Renewed unit ${mtop} • ${autoEmailMsg}`);
+    } else {
+      setNotification(
+        `Renewed unit ${mtop} (${dr}) • OR No: ${orNo} • Paid: ₱${amt} • Next Expiry: ${renewalExpiryDate}`
+      );
+    }
+
     setSelectedForRenewal(null);
   };
 
@@ -901,7 +969,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   ) : (
                     <>
                       <Send className="h-4 w-4" />
-                      <span>Send Notice to Operator (SMS &amp; Email)</span>
+                      <span>{completedRenewalSummary.emailDispatched ? 'Resend Notice (SMS & Email)' : 'Send Notice (SMS & Email)'}</span>
                     </>
                   )}
                 </button>
@@ -1079,6 +1147,72 @@ export const ProcessRenewalModal: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Automatic Gmail Notification Section */}
+            <div className="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-1.5 border-b border-emerald-200/80">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-950">
+                  <Mail className="h-4 w-4 text-emerald-600" />
+                  <span>Renewal Confirmation Gmail Notice</span>
+                </div>
+                <label className="inline-flex items-center space-x-2 text-xs font-bold text-emerald-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoSendRenewalEmail}
+                    onChange={(e) => setAutoSendRenewalEmail(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                  />
+                  <span>Send Email to Driver / Operator</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Driver Gmail / Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={renewalDriverEmail}
+                      onChange={(e) => setRenewalDriverEmail(e.target.value)}
+                      placeholder="e.g. driver@gmail.com"
+                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Operator Gmail / Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={renewalOperatorEmail}
+                      onChange={(e) => setRenewalOperatorEmail(e.target.value)}
+                      placeholder="e.g. operator@gmail.com"
+                      className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {(renewalDriverEmail || renewalOperatorEmail) ? (
+                <p className="text-[11px] text-emerald-800 font-medium flex items-center space-x-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>
+                    Official renewal confirmation receipt will be automatically emailed to <strong>{[renewalDriverEmail, renewalOperatorEmail].filter(Boolean).join(', ')}</strong> upon saving.
+                  </span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500">
+                  Enter an email above to automatically send the official renewal confirmation receipt to the driver or operator.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-end space-x-2 pt-1">
