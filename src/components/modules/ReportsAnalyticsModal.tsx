@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useFranchise } from '../../context/FranchiseContext';
 import {
-  AlertTriangle,
   CheckCircle2,
   ShieldCheck,
   Printer,
@@ -32,7 +31,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
   embedded = false,
   showRecordsTable = !embedded,
 }) => {
-  const { activeModule, franchises, violations } = useFranchise();
+  const { activeModule, franchises } = useFranchise();
 
   // State for Monthly Registration Records Table filter
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all');
@@ -57,19 +56,6 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
   const pedicabCount = filteredFranchises.filter(f => f.vehicleCategory === 'Pedicab').length;
   const activeTricycleCount = filteredFranchises.filter(f => f.vehicleCategory === 'Tricycle' && f.status === 'Active').length;
   const activePedicabCount = filteredFranchises.filter(f => f.vehicleCategory === 'Pedicab' && f.status === 'Active').length;
-
-  // 2. UNIFIED VIOLATIONS (strictly deduplicated by ID)
-  const filteredViolations = useMemo(() => {
-    const seen = new Set<string>();
-    return (violations || []).filter(v => {
-      if (!v || !v.id || seen.has(v.id)) return false;
-      seen.add(v.id);
-      return true;
-    });
-  }, [violations]);
-  const totalCitations = filteredViolations.length;
-  const pendingCitations = filteredViolations.filter(v => v.status === 'Pending').length;
-  const totalFines = filteredViolations.reduce((acc, curr) => acc + (Number(curr.fineAmount) || 0), 0);
 
   // Helper to extract month index (0-11) from date string
   const getRecordMonth = (dateStr?: string): number | null => {
@@ -320,19 +306,6 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
         `).join('')
       : `<tr><td colspan="7" style="padding: 16px; text-align: center; color: #64748b; font-style: italic;">No active registered units on file.</td></tr>`;
 
-    const violationsRowsHtml = filteredViolations.length > 0
-      ? filteredViolations.map(v => `
-          <tr>
-            <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">${v.cityPlateNumber || v.mtopNumber || '—'}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1;">${v.driverName || '—'}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1;">${v.violationType || 'Traffic Citation'}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">₱${Number(v.fineAmount || 0).toFixed(2)}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${v.status || 'Pending'}</td>
-            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${v.dateSubmitted || '—'}</td>
-          </tr>
-        `).join('')
-      : `<tr><td colspan="6" style="padding: 16px; text-align: center; color: #166534; font-weight: bold; background: #f0fdf4;">Zero traffic violations recorded on file (100% Compliance).</td></tr>`;
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -385,7 +358,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
           </div>
         </div>
 
-        <div class="section-title">I. Official Active Tricycle &amp; Pedicab Units Directory</div>
+        <div class="section-title">Official Active Tricycle &amp; Pedicab Units Directory</div>
         <table>
           <thead>
             <tr>
@@ -400,23 +373,6 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
           </thead>
           <tbody>
             ${activeRowsHtml}
-          </tbody>
-        </table>
-
-        <div class="section-title">II. Traffic Citations &amp; Enforcer Apprehensions</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Plate No.</th>
-              <th>Apprehended Driver</th>
-              <th>Violation Type</th>
-              <th style="text-align: right;">Fine Amount</th>
-              <th style="text-align: center;">Status</th>
-              <th style="text-align: center;">Citation Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${violationsRowsHtml}
           </tbody>
         </table>
 
@@ -442,7 +398,7 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
       {/* Main Content Card */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
         {/* Top KPI row (100% DYNAMIC FROM DATABASE) */}
-        <div className="sm:sticky sm:top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 -my-2 border-y border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 shadow-xs">
+        <div className="sm:sticky sm:top-[72px] z-20 bg-white/95 backdrop-blur-md -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 -my-2 border-y border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 shadow-xs">
           {/* 1. Active Compliance Rate */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
@@ -476,18 +432,6 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
             <p className="text-2xl font-black text-slate-900">{totalUnits}</p>
             <p className="text-[11px] text-blue-600 font-medium mt-1">
               {tricycleCount} Tricycles • {pedicabCount} Pedicabs
-            </p>
-          </div>
-
-          {/* 4. Citations */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
-              <span>Total Citations</span>
-              <AlertTriangle className="h-4 w-4 text-rose-600" />
-            </div>
-            <p className="text-2xl font-black text-slate-900">{totalCitations}</p>
-            <p className="text-[11px] text-rose-600 font-medium mt-1">
-              {pendingCitations} pending • ₱{totalFines.toLocaleString()} fines
             </p>
           </div>
         </div>
