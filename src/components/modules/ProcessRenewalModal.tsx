@@ -159,7 +159,9 @@ export const ProcessRenewalModal: React.FC = () => {
       const bExp = b.status === 'Expired' || isRecordExpired(b.expirationDate);
       if (aExp && !bExp) return -1;
       if (bExp && !aExp) return 1;
-      return 0;
+      const aDate = a.expirationDate ? new Date(a.expirationDate).getTime() : Infinity;
+      const bDate = b.expirationDate ? new Date(b.expirationDate).getTime() : Infinity;
+      return aDate - bDate;
     });
 
   // Open Renewal Form
