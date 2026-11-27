@@ -1097,24 +1097,6 @@ export const PendingReviewsTable: React.FC = () => {
           </div>
         </div>
 
-        {/* Date Filter Indicator Banner */}
-        {dateFilter.preset !== 'all' && (
-          <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-2xl flex items-center justify-between gap-3 text-xs animate-fadeIn">
-            <div className="flex items-center space-x-2">
-              <CalendarDays className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>
-                Filtered by Day / Date: <strong>{getFilterDisplayLabel(dateFilter)}</strong>
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={resetDateFilter}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer shrink-0"
-            >
-              Show All Records
-            </button>
-          </div>
-        )}
 
         {/* Subtitle */}
         <p className="text-xs text-slate-400 mb-6">

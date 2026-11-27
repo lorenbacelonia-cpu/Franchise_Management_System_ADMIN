@@ -1,23 +1,10 @@
 import React from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import { 
-  CalendarDays,
-  X
-} from 'lucide-react';
-import { 
-  isDateMatchingFilter, 
-  getFilterDisplayLabel,
-  getTodayYMD,
-  getYesterdayYMD
-} from '../utils/dateFilter';
 
 export const DashboardMetrics: React.FC = () => {
   const { 
     franchises, 
     pendingReviews, 
-    dateFilter,
-    setDateFilter,
-    resetDateFilter,
     setActiveModule
   } = useFranchise();
 
@@ -25,156 +12,30 @@ export const DashboardMetrics: React.FC = () => {
   const categoryFranchises = franchises;
   const categoryReviews = pendingReviews;
 
-  const isFiltered = dateFilter.preset !== 'all';
-  const filterLabel = getFilterDisplayLabel(dateFilter);
+  // 2. Metric 1: TOTAL FRANCHISES (Combined, Tricycle, Pedicab)
+  const totalCount = categoryFranchises.length;
+  const totalTricycle = categoryFranchises.filter(f => f.vehicleCategory === 'Tricycle').length;
+  const totalPedicab = categoryFranchises.filter(f => f.vehicleCategory === 'Pedicab').length;
 
-  // 2. Date-filtered subsets
-  const dateFilteredFranchises = categoryFranchises.filter(f => 
-    isDateMatchingFilter(f.registrationDate || f.paymentDate, dateFilter)
-  );
+  // 3. Metric 2: TOTAL ACTIVE (Combined, Tricycle, Pedicab)
+  const activeCount = categoryFranchises.filter(f => f.status === 'Active').length;
+  const activeTricycle = categoryFranchises.filter(f => f.status === 'Active' && f.vehicleCategory === 'Tricycle').length;
+  const activePedicab = categoryFranchises.filter(f => f.status === 'Active' && f.vehicleCategory === 'Pedicab').length;
 
-  const dateFilteredReviews = categoryReviews.filter(r => 
-    isDateMatchingFilter(r.dateSubmitted, dateFilter)
-  );
-
-  const activeFranchisesPool = isFiltered ? dateFilteredFranchises : categoryFranchises;
-  const activeReviewsPool = isFiltered ? dateFilteredReviews : categoryReviews;
-
-  // 3. Metric 1: TOTAL FRANCHISES (Combined, Tricycle, Pedicab)
-  const totalCount = activeFranchisesPool.length;
-  const totalTricycle = activeFranchisesPool.filter(f => f.vehicleCategory === 'Tricycle').length;
-  const totalPedicab = activeFranchisesPool.filter(f => f.vehicleCategory === 'Pedicab').length;
-
-  // 4. Metric 2: TOTAL ACTIVE (Combined, Tricycle, Pedicab)
-  const activeCount = activeFranchisesPool.filter(f => f.status === 'Active').length;
-  const activeTricycle = activeFranchisesPool.filter(f => f.status === 'Active' && f.vehicleCategory === 'Tricycle').length;
-  const activePedicab = activeFranchisesPool.filter(f => f.status === 'Active' && f.vehicleCategory === 'Pedicab').length;
-
-  // 5. Metric 3: TOTAL PENDING (Combined, Tricycle, Pedicab)
-  const pendingRenewalsTricycle = activeFranchisesPool.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Tricycle').length;
-  const pendingRenewalsPedicab = activeFranchisesPool.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Pedicab').length;
-  const pendingAppsTricycle = activeReviewsPool.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Tricycle').length;
-  const pendingAppsPedicab = activeReviewsPool.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Pedicab').length;
+  // 4. Metric 3: TOTAL PENDING (Combined, Tricycle, Pedicab)
+  const pendingRenewalsTricycle = categoryFranchises.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Tricycle').length;
+  const pendingRenewalsPedicab = categoryFranchises.filter(f => f.status === 'Pending Renewal' && f.vehicleCategory === 'Pedicab').length;
+  const pendingAppsTricycle = categoryReviews.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Tricycle').length;
+  const pendingAppsPedicab = categoryReviews.filter(r => (r.status === 'Pending Document Review' || !r.status) && r.vehicleCategory === 'Pedicab').length;
 
   const pendingTricycle = pendingRenewalsTricycle + pendingAppsTricycle;
   const pendingPedicab = pendingRenewalsPedicab + pendingAppsPedicab;
   const totalPending = pendingTricycle + pendingPedicab;
 
-  const allExpiredCount = activeFranchisesPool.filter(f => f.status === 'Expired').length;
+  const allExpiredCount = categoryFranchises.filter(f => f.status === 'Expired').length;
 
   return (
     <div className="space-y-4 mb-8">
-      {/* Date / Day Filter Header (Fixed Position) */}
-      <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-md transition-all">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          
-          {/* Presets Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-wrap">
-            <div className="flex items-center space-x-2 text-slate-800 font-bold text-xs sm:text-sm shrink-0">
-              <span className="tracking-tight">Date / Day Filter:</span>
-            </div>
-
-            <div className="flex items-center flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => resetDateFilter()}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter.preset === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                }`}
-              >
-                All Time
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDateFilter({ preset: 'today', selectedDate: getTodayYMD() })}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter.preset === 'today'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600'
-                }`}
-              >
-                Today
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDateFilter({ preset: 'yesterday', selectedDate: getYesterdayYMD() })}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter.preset === 'yesterday'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                }`}
-              >
-                Yesterday
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDateFilter({ preset: 'week', selectedDate: '' })}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter.preset === 'week'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                }`}
-              >
-                This Week
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDateFilter({ preset: 'month', selectedDate: '' })}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter.preset === 'month'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                }`}
-              >
-                This Month
-              </button>
-            </div>
-          </div>
-
-          {/* Specific Day Picker & Active Badge */}
-          <div className="flex items-center flex-wrap gap-2">
-            <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-              <CalendarDays className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              <span className="text-slate-500 font-medium text-[11px] hidden sm:inline">Pick Day:</span>
-              <input
-                type="date"
-                value={dateFilter.preset === 'custom' || dateFilter.selectedDate ? dateFilter.selectedDate : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) {
-                    setDateFilter({ preset: 'custom', selectedDate: val });
-                  } else {
-                    resetDateFilter();
-                  }
-                }}
-                className="bg-transparent text-slate-800 font-bold text-xs outline-none cursor-pointer"
-                title="Filter metrics by specific day"
-              />
-            </div>
-
-            {isFiltered && (
-              <div className="flex items-center space-x-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-xl text-xs font-bold animate-fadeIn">
-                <span className="text-[11px]">{filterLabel}</span>
-                <button
-                  type="button"
-                  onClick={resetDateFilter}
-                  className="text-emerald-700 hover:text-emerald-950 p-0.5 rounded-full hover:bg-emerald-100 transition-colors cursor-pointer"
-                  title="Clear date filter"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Grid of 3 Main Metrics Cards: Total, Active, Pending */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
@@ -189,15 +50,9 @@ export const DashboardMetrics: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
                 Total Franchises
               </h3>
-              {isFiltered ? (
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-                  {filterLabel}
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                  All Time
-                </span>
-              )}
+              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                Official Registry
+              </span>
             </div>
 
             {/* Combined Total */}
@@ -206,7 +61,7 @@ export const DashboardMetrics: React.FC = () => {
                 {totalCount}
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                {isFiltered ? `records for ${filterLabel}` : 'total registered units'}
+                total registered units
               </span>
             </div>
 
@@ -246,7 +101,7 @@ export const DashboardMetrics: React.FC = () => {
             </div>
 
             <p className="mt-3 text-[11px] text-slate-400 italic">
-              {allExpiredCount > 0 && !isFiltered 
+              {allExpiredCount > 0 
                 ? `Includes ${allExpiredCount} expired unit(s) requiring renewal` 
                 : `Complete combined fleet in the Tabaco City registry`}
             </p>
@@ -264,15 +119,9 @@ export const DashboardMetrics: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
                 Total Active
               </h3>
-              {isFiltered ? (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  {filterLabel}
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                  All Time
-                </span>
-              )}
+              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                Official Registry
+              </span>
             </div>
 
             {/* Combined Active */}
@@ -281,7 +130,7 @@ export const DashboardMetrics: React.FC = () => {
                 {activeCount}
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                {isFiltered ? `active in ${filterLabel}` : `of ${totalCount} operational`}
+                of {totalCount} operational
               </span>
             </div>
 
@@ -340,15 +189,9 @@ export const DashboardMetrics: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider text-[11px]">
                 Total Pending
               </h3>
-              {isFiltered ? (
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  {filterLabel}
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                  All Time
-                </span>
-              )}
+              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                Official Registry
+              </span>
             </div>
 
             {/* Combined Pending */}
@@ -357,7 +200,7 @@ export const DashboardMetrics: React.FC = () => {
                 {totalPending}
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                requiring action
+                waiting permit review
               </span>
             </div>
 
