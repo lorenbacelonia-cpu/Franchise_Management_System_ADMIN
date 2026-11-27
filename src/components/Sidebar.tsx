@@ -334,13 +334,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sticky Sidebar */}
+      {/* Desktop Fixed Position Sidebar */}
       <aside
         className={`hidden lg:block shrink-0 transition-all duration-200 no-print ${
           collapsed ? 'w-20' : 'w-72'
         }`}
       >
-        <div className="sticky top-0 h-screen">{sidebarContent}</div>
+        <div
+          className={`fixed top-0 left-0 bottom-0 h-screen z-40 transition-all duration-200 ${
+            collapsed ? 'w-20' : 'w-72'
+          }`}
+        >
+          {sidebarContent}
+        </div>
       </aside>
 
       {/* Mobile Drawer Overlay */}
