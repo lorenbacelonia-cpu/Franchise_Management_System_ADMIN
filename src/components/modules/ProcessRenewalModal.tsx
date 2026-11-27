@@ -39,6 +39,7 @@ import {
   type BatchDispatchSummary,
   type ExpiryFilterMode,
 } from '../../utils/expiryNotificationService';
+import { printRenewalSlip } from '../../utils/printUtils';
 
 function computeDefaultNextExpiry(currentExpiry?: string): string {
   const today = new Date();
@@ -976,7 +977,7 @@ export const ProcessRenewalModal: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => printRenewalSlip(completedRenewalSummary)}
                   className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5 shadow-2xs"
                 >
                   <Receipt className="h-4 w-4 text-slate-600" />
