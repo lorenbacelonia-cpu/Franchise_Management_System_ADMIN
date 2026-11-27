@@ -879,14 +879,9 @@ export const RegisterFranchiseModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-slate-800">
-                      Payment Date
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                      Auto UTC
-                    </span>
-                  </div>
+                  <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                    Payment Date
+                  </label>
                   <input
                     type="date"
                     required
