@@ -88,8 +88,6 @@ export const DriverRegistryModal: React.FC = () => {
   const [age, setAge] = useState('');
   const [ownerContact, setOwnerContact] = useState('');
   const [residentialAddress, setResidentialAddress] = useState('');
-  const [beneficiaryName, setBeneficiaryName] = useState('');
-  const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
 
   const [driverLastName, setDriverLastName] = useState('');
   const [driverFirstName, setDriverFirstName] = useState('');
@@ -150,7 +148,7 @@ export const DriverRegistryModal: React.FC = () => {
   const handleOpenEditModal = (item: FranchiseRecord) => {
     setEditingUnit(item);
     const opParsed = splitFullName(item.operatorName || item.ownerName);
-    const drvParsed = splitFullName(item.driverName);
+    const drvParsed = splitFullName(item.driverName || item.beneficiaryName);
 
     setOwnerLastName(item.ownerLastName || item.operatorLastName || opParsed.last);
     setOwnerFirstName(item.ownerFirstName || item.operatorFirstName || opParsed.first);
@@ -158,13 +156,11 @@ export const DriverRegistryModal: React.FC = () => {
     setAge(item.age || '');
     setOwnerContact(item.ownerContact || item.operatorContact || '');
     setResidentialAddress(item.residentialAddress || item.ownerAddress || item.operatorAddress || '');
-    setBeneficiaryName(item.beneficiaryName || '');
-    setBeneficiaryAddress(item.beneficiaryAddress || '');
 
     setDriverLastName(item.driverLastName || drvParsed.last);
     setDriverFirstName(item.driverFirstName || drvParsed.first);
     setDriverMiddleName(item.driverMiddleName || drvParsed.middle);
-    setDriverAddress(item.driverAddress || '');
+    setDriverAddress(item.driverAddress || item.beneficiaryAddress || '');
     setDriverPhoto(item.driverPhoto || '');
 
     setApplicationNo(item.applicationNo || '');
@@ -356,8 +352,8 @@ export const DriverRegistryModal: React.FC = () => {
         ownerAddress: cleanAddress(residentialAddress),
         residentialAddress: cleanAddress(residentialAddress),
         age: age.trim(),
-        beneficiaryName: cleanName(beneficiaryName),
-        beneficiaryAddress: cleanAddress(beneficiaryAddress),
+        beneficiaryName: cleanName(finalDriverName),
+        beneficiaryAddress: cleanAddress(driverAddress),
 
         operatorLastName: cleanName(ownerLastName),
         operatorFirstName: cleanName(ownerFirstName),
@@ -709,34 +705,6 @@ export const DriverRegistryModal: React.FC = () => {
                 />
               </div>
 
-              {/* Beneficiary Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                    Beneficiary Name
-                  </label>
-                  <input
-                    type="text"
-                    value={beneficiaryName}
-                    onChange={(e) => setBeneficiaryName(cleanName(formatTitleCase(e.target.value)))}
-                    placeholder="Full name of beneficiary"
-                    className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                    Beneficiary Address
-                  </label>
-                  <input
-                    type="text"
-                    value={beneficiaryAddress}
-                    onChange={(e) => setBeneficiaryAddress(cleanAddress(formatTitleCase(e.target.value)))}
-                    placeholder="Address of beneficiary"
-                    className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
-                </div>
-              </div>
 
               {/* Driver */}
               <div className="space-y-3">

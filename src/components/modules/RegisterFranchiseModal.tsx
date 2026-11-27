@@ -45,8 +45,6 @@ export const RegisterFranchiseModal: React.FC = () => {
   const [age, setAge] = useState('');
   const [ownerContact, setOwnerContact] = useState('');
   const [residentialAddress, setResidentialAddress] = useState('');
-  const [beneficiaryName, setBeneficiaryName] = useState('');
-  const [beneficiaryAddress, setBeneficiaryAddress] = useState('');
 
   // Left Column - Driver Details
   const [driverLastName, setDriverLastName] = useState('');
@@ -166,8 +164,6 @@ export const RegisterFranchiseModal: React.FC = () => {
     setAge('');
     setOwnerContact('');
     setResidentialAddress('');
-    setBeneficiaryName('');
-    setBeneficiaryAddress('');
     setDriverLastName('');
     setDriverFirstName('');
     setDriverMiddleName('');
@@ -238,8 +234,8 @@ export const RegisterFranchiseModal: React.FC = () => {
       gmail: cleanEmail,
       ownerAddress: residentialAddress || 'Zone 4, Barangay Poblacion, Tabaco City',
       age: age.trim(),
-      beneficiaryName: beneficiaryName.trim(),
-      beneficiaryAddress: beneficiaryAddress.trim(),
+      beneficiaryName: driverFullName,
+      beneficiaryAddress: (driverAddress || residentialAddress).trim(),
 
       operatorLastName: ownerLastName,
       operatorFirstName: ownerFirstName,
@@ -650,34 +646,6 @@ export const RegisterFranchiseModal: React.FC = () => {
               />
             </div>
 
-            {/* Beneficiary Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Beneficiary Name
-                </label>
-                <input
-                  type="text"
-                  value={beneficiaryName}
-                  onChange={(e) => setBeneficiaryName(formatTitleCase(e.target.value))}
-                  placeholder="Full name of beneficiary"
-                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-bold text-slate-800 mb-1.5">
-                  Beneficiary Address
-                </label>
-                <input
-                  type="text"
-                  value={beneficiaryAddress}
-                  onChange={(e) => setBeneficiaryAddress(formatTitleCase(e.target.value))}
-                  placeholder="Address of beneficiary"
-                  className="w-full bg-[#d8dfe6] border border-[#c6cfd8] rounded-lg px-3 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                />
-              </div>
-            </div>
 
             {/* Driver */}
             <div>
