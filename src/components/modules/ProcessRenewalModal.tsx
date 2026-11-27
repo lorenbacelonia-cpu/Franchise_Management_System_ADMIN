@@ -15,9 +15,7 @@ import {
   Mail,
   Phone,
   History,
-  Sparkles,
   RotateCcw,
-  Users,
   Plus,
   Check,
 } from 'lucide-react';
@@ -96,16 +94,12 @@ export const ProcessRenewalModal: React.FC = () => {
     processedAt: string;
   } | null>(null);
 
-  // Inline Single Reminder State (No separate portal) - Supports both Operator & Driver
+  // Inline Single Reminder State (No separate portal) - Dedicated to Operator
   const [selectedForReminder, setSelectedForReminder] = useState<FranchiseRecord | null>(null);
-  const [reminderDriverPhone, setReminderDriverPhone] = useState('');
-  const [reminderDriverGmail, setReminderDriverGmail] = useState('');
   const [reminderOperatorPhone, setReminderOperatorPhone] = useState('');
   const [reminderOperatorGmail, setReminderOperatorGmail] = useState('');
   const [isAddingOperatorEmail, setIsAddingOperatorEmail] = useState(false);
   const [isSavingEmailDirectly, setIsSavingEmailDirectly] = useState(false);
-  const [targetRecipient, setTargetRecipient] = useState<'both' | 'operator' | 'driver'>('operator');
-  const [reminderChannel, setReminderChannel] = useState<'both' | 'sms' | 'email'>('both');
   const [customNote, setCustomNote] = useState('');
   const [isDispatching, setIsDispatching] = useState(false);
   const [reminderFeedback, setReminderFeedback] = useState<string | null>(null);
@@ -218,26 +212,13 @@ export const ProcessRenewalModal: React.FC = () => {
     setSelectedForReminder(item);
     const opPhone = getOperatorContactNumber(item);
     const opGmail = getOperatorGmail(item);
-    const drvPhone = getDriverContactNumber(item);
-    const drvGmail = getDriverGmail(item);
 
     setReminderOperatorPhone(opPhone);
     setReminderOperatorGmail(opGmail);
-    setReminderDriverPhone(drvPhone);
-    setReminderDriverGmail(drvGmail);
     setIsAddingOperatorEmail(!opGmail); // Expand email input if operator does not have one
-    setTargetRecipient('operator'); // Operator is the primary target for Process Renewal
-    setReminderChannel('both');
     const defaultNotice = buildDriverSmsReminderText(item, getFranchiseExpiryInfo(item), 'operator');
     setCustomNote(defaultNotice);
     setReminderFeedback(null);
-  };
-
-  const handleTargetRecipientChange = (target: 'both' | 'operator' | 'driver') => {
-    setTargetRecipient(target);
-    if (selectedForReminder) {
-      setCustomNote(buildDriverSmsReminderText(selectedForReminder, getFranchiseExpiryInfo(selectedForReminder), target));
-    }
   };
 
   // Quick save operator email directly to the record
@@ -268,7 +249,7 @@ export const ProcessRenewalModal: React.FC = () => {
     }
   };
 
-  // Dispatch Single Reminder to Operator & Driver
+  // Dispatch Single Reminder Exclusively to Operator
   const handleSendSingleReminder = async () => {
     if (!selectedForReminder) return;
     setIsDispatching(true);
@@ -276,27 +257,22 @@ export const ProcessRenewalModal: React.FC = () => {
 
     try {
       const plate = selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber;
-      const drvPhone = reminderDriverPhone.trim();
-      const drvEmail = reminderDriverGmail.trim();
       const opPhone = reminderOperatorPhone.trim();
       const opEmail = reminderOperatorGmail.trim();
 
-      // If user corrected phones or emails, persist inline to record
+      // If user corrected phone or email, persist inline to record
       await updateDriver(plate, {
         driverName: selectedForReminder.driverName,
-        contact: drvPhone || opPhone,
         operatorContact: opPhone,
-        gmail: drvEmail || opEmail,
-        email: drvEmail || opEmail,
+        gmail: opEmail,
+        email: opEmail,
       });
 
       const res = await sendFranchiseBothReminders(selectedForReminder, {
-        driverPhone: drvPhone,
-        driverEmail: drvEmail,
         operatorPhone: opPhone,
         operatorEmail: opEmail,
-        targetRecipient,
-        channel: reminderChannel,
+        targetRecipient: 'operator',
+        channel: 'both',
         customNote,
       });
 
@@ -423,272 +399,115 @@ export const ProcessRenewalModal: React.FC = () => {
               </div>
             )}
 
-            {/* Step 1: Target Recipient Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                1. Target Recipient
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleTargetRecipientChange('operator')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    targetRecipient === 'operator'
-                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>👤 Operator Only</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
-                    Primary / Renewal
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleTargetRecipientChange('both')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    targetRecipient === 'both'
-                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>👥 Both (Operator &amp; Driver)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleTargetRecipientChange('driver')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    targetRecipient === 'driver'
-                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>🛺 Driver Only</span>
-                </button>
+            {/* Operator Contact Details (Renewal Expiration Notice is sent exclusively to Operator) */}
+            <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/40 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                  <span>👤 Operator:</span>
+                  <strong className="text-amber-950">{selectedForReminder.operatorName}</strong>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-2xs">
+                  Renewal Contact (SMS &amp; Email)
+                </span>
               </div>
-            </div>
 
-            {/* Step 2: Recipient Contact Details Grid (Operator & Driver) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                2. Contact Information &amp; Delivery Destination
-              </label>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Operator Card - Highlighted as Primary */}
-                <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/40 shadow-2xs space-y-3.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-                    <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                      <span>👤 Operator:</span>
-                      <strong className="text-amber-950">{selectedForReminder.operatorName}</strong>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Operator Mobile Number */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    <span className="inline-flex items-center space-x-1.5">
+                      <Phone className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Operator Mobile (SMS / Messenger)</span>
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-2xs">
-                      Renewal Contact
-                    </span>
-                  </div>
+                  </label>
+                  <input
+                    type="text"
+                    value={reminderOperatorPhone}
+                    onChange={(e) => setReminderOperatorPhone(e.target.value)}
+                    placeholder="09171234567 or +639171234567"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Delivered directly via TextBee Android SMS Gateway.
+                  </p>
+                </div>
 
-                  <div className="space-y-3">
-                    {/* Operator Mobile Number */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        <span className="inline-flex items-center space-x-1.5">
-                          <Phone className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Operator Mobile (SMS / Messenger)</span>
+                {/* Operator Gmail / Email with + Add Email Button */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
+                      <Mail className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Operator Email / Gmail</span>
+                    </label>
+                    {reminderOperatorGmail && (
+                      <div className="flex items-center space-x-1.5">
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
+                          ✓ On File
                         </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={reminderOperatorPhone}
-                        onChange={(e) => setReminderOperatorPhone(e.target.value)}
-                        placeholder="09171234567 or +639171234567"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                      />
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        Delivered directly via TextBee Android SMS Gateway.
-                      </p>
-                    </div>
-
-                    {/* Operator Gmail / Email with + Add Email Button */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-bold text-slate-700 inline-flex items-center space-x-1.5">
-                          <Mail className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Operator Email / Gmail</span>
-                        </label>
-                        {reminderOperatorGmail && (
-                          <div className="flex items-center space-x-1.5">
-                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
-                              ✓ On File
-                            </span>
-                            {!isAddingOperatorEmail && (
-                              <button
-                                type="button"
-                                onClick={() => setIsAddingOperatorEmail(true)}
-                                className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {!reminderOperatorGmail && !isAddingOperatorEmail ? (
-                        /* If operator DOES NOT have an email, show dedicated + Add Email button */
-                        <div className="p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
-                          <div className="flex items-center space-x-2 min-w-0">
-                            <Mail className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span className="text-xs text-slate-600 italic truncate">
-                              No email registered for Operator
-                            </span>
-                          </div>
+                        {!isAddingOperatorEmail && (
                           <button
                             type="button"
                             onClick={() => setIsAddingOperatorEmail(true)}
-                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
+                            className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>+ Add Email</span>
+                            Edit
                           </button>
-                        </div>
-                      ) : (
-                        /* Email Input Field with Save Action */
-                        <div className="space-y-1.5">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="email"
-                              value={reminderOperatorGmail}
-                              onChange={(e) => setReminderOperatorGmail(e.target.value)}
-                              placeholder="e.g. operator@gmail.com"
-                              className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                              autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
-                            />
-                            <button
-                              type="button"
-                              disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
-                              onClick={handleSaveOperatorEmail}
-                              className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
-                              title="Save email to operator record"
-                            >
-                              {isSavingEmailDirectly ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
-                              <span>Save Email</span>
-                            </button>
-                          </div>
-                          <p className="text-[10px] text-slate-500">
-                            Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Driver Card */}
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  targetRecipient === 'driver' || targetRecipient === 'both'
-                    ? 'bg-amber-50/40 border-amber-300'
-                    : 'bg-slate-50/50 border-slate-200 opacity-60'
-                }`}>
-                  <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
-                    <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                      <span>🛺 Driver:</span>
-                      <strong className="text-amber-900">{selectedForReminder.driverName}</strong>
-                    </span>
-                    {(targetRecipient === 'both' || targetRecipient === 'driver') && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
-                        Targeted
-                      </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        <span className="inline-flex items-center space-x-1">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>Driver Mobile (SMS)</span>
+
+                  {!reminderOperatorGmail && !isAddingOperatorEmail ? (
+                    /* If operator DOES NOT have an email, show dedicated + Add Email button */
+                    <div className="p-3 bg-white border border-amber-300 rounded-xl flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Mail className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="text-xs text-slate-600 italic truncate">
+                          No email registered for Operator
                         </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={reminderDriverPhone}
-                        onChange={(e) => setReminderDriverPhone(e.target.value)}
-                        placeholder="09171234567 or +639171234567"
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                      />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingOperatorEmail(true)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Add Email</span>
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                        <span className="inline-flex items-center space-x-1">
-                          <Mail className="w-3 h-3 text-slate-400" />
-                          <span>Driver Gmail / Email</span>
-                        </span>
-                      </label>
-                      <input
-                        type="email"
-                        value={reminderDriverGmail}
-                        onChange={(e) => setReminderDriverGmail(e.target.value)}
-                        placeholder="driver@gmail.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                      />
+                  ) : (
+                    /* Email Input Field with Save Action */
+                    <div className="space-y-1.5">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="email"
+                          value={reminderOperatorGmail}
+                          onChange={(e) => setReminderOperatorGmail(e.target.value)}
+                          placeholder="e.g. operator@gmail.com"
+                          className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
+                        />
+                        <button
+                          type="button"
+                          disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
+                          onClick={handleSaveOperatorEmail}
+                          className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                          title="Save email to operator record"
+                        >
+                          {isSavingEmailDirectly ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" />
+                          )}
+                          <span>Save Email</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
-              </div>
-            </div>
-
-            {/* Step 3: Channel Selection Buttons */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                3. Select Dispatch Channel
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setReminderChannel('both')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    reminderChannel === 'both'
-                      ? 'bg-amber-500 border-amber-600 text-slate-950 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Both SMS &amp; Gmail</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-900 text-white font-extrabold uppercase">
-                    Recommended
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setReminderChannel('sms')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    reminderChannel === 'sms'
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Phone className="w-4 h-4 text-emerald-500" />
-                  <span>SMS Only</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setReminderChannel('email')}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    reminderChannel === 'email'
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Mail className="w-4 h-4 text-blue-400" />
-                  <span>Gmail Only</span>
-                </button>
               </div>
             </div>
 
@@ -709,7 +528,7 @@ export const ProcessRenewalModal: React.FC = () => {
                       const suggested = buildDriverSmsReminderText(
                         selectedForReminder,
                         getFranchiseExpiryInfo(selectedForReminder),
-                        targetRecipient
+                        'operator'
                       );
                       setCustomNote(suggested);
                     }}
@@ -732,7 +551,7 @@ export const ProcessRenewalModal: React.FC = () => {
                   className="w-full p-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y shadow-2xs"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-                  <span>Editable notice dispatched via SMS &amp; Gmail to {targetRecipient === 'both' ? 'Operator & Driver' : targetRecipient}.</span>
+                  <span>Editable notice dispatched via SMS &amp; Gmail directly to Operator.</span>
                   <span>{customNote.length} characters</span>
                 </div>
               </div>
@@ -761,7 +580,7 @@ export const ProcessRenewalModal: React.FC = () => {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Send Expiration Notice Now</span>
+                    <span>Send Expiration Notice to Operator (SMS &amp; Email)</span>
                   </>
                 )}
               </button>
