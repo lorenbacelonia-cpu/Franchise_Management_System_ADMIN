@@ -989,7 +989,15 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
     updated_at: new Date().toISOString()
   };
 
-  if (data.status !== undefined) updateBody.status = data.status;
+  const isSuspended = data.status === 'Suspended' || /suspend/i.test(data.status || '');
+  if (isSuspended) {
+    updateBody.availability = 'Suspended';
+  } else if (data.status !== undefined) {
+    updateBody.status = data.status;
+    if (data.status === 'Active') {
+      updateBody.availability = 'Available / On-Duty';
+    }
+  }
   if (data.operator_name !== undefined) updateBody.operator_name = data.operator_name;
   if (data.operator_contact !== undefined || data.contact_number !== undefined) {
     updateBody.operator_contact = data.operator_contact ?? data.contact_number;
@@ -1000,7 +1008,7 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
   }
   if (data.driver_address !== undefined) updateBody.driver_address = data.driver_address;
   if (data.license_no !== undefined) updateBody.driver_license_no = data.license_no;
-  if (data.availability !== undefined) updateBody.availability = data.availability;
+  if (data.availability !== undefined && !isSuspended) updateBody.availability = data.availability;
 
   if (data.fare_matrix !== undefined || data.driver_photo !== undefined) {
     let matrixToSave = data.fare_matrix ? [...data.fare_matrix] : getDefaultFareMatrix(category);
@@ -1019,36 +1027,50 @@ export async function saveDriverRegistryUpdateInSupabase(data: {
     updateBody.fare_matrix = matrixToSave;
   }
 
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${records}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
-      method: 'PATCH',
-      headers: getHeaders(),
-      body: JSON.stringify(updateBody)
-    });
-    if (!res.ok) {
-      await fetch(`${SUPABASE_URL}/rest/v1/${records}?mtop_number=eq.${encodeURIComponent(plate)}`, {
+  const targetTables = [records, 'franchise_records_tricycle_admin', 'franchise_records_pedicab_admin'];
+  for (const tbl of targetTables) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/${tbl}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify(updateBody)
       });
-    }
-
-    // Also update QR code record if present
-    if (data.qr_payload) {
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data.qr_payload)}`;
-      await fetch(`${SUPABASE_URL}/rest/v1/${qrCodes}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/${tbl}?mtop_number=eq.${encodeURIComponent(plate)}`, {
         method: 'PATCH',
         headers: getHeaders(),
-        body: JSON.stringify({
-          driver_name: data.driver_name,
-          qr_payload: data.qr_payload,
-          qr_code_image_url: qrImageUrl,
-          generated_at: new Date().toISOString()
-        })
+        body: JSON.stringify(updateBody)
       });
+    } catch { }
+  }
+
+  // Also update QR code record if present
+  if (data.qr_payload) {
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data.qr_payload)}`;
+    const qrTables = [qrCodes, 'system_qr_codes_tricycle_admin', 'system_qr_codes_pedicab_admin'];
+    for (const qTbl of qrTables) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/${qTbl}?city_plate_number=eq.${encodeURIComponent(plate)}`, {
+          method: 'PATCH',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            driver_name: data.driver_name,
+            qr_payload: data.qr_payload,
+            qr_code_image_url: qrImageUrl,
+            generated_at: new Date().toISOString()
+          })
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/${qTbl}?mtop_number=eq.${encodeURIComponent(plate)}`, {
+          method: 'PATCH',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            driver_name: data.driver_name,
+            qr_payload: data.qr_payload,
+            qr_code_image_url: qrImageUrl,
+            generated_at: new Date().toISOString()
+          })
+        });
+      } catch { }
     }
-  } catch (e) {
-    console.warn('Could not update operator/driver in master franchise records:', e);
   }
 }
 
