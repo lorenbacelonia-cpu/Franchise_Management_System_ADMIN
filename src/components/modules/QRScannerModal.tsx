@@ -25,6 +25,7 @@ import {
   buildPermanentQrPayload
 } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
+import { DateBadge } from '../DateBadge';
 
 export const QRScannerModal: React.FC = () => {
   const { 
@@ -142,6 +143,20 @@ export const QRScannerModal: React.FC = () => {
           <span>{notification}</span>
         </div>
       )}
+
+      {/* Sticky Action Toolbar & Live Date (Fixed Position) */}
+      <div className="sticky top-[72px] z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3 border border-slate-200 shadow-md flex items-center justify-between gap-3">
+        <div className="flex items-center space-x-2">
+          <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg">
+            <QrCode className="h-4 w-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-slate-900 leading-tight">Permanent QR Generator</h4>
+            <p className="text-[10px] text-slate-500">Universal scan &amp; print badges</p>
+          </div>
+        </div>
+        <DateBadge className="py-1 text-[11px]" />
+      </div>
 
       {/* Main Single-Page Container */}
       <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-xs space-y-6">

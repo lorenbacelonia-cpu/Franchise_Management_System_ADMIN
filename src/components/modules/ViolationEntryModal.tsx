@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { maskName } from '../../utils/formatters';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
+import { DateBadge } from '../DateBadge';
 
 interface SanctionDetail {
   sanctionStatus: 'Active' | 'Suspended';
@@ -623,8 +624,11 @@ export const ViolationEntryModal: React.FC = () => {
             <span>Total of Multiple Violations ({multipleOffenders.length})</span>
           </button>
 
+          {/* Live System Date Badge */}
+          <DateBadge className="ml-auto hidden lg:inline-flex py-1 text-[11px]" />
+
           {/* Read-only notice */}
-          <span className="ml-auto hidden md:inline-flex items-center space-x-1.5 text-slate-500 font-semibold bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-[11px] shrink-0 whitespace-nowrap">
+          <span className="hidden md:inline-flex items-center space-x-1.5 text-slate-500 font-semibold bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-[11px] shrink-0 whitespace-nowrap">
             <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
             <span>Admin Clearance Required to Purge</span>
           </span>

@@ -219,9 +219,20 @@ export const DashboardAnalyticsSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Analytics Summary Strip */}
+      {/* Quick Analytics Summary Strip (Interactive) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 my-6">
-        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => {
+            setVehicleFilter('all');
+            setPieMode('fleet');
+          }}
+          className={`bg-slate-50 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            vehicleFilter === 'all' && pieMode === 'fleet'
+              ? 'border-slate-800 ring-2 ring-slate-400/30 shadow-xs'
+              : 'border-slate-200/80 hover:border-slate-400'
+          }`}
+          title="Click to view full fleet analytics"
+        >
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
             Total Reg. Fleet
           </p>
@@ -234,7 +245,15 @@ export const DashboardAnalyticsSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => setPieMode('status')}
+          className={`bg-emerald-50/60 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            pieMode === 'status'
+              ? 'border-emerald-600 ring-2 ring-emerald-500/30 shadow-xs'
+              : 'border-emerald-200/80 hover:border-emerald-400'
+          }`}
+          title="Click to inspect active compliance breakdown"
+        >
           <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
             Compliance Rate
           </p>
@@ -247,7 +266,11 @@ export const DashboardAnalyticsSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => setPieMode('status')}
+          className="bg-amber-50/60 border border-amber-200/80 hover:border-amber-400 rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none"
+          title="Click to inspect status breakdown for pending renewals"
+        >
           <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
             Pending Renewals
           </p>
@@ -260,7 +283,11 @@ export const DashboardAnalyticsSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-rose-50/60 border border-rose-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => setPieMode('status')}
+          className="bg-rose-50/60 border border-rose-200/80 hover:border-rose-400 rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none"
+          title="Click to inspect status breakdown for expired permits"
+        >
           <p className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">
             Expired Permits
           </p>

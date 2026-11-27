@@ -26,6 +26,7 @@ import {
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
+import { DateBadge } from '../DateBadge';
 
 export const FranchiseRecordsModal: React.FC = () => {
   const {
@@ -812,6 +813,9 @@ export const FranchiseRecordsModal: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap w-full md:w-auto">
+            {/* Live System Date Badge */}
+            <DateBadge className="hidden lg:inline-flex py-1 text-[11px]" />
+
             {/* Category Filter Tabs */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
               <button

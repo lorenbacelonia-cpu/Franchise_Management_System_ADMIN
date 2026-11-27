@@ -116,10 +116,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
         </div>
 
         {/* Center: Live Automatic UTC Date & Time */}
-        <div className="hidden md:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-slate-700 shadow-2xs font-mono text-xs">
-          <Clock className="h-3.5 w-3.5 text-emerald-600 animate-pulse shrink-0" />
+        <div className="flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-slate-700 shadow-2xs font-mono text-[11px] sm:text-xs">
+          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600 animate-pulse shrink-0" />
           <span className="font-semibold text-slate-800 tracking-tight">{utcTime}</span>
-          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/60">
+          <span className="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/60">
             UTC
           </span>
         </div>

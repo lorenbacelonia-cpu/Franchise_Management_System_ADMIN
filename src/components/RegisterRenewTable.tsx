@@ -139,10 +139,21 @@ export const RegisterRenewTable: React.FC = () => {
         </div>
       </div>
 
-      {/* SUMMARY TOTALS: Both Tricycle and Pedicab in Table / Grid format */}
+      {/* SUMMARY TOTALS: Clickable Filter Cards for both Tricycle and Pedicab */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 my-6">
         {/* Tricycle Registered */}
-        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => {
+            setCategoryFilter('Tricycle');
+            setTransactionFilter('registered');
+          }}
+          className={`bg-emerald-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            categoryFilter === 'Tricycle' && transactionFilter === 'registered'
+              ? 'border-emerald-600 ring-2 ring-emerald-500/30 shadow-xs'
+              : 'border-emerald-200/80 hover:border-emerald-400'
+          }`}
+          title="Click to filter by Newly Registered Tricycles"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-emerald-900">
               Tricycle Reg.
@@ -159,7 +170,18 @@ export const RegisterRenewTable: React.FC = () => {
         </div>
 
         {/* Tricycle Renewed */}
-        <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => {
+            setCategoryFilter('Tricycle');
+            setTransactionFilter('renewed');
+          }}
+          className={`bg-blue-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            categoryFilter === 'Tricycle' && transactionFilter === 'renewed'
+              ? 'border-blue-600 ring-2 ring-blue-500/30 shadow-xs'
+              : 'border-blue-200/80 hover:border-blue-400'
+          }`}
+          title="Click to filter by Renewed Tricycles"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-blue-900">
               Tricycle Renewed
@@ -176,7 +198,18 @@ export const RegisterRenewTable: React.FC = () => {
         </div>
 
         {/* Pedicab Registered */}
-        <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => {
+            setCategoryFilter('Pedicab');
+            setTransactionFilter('registered');
+          }}
+          className={`bg-sky-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            categoryFilter === 'Pedicab' && transactionFilter === 'registered'
+              ? 'border-sky-600 ring-2 ring-sky-500/30 shadow-xs'
+              : 'border-sky-200/80 hover:border-sky-400'
+          }`}
+          title="Click to filter by Newly Registered Pedicabs"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-sky-900">
               Pedicab Reg.
@@ -193,7 +226,18 @@ export const RegisterRenewTable: React.FC = () => {
         </div>
 
         {/* Pedicab Renewed */}
-        <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-3.5">
+        <div
+          onClick={() => {
+            setCategoryFilter('Pedicab');
+            setTransactionFilter('renewed');
+          }}
+          className={`bg-indigo-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
+            categoryFilter === 'Pedicab' && transactionFilter === 'renewed'
+              ? 'border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs'
+              : 'border-indigo-200/80 hover:border-indigo-400'
+          }`}
+          title="Click to filter by Renewed Pedicabs"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-indigo-900">
               Pedicab Renewed
@@ -210,7 +254,17 @@ export const RegisterRenewTable: React.FC = () => {
         </div>
 
         {/* Overall Total */}
-        <div className="bg-slate-900 text-white rounded-2xl p-3.5 col-span-2 lg:col-span-1 shadow-xs">
+        <div
+          onClick={() => {
+            setCategoryFilter('all');
+            setTransactionFilter('all');
+          }}
+          className={`bg-slate-900 text-white rounded-2xl p-3.5 col-span-2 lg:col-span-1 shadow-xs cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'all' && transactionFilter === 'all'
+              ? 'ring-2 ring-emerald-400 shadow-md'
+              : 'hover:bg-slate-800'
+            }`}
+          title="Click to view all units"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
               Combined Total
@@ -238,27 +292,24 @@ export const RegisterRenewTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setCategoryFilter('all')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                categoryFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All ({franchises.length})
             </button>
             <button
               type="button"
               onClick={() => setCategoryFilter('Tricycle')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                categoryFilter === 'Tricycle' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-700'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'Tricycle' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-700'
+                }`}
             >
               Tricycle ({stats.tricycleTotal})
             </button>
             <button
               type="button"
               onClick={() => setCategoryFilter('Pedicab')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                categoryFilter === 'Pedicab' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-sky-700'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${categoryFilter === 'Pedicab' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-sky-700'
+                }`}
             >
               Pedicab ({stats.pedicabTotal})
             </button>
@@ -269,27 +320,24 @@ export const RegisterRenewTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setTransactionFilter('all')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                transactionFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${transactionFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Types
             </button>
             <button
               type="button"
               onClick={() => setTransactionFilter('registered')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                transactionFilter === 'registered' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${transactionFilter === 'registered' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               New Register ({stats.combinedRegistered})
             </button>
             <button
               type="button"
               onClick={() => setTransactionFilter('renewed')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                transactionFilter === 'renewed' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${transactionFilter === 'renewed' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Renewed ({stats.combinedRenewed})
             </button>
@@ -300,27 +348,24 @@ export const RegisterRenewTable: React.FC = () => {
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                statusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Status
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('Active')}
-              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                statusFilter === 'Active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${statusFilter === 'Active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Active
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('Expired')}
-              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                statusFilter === 'Expired' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${statusFilter === 'Expired' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Expired
             </button>
@@ -390,11 +435,10 @@ export const RegisterRenewTable: React.FC = () => {
                   >
                     {/* Vehicle Category */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                        record.vehicleCategory === 'Pedicab'
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${record.vehicleCategory === 'Pedicab'
                           ? 'bg-sky-50 text-sky-700 border-sky-200'
                           : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      }`}>
+                        }`}>
                         {record.vehicleCategory}
                       </span>
                     </td>
@@ -474,13 +518,12 @@ export const RegisterRenewTable: React.FC = () => {
 
                     {/* Status */}
                     <td className="py-3 px-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                        isExpired
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isExpired
                           ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : record.status === 'Pending Renewal'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      }`}>
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}>
                         {isExpired ? 'Expired' : record.status}
                       </span>
                     </td>
