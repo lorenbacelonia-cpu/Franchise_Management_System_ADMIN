@@ -111,7 +111,9 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     licenseExpiry: row.license_expiry || '',
     registrationDate: row.registration_date || (row.created_at ? row.created_at.split('T')[0] : ''),
     expirationDate: row.expiration_date || '',
-    status: resolveFranchiseStatus(row.status, row.expiration_date),
+    status: (/suspend/i.test(row.status || '') || /suspend/i.test(row.availability || ''))
+      ? 'Suspended'
+      : resolveFranchiseStatus(row.status, row.expiration_date),
     qrCodeData: '',
     violationsCount: row.violations_count || 0,
     documentsVerified: row.documents_verified ?? true,
@@ -119,7 +121,9 @@ export function mapDBToFranchiseRecord(row: any): FranchiseRecord {
     standardFare: resolvedStandardFare,
     fareMatrix: mappedMatrix,
     touristGuide: row.tourist_guide || 'No',
-    availability: row.availability || 'Available / On-Duty',
+    availability: (/suspend/i.test(row.availability || '') || /suspend/i.test(row.status || ''))
+      ? 'Suspended'
+      : (row.availability || 'Available / On-Duty'),
     hasPermanentQr: row.has_permanent_qr ?? false,
     qrGeneratedDate: row.qr_generated_date,
     receiptNumber: row.receipt_number || row.or_number || '',
@@ -1087,18 +1091,24 @@ export async function updateFranchiseStatusInSupabase(
   plateOrMtop: string,
   status: FranchiseStatus | string,
   category: VehicleCategory = 'Tricycle',
-  reason?: string
+  _reason?: string
 ) {
-  const { records } = getTableNames(category);
+  const { records, qrCodes } = getTableNames(category);
   const cleanPlate = (plateOrMtop || '').trim();
   if (!cleanPlate) return false;
 
+  const isSuspended = status === 'Suspended' || /suspend/i.test(status);
+  const newAvail = isSuspended ? 'Suspended' : (status === 'Active' ? 'Available / On-Duty' : status);
+
+  // 1. Update master records in franchise_records tables
   const updatePayload: Record<string, any> = {
-    status,
+    availability: newAvail,
     updated_at: new Date().toISOString()
   };
-  if (reason) {
-    updatePayload.deactivation_reason = reason;
+  // Only update status directly if not 'Suspended', because Supabase DB constraint allows:
+  // ('Active', 'Pending Renewal', 'Deactivated', 'Under Review')
+  if (!isSuspended) {
+    updatePayload.status = status;
   }
 
   const targetTables = [records, 'franchise_records_tricycle_admin', 'franchise_records_pedicab_admin'];
@@ -1112,6 +1122,56 @@ export async function updateFranchiseStatusInSupabase(
       console.warn(`[Supabase Status Update] tbl ${tbl} notice:`, err);
     }
   }
+
+  // 2. Synchronize permanent QR code payload & image in system_qr_codes tables
+  const qrTables = [qrCodes, 'system_qr_codes_tricycle_admin', 'system_qr_codes_pedicab_admin'];
+  for (const qrTbl of qrTables) {
+    try {
+      const fetchRes = await fetch(`${SUPABASE_URL}/rest/v1/${qrTbl}?city_plate_number=eq.${encodeURIComponent(cleanPlate)}&select=*`, {
+        headers: getHeaders()
+      });
+      if (fetchRes.ok) {
+        const qrRows = await fetchRes.json();
+        if (Array.isArray(qrRows) && qrRows.length > 0) {
+          for (const row of qrRows) {
+            let currentPayload = row.qr_payload || '';
+            let updatedPayload = currentPayload;
+
+            if (currentPayload && currentPayload.startsWith('http')) {
+              try {
+                const parsedUrl = new URL(currentPayload);
+                if (isSuspended) {
+                  parsedUrl.searchParams.set('status', 'Suspended');
+                  parsedUrl.searchParams.set('avail', 'Suspended');
+                  parsedUrl.searchParams.set('sanction', 'Suspended');
+                } else {
+                  parsedUrl.searchParams.set('status', status);
+                  parsedUrl.searchParams.set('avail', 'Available');
+                  parsedUrl.searchParams.delete('sanction');
+                }
+                updatedPayload = parsedUrl.toString();
+              } catch { }
+            }
+
+            const updatedQrImage = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(updatedPayload)}`;
+            await fetch(`${SUPABASE_URL}/rest/v1/${qrTbl}?id=eq.${encodeURIComponent(row.id)}`, {
+              method: 'PATCH',
+              headers: getHeaders(),
+              body: JSON.stringify({
+                qr_payload: updatedPayload,
+                qr_code_image_url: updatedQrImage,
+                generated_at: new Date().toISOString()
+              })
+            });
+            success = true;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[Supabase QR Update on Status Change] ${qrTbl} notice:`, e);
+    }
+  }
+
   return success;
 }
 

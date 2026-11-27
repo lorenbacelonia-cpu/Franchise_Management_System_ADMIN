@@ -1622,7 +1622,14 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFranchises(prev => prev.map(f => {
       const match = (f.cityPlateNumber || '').toLowerCase() === cleanPlate.toLowerCase() ||
                     (f.mtopNumber || '').toLowerCase() === cleanPlate.toLowerCase();
-      return match ? { ...f, status } : f;
+      if (!match) return f;
+      const updated: FranchiseRecord = {
+        ...f,
+        status,
+        availability: status === 'Suspended' ? 'Suspended' : (status === 'Active' ? 'Available / On-Duty' : f.availability)
+      };
+      updated.qrCodeData = buildPermanentQrPayload(updated);
+      return updated;
     }));
 
     logAdminActivity(

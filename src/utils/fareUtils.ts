@@ -84,6 +84,7 @@ export function isRecordExpired(dateStr?: string): boolean {
  * Resolves the real-time franchise status based on expiration date and record state
  */
 export function resolveFranchiseStatus(status?: string, expirationDate?: string): FranchiseStatus {
+  if (status === 'Suspended' || /suspend/i.test(status || '')) return 'Suspended';
   if (status === 'Deactivated') return 'Deactivated';
   if (isRecordExpired(expirationDate)) return 'Expired';
   if (status === 'Under Review' || status === 'Pending Renewal' || status === 'Active') {
@@ -163,7 +164,9 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
   const rawMatrix = f.fareMatrix && f.fareMatrix.length > 0 ? f.fareMatrix : getDefaultFareMatrix(category);
   const matrix = rawMatrix.filter(item => item && item.id !== '__driver_photo__' && (item as any).destination !== 'DRIVER_PHOTO');
   const expDateStr = f.expirationDate || '2027-01-15';
-  const resolvedStatus = resolveFranchiseStatus(f.status, expDateStr);
+  const resolvedStatus = (/suspend/i.test(f.status || '') || /suspend/i.test(f.availability || ''))
+    ? 'Suspended'
+    : resolveFranchiseStatus(f.status, expDateStr);
 
   const defaultBaseFare = category === 'Pedicab' ? '15.00' : '20.00';
   const firstRouteFare = matrix[0]?.regularFare ? cleanFare(matrix[0].regularFare, defaultBaseFare) : defaultBaseFare;
@@ -181,6 +184,10 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     url.searchParams.set('route', f.routeParada || '');
     url.searchParams.set('exp', expDateStr);
     url.searchParams.set('status', resolvedStatus);
+    if (resolvedStatus === 'Suspended' || /suspend/i.test(f.availability || '')) {
+      url.searchParams.set('avail', 'Suspended');
+      url.searchParams.set('sanction', 'Suspended');
+    }
     url.searchParams.set('tourist_guide', f.touristGuide || 'Yes');
     url.searchParams.set('tg', f.touristGuide || 'Yes');
     url.searchParams.set('tourist', f.touristGuide || 'Yes');

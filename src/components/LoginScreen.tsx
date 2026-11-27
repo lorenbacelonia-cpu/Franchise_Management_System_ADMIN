@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useFranchise } from '../context/FranchiseContext';
-import { 
-  Shield, 
-  KeyRound, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  LayoutDashboard, 
-  Users, 
+import {
+  Shield,
+  KeyRound,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LayoutDashboard,
+  Users,
   FileText,
   UserPlus,
   LogIn,
@@ -343,10 +343,10 @@ export const LoginScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 border border-slate-800">
-        
+
         {/* Left Brand Panel */}
         <div className="bg-[#0b1326] p-8 sm:p-12 text-white flex flex-col justify-between relative overflow-hidden">
-          
+
           {/* Subtle Radar/Concentric Circles Background */}
           <div className="absolute inset-0 opacity-15 pointer-events-none flex items-center justify-center">
             <div className="w-96 h-96 rounded-full border border-emerald-400/40 animate-pulse" />
@@ -503,23 +503,21 @@ export const LoginScreen: React.FC = () => {
 
                   {/* Security Attempt Tracker Banner (if any failed attempts) */}
                   {failedAttempts > 0 && (
-                    <div className={`p-3 rounded-xl border text-xs space-y-1 transition-all ${
-                      failedAttempts >= 5
+                    <div className={`p-3 rounded-xl border text-xs space-y-1 transition-all ${failedAttempts >= 5
                         ? 'bg-rose-50 border-rose-300 text-rose-950 animate-shake'
                         : 'bg-amber-50 border-amber-200 text-amber-950'
-                    }`}>
+                      }`}>
                       <div className="flex items-center justify-between font-bold">
                         <span className="flex items-center gap-1.5">
                           <ShieldAlert className={`w-4 h-4 ${failedAttempts >= 5 ? 'text-rose-600' : 'text-amber-600'}`} />
                           <span>Login Attempts Tracker:</span>
                         </span>
-                        <span className={`font-mono text-[11px] font-black px-2 py-0.5 rounded-full ${
-                          failedAttempts >= 5
+                        <span className={`font-mono text-[11px] font-black px-2 py-0.5 rounded-full ${failedAttempts >= 5
                             ? 'bg-rose-600 text-white'
                             : failedAttempts >= 4
-                            ? 'bg-amber-200 text-amber-950'
-                            : 'bg-amber-100 text-amber-900'
-                        }`}>
+                              ? 'bg-amber-200 text-amber-950'
+                              : 'bg-amber-100 text-amber-900'
+                          }`}>
                           {failedAttempts} / 5 Attempts {failedAttempts >= 5 ? '• LOCKED' : ''}
                         </span>
                       </div>
@@ -955,11 +953,10 @@ export const LoginScreen: React.FC = () => {
                   type="button"
                   disabled={resendCountdown > 0 && codeSent}
                   onClick={handleSendOrResendCode}
-                  className={`font-semibold cursor-pointer ${
-                    resendCountdown > 0 && codeSent
+                  className={`font-semibold cursor-pointer ${resendCountdown > 0 && codeSent
                       ? 'text-slate-400 cursor-not-allowed'
                       : 'text-emerald-700 hover:text-emerald-800 underline'
-                  }`}
+                    }`}
                 >
                   {resendCountdown > 0 && codeSent ? `Resend Code (${resendCountdown}s)` : 'Resend Verification Code'}
                 </button>
