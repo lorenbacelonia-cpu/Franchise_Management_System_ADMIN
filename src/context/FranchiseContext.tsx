@@ -186,7 +186,6 @@ interface FranchiseContextType {
       qrGeneratedDate?: string;
     }
   ) => Promise<void>;
-  updateFranchiseStatus: (plateOrMtop: string, status: FranchiseStatus, reason?: string) => Promise<boolean>;
   approveReview: (reviewId: string) => Promise<void>;
   rejectReview: (reviewId: string, notes: string) => Promise<void>;
 
