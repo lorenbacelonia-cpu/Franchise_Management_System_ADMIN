@@ -20,7 +20,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Car,
-  Receipt
+  Receipt,
+  Loader2,
+  User
 } from 'lucide-react';
 import { AdminPasscodeModal } from '../AdminPasscodeModal';
 import { buildPermanentQrPayload, formatExpDate, getDefaultFareMatrix } from '../../utils/fareUtils';
@@ -509,11 +511,18 @@ export const FranchiseRecordsModal: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             <div className="flex flex-col items-center justify-center bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
-              <img
-                src={inlineQrDataUrl}
-                alt="Official QR Badge"
-                className="w-44 h-44 object-contain bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs"
-              />
+              {inlineQrDataUrl ? (
+                <img
+                  src={inlineQrDataUrl}
+                  alt={`Official QR Badge for Unit ${inlineQrUnit.mtopNumber}`}
+                  className="w-44 h-44 object-contain bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs"
+                />
+              ) : (
+                <div className="w-44 h-44 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 text-slate-400 space-y-2">
+                  <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                  <span className="text-[11px] font-semibold text-slate-500">Loading QR Badge...</span>
+                </div>
+              )}
               <span className="text-xs font-mono font-bold text-slate-900">
                 UNIT ID: {inlineQrUnit.mtopNumber}
               </span>
@@ -677,6 +686,26 @@ export const FranchiseRecordsModal: React.FC = () => {
                     </span>
                   </div>
 
+                  {/* Driver Photo & Full Name header */}
+                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                    {viewDetailsRecord.driverPhoto ? (
+                      <img
+                        src={viewDetailsRecord.driverPhoto}
+                        alt={viewDetailsRecord.driverName || 'Driver Photo'}
+                        className="h-14 w-14 rounded-xl object-cover border border-indigo-200 shadow-2xs shrink-0 bg-slate-50"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-400 shrink-0">
+                        <User className="h-7 w-7" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Driver Full Name</div>
+                      <div className="font-bold text-slate-900 text-sm truncate">{viewDetailsRecord.driverName || '—'}</div>
+                      <div className="text-[11px] text-slate-500 font-mono mt-0.5">License: <span className="font-bold text-indigo-700">{viewDetailsRecord.driverLicenseNo || 'TRD-DRV-ON-FILE'}</span></div>
+                    </div>
+                  </div>
+
                   {/* Driver Name (Last, First, Middle) */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div>
@@ -690,17 +719,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Middle Name</span>
                       <span className="font-semibold text-slate-900 block truncate">{viewDetailsRecord.driverMiddleName || '—'}</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Driver Full Name</span>
-                      <span className="font-bold text-slate-900">{viewDetailsRecord.driverName || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Driver License No.</span>
-                      <span className="font-mono font-bold text-slate-800">{viewDetailsRecord.driverLicenseNo || 'On File'}</span>
                     </div>
                   </div>
 
@@ -1263,11 +1281,17 @@ export const FranchiseRecordsModal: React.FC = () => {
 
           <div className="flex flex-col items-center justify-center my-1 text-center">
             <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-xs">
-              <img
-                src={inlineQrDataUrl}
-                alt="Official System QR Code"
-                className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
-              />
+              {inlineQrDataUrl ? (
+                <img
+                  src={inlineQrDataUrl}
+                  alt="Official System QR Code"
+                  className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
+                />
+              ) : (
+                <div className="w-52 h-52 flex items-center justify-center bg-slate-50 text-slate-400">
+                  <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                </div>
+              )}
             </div>
             <p className="text-[10px] font-bold text-slate-700 mt-1 max-w-sm">
               Scan via Google Lens or mobile camera for real-time cloud franchise credentials &amp; official fare matrix

@@ -16,7 +16,8 @@ import {
   Globe,
   FileDown,
   Calendar,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { 
   cleanFare, 
@@ -478,11 +479,17 @@ export const QRScannerModal: React.FC = () => {
                       </div>
 
                       <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                        <img
-                          src={qrDataUrl}
-                          alt="System QR Code"
-                          className="w-52 h-52 sm:w-60 sm:h-60 object-contain"
-                        />
+                        {qrDataUrl ? (
+                          <img
+                            src={qrDataUrl}
+                            alt="System QR Code"
+                            className="w-52 h-52 sm:w-60 sm:h-60 object-contain"
+                          />
+                        ) : (
+                          <div className="w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center bg-slate-50 text-slate-400">
+                            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-center space-y-1">

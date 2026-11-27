@@ -14,6 +14,7 @@ import {
   FileDown,
   Globe,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { formatTitleCase, formatCodeUpper } from '../../utils/formatters';
 import { cleanFare, getDefaultFareMatrix, buildPermanentQrPayload, formatExpDate } from '../../utils/fareUtils';
@@ -470,11 +471,17 @@ export const RegisterFranchiseModal: React.FC = () => {
                         <Globe className="h-3 w-3 text-emerald-600" />
                         <span>UNIVERSAL QR LINK • READY TO SCAN OR PRINT</span>
                       </div>
-                      <img
-                        src={qrDataUrl}
-                        alt="System QR Code"
-                        className="w-44 h-44 object-contain p-2 border border-slate-200 rounded-xl"
-                      />
+                      {qrDataUrl ? (
+                        <img
+                          src={qrDataUrl}
+                          alt="System QR Code"
+                          className="w-44 h-44 object-contain p-2 border border-slate-200 rounded-xl"
+                        />
+                      ) : (
+                        <div className="w-44 h-44 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
+                          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                        </div>
+                      )}
                       <div className="flex items-center space-x-2 w-full bg-slate-50 p-2 rounded-lg border border-slate-200">
                         <input
                           type="text"
@@ -1055,11 +1062,17 @@ export const RegisterFranchiseModal: React.FC = () => {
 
           <div className="flex flex-col items-center justify-center my-1 text-center">
             <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-xs">
-              <img
-                src={qrDataUrl}
-                alt="Official System QR Code"
-                className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
-              />
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="Official System QR Code"
+                  className="w-52 h-52 sm:w-56 sm:h-56 object-contain"
+                />
+              ) : (
+                <div className="w-52 h-52 flex items-center justify-center bg-slate-50 text-slate-400">
+                  <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                </div>
+              )}
             </div>
             <p className="text-[10px] font-bold text-slate-700 mt-1 max-w-sm">
               Scan via Google Lens or mobile camera for real-time cloud franchise credentials &amp; official fare matrix

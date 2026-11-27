@@ -7,8 +7,9 @@ import QRCode from 'qrcode';
  */
 export async function generateQrDataUrl(text: string, width = 280): Promise<string> {
   if (!text || !text.trim()) return '';
+  const cleanInput = text.trim();
   try {
-    return await QRCode.toDataURL(text, {
+    return await QRCode.toDataURL(cleanInput, {
       width,
       margin: 2,
       errorCorrectionLevel: 'M',
@@ -18,7 +19,38 @@ export async function generateQrDataUrl(text: string, width = 280): Promise<stri
       },
     });
   } catch (err) {
-    console.error('Local QR code generation error:', err);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${width}x${width}&data=${encodeURIComponent(text)}`;
+    console.error('Local QR generation failed with level M, retrying with level L:', err);
+    try {
+      // Level L allows more data capacity (up to 2,953 bytes)
+      return await QRCode.toDataURL(cleanInput, {
+        width,
+        margin: 2,
+        errorCorrectionLevel: 'L',
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      });
+    } catch (err2) {
+      console.error('Local QR generation failed with level L, retrying with sanitized URL:', err2);
+      try {
+        // Fallback: strip any bloated query parameters so QR generation never breaks
+        const sanitized = cleanInput.includes('?')
+          ? cleanInput.split('?')[0] + '?' + cleanInput.split('?')[1].substring(0, 800)
+          : cleanInput.substring(0, 500);
+        return await QRCode.toDataURL(sanitized, {
+          width,
+          margin: 2,
+          errorCorrectionLevel: 'L',
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+        });
+      } catch (err3) {
+        console.error('Final fallback local QR code generation error:', err3);
+        return '';
+      }
+    }
   }
 }

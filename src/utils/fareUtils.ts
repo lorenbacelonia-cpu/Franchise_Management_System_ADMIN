@@ -115,7 +115,9 @@ export function getDefaultFareMatrix(category: VehicleCategory = 'Tricycle'): Fa
  * Formats the Official Fare Matrix breakdown into clean plain text for QR Code encoding and decoders
  */
 export function formatFareMatrixPayload(matrix?: FareMatrixItem[], category: VehicleCategory = 'Tricycle'): string {
-  const items = matrix && matrix.length > 0 ? matrix : getDefaultFareMatrix(category);
+  const rawItems = matrix && matrix.length > 0 ? matrix : getDefaultFareMatrix(category);
+  // Exclude internal driver photo metadata item
+  const items = rawItems.filter(f => f && f.id !== '__driver_photo__' && (f as any).destination !== 'DRIVER_PHOTO');
   const fallback = category === 'Pedicab' ? '15.00' : '20.00';
   
   return items.map(f => {
@@ -157,7 +159,9 @@ export function setMobileVerifierBaseUrl(url: string): void {
 export function buildPermanentQrPayload(f: FranchiseRecord): string {
   const plate = f.cityPlateNumber || f.mtopNumber || 'T-102';
   const category = f.vehicleCategory || (plate.startsWith('P-') ? 'Pedicab' : 'Tricycle');
-  const matrix = f.fareMatrix && f.fareMatrix.length > 0 ? f.fareMatrix : getDefaultFareMatrix(category);
+  // Always filter out __driver_photo__ metadata item so fare calculation is always accurate
+  const rawMatrix = f.fareMatrix && f.fareMatrix.length > 0 ? f.fareMatrix : getDefaultFareMatrix(category);
+  const matrix = rawMatrix.filter(item => item && item.id !== '__driver_photo__' && (item as any).destination !== 'DRIVER_PHOTO');
   const expDateStr = f.expirationDate || '2027-01-15';
   const resolvedStatus = resolveFranchiseStatus(f.status, expDateStr);
 
@@ -188,7 +192,14 @@ export function buildPermanentQrPayload(f: FranchiseRecord): string {
     if (f.id) {
       url.searchParams.set('driver_id', f.id);
     }
-    if (f.driverPhoto && !f.driverPhoto.startsWith('data:')) {
+    // NEVER put base64 or long image data into the URL to ensure the QR code never overflows
+    if (
+      f.driverPhoto &&
+      !f.driverPhoto.startsWith('data:') &&
+      !f.driverPhoto.startsWith('/9j/') &&
+      f.driverPhoto.length < 300 &&
+      (f.driverPhoto.startsWith('http://') || f.driverPhoto.startsWith('https://') || f.driverPhoto.startsWith('/'))
+    ) {
       url.searchParams.set('photo', f.driverPhoto);
     }
     if (f.applicationNo) {

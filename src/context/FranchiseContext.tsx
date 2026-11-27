@@ -180,6 +180,8 @@ interface FranchiseContextType {
       chassisNumber?: string;
       email?: string;
       gmail?: string;
+      hasPermanentQr?: boolean;
+      qrGeneratedDate?: string;
     }
   ) => Promise<void>;
   approveReview: (reviewId: string) => Promise<void>;
@@ -1443,6 +1445,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       chassisNumber?: string;
       email?: string;
       gmail?: string;
+      hasPermanentQr?: boolean;
+      qrGeneratedDate?: string;
     }
   ) => {
     const target = franchises.find(f => f.mtopNumber === mtopNumber || f.cityPlateNumber === mtopNumber);
@@ -1484,8 +1488,9 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       qr_payload: updatedQrPayload,
     }, cat);
 
-    setFranchises(prev => prev.map(item => {
-      if (item.mtopNumber === mtopNumber || item.cityPlateNumber === mtopNumber) {
+    setFranchises(prev => {
+      const updatedList = prev.map(item => {
+        if (item.mtopNumber === mtopNumber || item.cityPlateNumber === mtopNumber) {
         const nameChanged =
           (newOperatorName && newOperatorName !== item.operatorName) ||
           (newDriverName && newDriverName !== item.driverName);
@@ -1573,6 +1578,8 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           driverContact: driverData.contact ?? item.driverContact,
           email: driverData.email ?? driverData.gmail ?? item.email ?? item.gmail,
           gmail: driverData.gmail ?? driverData.email ?? item.gmail ?? item.email,
+          hasPermanentQr: driverData.hasPermanentQr !== undefined ? driverData.hasPermanentQr : item.hasPermanentQr,
+          qrGeneratedDate: driverData.qrGeneratedDate || item.qrGeneratedDate,
           nameChangeHistory: newHistoryEntry
             ? [newHistoryEntry, ...(item.nameChangeHistory || [])]
             : item.nameChangeHistory,
@@ -1584,7 +1591,12 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         };
       }
       return item;
-    }));
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY_FRANCHISES, JSON.stringify(updatedList));
+      } catch { }
+      return updatedList;
+    });
 
     triggerModuleChange([
       { mod: 'franchise_records', reason: `Operator/Driver updated for Plate ${mtopNumber}` },
