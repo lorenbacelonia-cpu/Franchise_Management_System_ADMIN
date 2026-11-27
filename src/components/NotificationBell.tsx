@@ -3,20 +3,18 @@ import { useFranchise } from '../context/FranchiseContext';
 import {
   Bell,
   CheckCircle2,
-  Clock,
   AlertTriangle,
   MessageSquare,
-  FileCheck2,
+  UserCheck,
   X,
   ChevronRight,
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { isRecordExpired } from '../utils/fareUtils';
 
 export interface NotificationItem {
   id: string;
-  type: 'review' | 'renewal' | 'complaint' | 'violation';
+  type: 'passenger' | 'complaint' | 'violation';
   title: string;
   description: string;
   vehicleCategory?: 'Tricycle' | 'Pedicab';
@@ -82,16 +80,14 @@ export const playNotificationChime = () => {
 
 export const NotificationBell: React.FC = () => {
   const {
-    pendingReviews,
-    franchises,
+    passengerAccounts,
     complaints,
     violations,
     setActiveModule,
-    setSelectedReview,
   } = useFranchise();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [filterType, setFilterType] = useState<'all' | 'review' | 'renewal' | 'complaint' | 'violation'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'passenger' | 'complaint' | 'violation'>('all');
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -133,53 +129,30 @@ export const NotificationBell: React.FC = () => {
     };
   }, [isOpen]);
 
-  // Build notifications from live state
+  // Build notifications from live state (Passenger Accounts, Reports/Complaints, Violations)
   const notifications = useMemo(() => {
     const list: NotificationItem[] = [];
 
-    // 1. Pending Reviews
-    pendingReviews.forEach(r => {
-      if (r.status === 'Pending Document Review' || !r.status) {
-        list.push({
-          id: `rev-${r.id}`,
-          type: 'review',
-          title: `Pending Review: ${r.applicantName}`,
-          description: `${r.applicationType || 'Franchise Intake'} awaiting document inspection`,
-          vehicleCategory: r.vehicleCategory,
-          plateOrMtop: r.cityPlateAssigned || r.mtopAssigned,
-          date: r.dateSubmitted || 'Recent',
-          severity: 'high',
-          targetData: r,
-        });
-      }
+    // 1. Mobile Passenger Accounts
+    passengerAccounts.forEach(p => {
+      list.push({
+        id: `pass-${p.id || p.username}`,
+        type: 'passenger',
+        title: `New Passenger User: ${p.fullname || p.username}`,
+        description: `@${p.username} registered via mobile passenger app`,
+        date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent',
+        severity: 'info',
+        targetData: p,
+      });
     });
 
-    // 2. Expired / Pending Renewals
-    franchises.forEach(f => {
-      const expired = f.status === 'Expired' || isRecordExpired(f.expirationDate);
-      const pendingRenewal = f.status === 'Pending Renewal';
-      if (expired || pendingRenewal) {
-        list.push({
-          id: `ren-${f.id}`,
-          type: 'renewal',
-          title: `${pendingRenewal ? 'Pending Renewal' : 'Expired Franchise'}: ${f.cityPlateNumber || f.mtopNumber}`,
-          description: `Operator: ${f.operatorName || f.ownerName || 'N/A'} — Valid until ${f.expirationDate || 'N/A'}`,
-          vehicleCategory: f.vehicleCategory,
-          plateOrMtop: f.cityPlateNumber || f.mtopNumber,
-          date: f.expirationDate || 'Overdue',
-          severity: expired ? 'high' : 'medium',
-          targetData: f,
-        });
-      }
-    });
-
-    // 3. Passenger Complaints under investigation
+    // 2. Passenger Complaints / Reports under investigation
     complaints.forEach(c => {
       if (c.status !== 'Resolved') {
         list.push({
           id: `comp-${c.id}`,
           type: 'complaint',
-          title: `Complaint: ${c.issueType}`,
+          title: `Report: ${c.issueType}`,
           description: `Plate: ${c.cityPlateNumber || c.mtopNumber || 'N/A'} — ${c.description ? c.description.slice(0, 60) + '...' : 'Awaiting admin response'}`,
           vehicleCategory: c.vehicleCategory || 'Tricycle',
           plateOrMtop: c.cityPlateNumber || c.mtopNumber,
@@ -190,7 +163,7 @@ export const NotificationBell: React.FC = () => {
       }
     });
 
-    // 4. Violations unsettled
+    // 3. Violations unsettled
     violations.forEach(v => {
       if (v.status !== 'Settled') {
         list.push({
@@ -207,7 +180,7 @@ export const NotificationBell: React.FC = () => {
       }
     });
 
-    // 5. Excessive Violations / Multiple Offender Warning for Admin
+    // 4. Excessive Violations / Multiple Offender Warning for Admin
     const offenderCounts = new Map<string, { plate: string; driver: string; count: number; category?: any }>();
     violations.forEach(v => {
       const key = (v.cityPlateNumber || v.mtopNumber || '').trim().toUpperCase();
@@ -233,18 +206,18 @@ export const NotificationBell: React.FC = () => {
           id: `repeat-${key}`,
           type: 'violation',
           title: `⚠️ Excessive Violations: ${info.driver}`,
-          description: `Plate ${info.plate} has ${info.count} recorded violations. Admin reminder: Suspend driver recommended!`,
+          description: `Plate ${info.plate} has ${info.count} recorded violations/reports. Admin action advised.`,
           vehicleCategory: info.category || 'Tricycle',
           plateOrMtop: info.plate,
           date: 'Action Advised',
           severity: 'high',
-          targetData: { multipleOffender: true, plate: info.plate }
+          targetData: { multipleOffender: true, plate: info.plate },
         });
       }
     });
 
     return list;
-  }, [pendingReviews, franchises, complaints, violations]);
+  }, [passengerAccounts, complaints, violations]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !readIds.has(n.id)).length;
@@ -289,26 +262,21 @@ export const NotificationBell: React.FC = () => {
     setReadIds(prev => new Set(prev).add(item.id));
     setIsOpen(false);
 
-    if (item.type === 'review') {
-      setActiveModule('overview');
-      if (item.targetData) {
-        setSelectedReview(item.targetData);
-      }
-      setTimeout(() => {
-        document.getElementById('pending-reviews-section')?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else if (item.type === 'renewal') {
-      setActiveModule('renewal');
+    if (item.type === 'passenger') {
+      setActiveModule('system_access');
     } else if (item.type === 'complaint') {
-      setActiveModule('overview');
-      setTimeout(() => {
-        const el = document.getElementById('pending-reviews-section');
-        el?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      try {
+        sessionStorage.setItem('tabaco_trd_active_violation_tab', 'reports');
+      } catch {}
+      setActiveModule('violation_entry');
     } else if (item.type === 'violation') {
       if (item.targetData?.multipleOffender) {
         try {
           sessionStorage.setItem('tabaco_trd_active_violation_tab', 'multiple_violations');
+        } catch {}
+      } else {
+        try {
+          sessionStorage.setItem('tabaco_trd_active_violation_tab', 'violations');
         } catch {}
       }
       setActiveModule('violation_entry');
@@ -352,7 +320,7 @@ export const NotificationBell: React.FC = () => {
                     </span>
                   )}
                 </h4>
-                <p className="text-[10px] text-slate-400">Tricycle &amp; Pedicab alerts</p>
+                <p className="text-[10px] text-slate-400">Passengers, Reports &amp; Violations</p>
               </div>
             </div>
 
@@ -402,13 +370,12 @@ export const NotificationBell: React.FC = () => {
 
           {/* Type Filter Pills */}
           <div className="flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-200 overflow-x-auto text-[11px] no-scrollbar">
-            {(['all', 'review', 'renewal', 'complaint', 'violation'] as const).map(type => {
+            {(['all', 'passenger', 'complaint', 'violation'] as const).map(type => {
               const labelMap: Record<string, string> = {
                 all: `All (${notifications.length})`,
-                review: `Reviews (${notifications.filter(n => n.type === 'review').length})`,
-                renewal: `Renewals (${notifications.filter(n => n.type === 'renewal').length})`,
-                complaint: `Complaints (${notifications.filter(n => n.type === 'complaint').length})`,
-                violation: `Citations (${notifications.filter(n => n.type === 'violation').length})`,
+                passenger: `Passengers (${notifications.filter(n => n.type === 'passenger').length})`,
+                complaint: `Reports (${notifications.filter(n => n.type === 'complaint').length})`,
+                violation: `Violations (${notifications.filter(n => n.type === 'violation').length})`,
               };
               return (
                 <button
@@ -448,14 +415,9 @@ export const NotificationBell: React.FC = () => {
                   >
                     {/* Icon based on notification type */}
                     <div className="shrink-0 mt-0.5">
-                      {item.type === 'review' && (
-                        <div className="p-2 rounded-xl bg-sky-100 text-sky-700 border border-sky-200">
-                          <FileCheck2 className="w-4 h-4" />
-                        </div>
-                      )}
-                      {item.type === 'renewal' && (
-                        <div className="p-2 rounded-xl bg-amber-100 text-amber-800 border border-amber-200">
-                          <Clock className="w-4 h-4" />
+                      {item.type === 'passenger' && (
+                        <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <UserCheck className="w-4 h-4" />
                         </div>
                       )}
                       {item.type === 'complaint' && (
