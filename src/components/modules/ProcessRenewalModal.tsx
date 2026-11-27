@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Plus,
   Check,
+  Clock,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
@@ -417,9 +418,32 @@ export const ProcessRenewalModal: React.FC = () => {
                     Unit {selectedForReminder.cityPlateNumber || selectedForReminder.mtopNumber}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-300">
-                  Franchise Holder: <strong>{selectedForReminder.operatorName}</strong> • Driver: {selectedForReminder.driverName} • Expiration: {selectedForReminder.expirationDate}
-                </p>
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-300">
+                  <span>Franchise Holder: <strong>{selectedForReminder.operatorName}</strong></span>
+                  <span>• Driver: <strong>{selectedForReminder.driverName}</strong></span>
+                  <span>• Expiration: <strong className="font-mono">{selectedForReminder.expirationDate}</strong></span>
+                  {(() => {
+                    const info = getFranchiseExpiryInfo(selectedForReminder);
+                    if (info.daysRemaining <= 30) {
+                      return (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          info.isExpired
+                            ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                            : info.daysRemaining <= 7
+                              ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                              : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                        }`}>
+                          {info.isExpired
+                            ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
+                            : info.daysRemaining === 0
+                              ? 'Expires Today!'
+                              : `${info.daysRemaining} days left`}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
             </div>
             <button
@@ -907,9 +931,32 @@ export const ProcessRenewalModal: React.FC = () => {
                 <h4 className="text-sm font-bold">
                   Inline Renewal Processing — Unit {selectedForRenewal.mtopNumber}
                 </h4>
-                <p className="text-[11px] text-slate-300">
-                  Operator: {selectedForRenewal.operatorName} • Driver: {selectedForRenewal.driverName} • Current Expiry: {selectedForRenewal.expirationDate}
-                </p>
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[11px] text-slate-300">
+                  <span>Operator: <strong>{selectedForRenewal.operatorName}</strong></span>
+                  <span>• Driver: <strong>{selectedForRenewal.driverName}</strong></span>
+                  <span>• Current Expiry: <strong className="font-mono">{selectedForRenewal.expirationDate}</strong></span>
+                  {(() => {
+                    const info = getFranchiseExpiryInfo(selectedForRenewal);
+                    if (info.daysRemaining <= 30) {
+                      return (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          info.isExpired
+                            ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40'
+                            : info.daysRemaining <= 7
+                              ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40'
+                              : 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                        }`}>
+                          {info.isExpired
+                            ? (Math.abs(info.daysRemaining) === 0 ? 'Expired Today' : `Expired ${Math.abs(info.daysRemaining)}d ago`)
+                            : info.daysRemaining === 0
+                              ? 'Expires Today!'
+                              : `${info.daysRemaining} days left`}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
             </div>
             <button
@@ -1298,7 +1345,7 @@ export const ProcessRenewalModal: React.FC = () => {
                 <th className="px-4 py-3">City Plate No.</th>
                 <th className="px-4 py-3">Application No.</th>
                 <th className="px-4 py-3">Operator / Driver</th>
-                <th className="px-4 py-3">Current Expiration</th>
+                <th className="px-4 py-3">Current Expiration / Duration</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
               </tr>
@@ -1359,12 +1406,45 @@ export const ProcessRenewalModal: React.FC = () => {
                         </p>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                          <span className={isExpired ? 'font-bold text-rose-700' : 'font-medium'}>
-                            {item.expirationDate}
-                          </span>
-                        </div>
+                        {(() => {
+                          const expiryInfo = getFranchiseExpiryInfo(item);
+                          const isExp = expiryInfo.isExpired;
+                          const days = expiryInfo.daysRemaining;
+
+                          return (
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-1.5">
+                                <Calendar className={`h-3.5 w-3.5 shrink-0 ${isExp ? 'text-rose-500' : days <= 30 ? 'text-amber-500' : 'text-slate-400'}`} />
+                                <span className={`font-mono ${isExp ? 'font-bold text-rose-700' : days <= 30 ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                                  {item.expirationDate || 'N/A'}
+                                </span>
+                              </div>
+
+                              {/* Duration countdown: highlighted when within 30 days before expiration or expired */}
+                              {isExp ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <AlertCircle className="h-3 w-3 text-rose-600 shrink-0" />
+                                  <span>{Math.abs(days) === 0 ? 'Expired Today' : `Expired ${Math.abs(days)}d ago`}</span>
+                                </span>
+                              ) : days === 0 ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                  <Clock className="h-3 w-3 text-amber-700 shrink-0" />
+                                  <span>Expires Today!</span>
+                                </span>
+                              ) : days <= 7 ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200">
+                                  <Clock className="h-3 w-3 text-amber-600 shrink-0" />
+                                  <span>{days} {days === 1 ? 'day' : 'days'} left</span>
+                                </span>
+                              ) : days <= 30 ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                                  <Clock className="h-3 w-3 text-blue-600 shrink-0" />
+                                  <span>{days} days left</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <span
