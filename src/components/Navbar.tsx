@@ -65,22 +65,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
 
   const currentMeta = MODULE_TITLES[activeModule] || MODULE_TITLES.overview;
 
-  const [utcTime, setUtcTime] = useState<string>(() => {
+  const getPhTime = () => {
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
-  });
+    const dateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    const timeStr = now.toLocaleTimeString('en-PH', {
+      timeZone: 'Asia/Manila',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+    return `${dateStr} ${timeStr}`;
+  };
+
+  const [phTime, setPhTime] = useState<string>(getPhTime);
 
   useEffect(() => {
-    const updateUtc = () => {
-      const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      setUtcTime(
-        `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`
-      );
+    const updateTime = () => {
+      setPhTime(getPhTime());
     };
-    updateUtc();
-    const timer = setInterval(updateUtc, 1000);
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -115,12 +120,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileSidebar }) => {
           </div>
         </div>
 
-        {/* Center: Live Automatic UTC Calendar, Date & Time */}
+        {/* Center: Live Automatic Philippine Calendar, Date & Time */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 rounded-full bg-slate-100/90 border border-slate-200/90 text-slate-700 shadow-2xs font-mono text-[11px] sm:text-xs">
           <Calendar className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-          <span className="font-semibold text-slate-800 tracking-tight">{utcTime}</span>
-          <span className="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/60">
-            UTC
+          <span className="font-semibold text-slate-800 tracking-tight">{phTime}</span>
+          <span className="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/60" title="Philippine Standard Time (UTC+8)">
+            PHT
           </span>
         </div>
 
