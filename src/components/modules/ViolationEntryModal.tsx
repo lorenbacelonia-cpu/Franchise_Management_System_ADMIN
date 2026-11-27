@@ -76,7 +76,7 @@ export const ViolationEntryModal: React.FC = () => {
         sessionStorage.removeItem('tabaco_trd_active_violation_tab');
         return saved;
       }
-    } catch {}
+    } catch { }
     return 'violations';
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -574,11 +574,10 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 1: Violations */}
           <button
             onClick={() => switchTab('violations')}
-            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === 'violations'
-                ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
-                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeTab === 'violations'
+              ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
+              : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             <ShieldAlert className="h-4 w-4" />
             <span>Violations ({categoryViolations.length})</span>
@@ -587,11 +586,10 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 2: Passenger Reports */}
           <button
             onClick={() => switchTab('reports')}
-            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === 'reports'
-                ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
-                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeTab === 'reports'
+              ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
+              : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             <Users className="h-4 w-4" />
             <span>Passenger Reports ({(complaints || []).length})</span>
@@ -600,11 +598,10 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 3: Removed Records Audit Log */}
           <button
             onClick={() => switchTab('logs')}
-            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === 'logs'
-                ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/30'
-                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeTab === 'logs'
+              ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/30'
+              : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             <History className="h-4 w-4" />
             <span>Removed Records Audit Log ({deletionLogs.length})</span>
@@ -613,11 +610,10 @@ export const ViolationEntryModal: React.FC = () => {
           {/* Tab 4: Total of Multiple Violations (Placed right beside Removed Records Audit Log) */}
           <button
             onClick={() => switchTab('multiple_violations')}
-            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === 'multiple_violations'
-                ? 'bg-rose-700 text-white shadow-md shadow-rose-700/30 ring-2 ring-rose-400'
-                : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
-            }`}
+            className={`shrink-0 whitespace-nowrap px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${activeTab === 'multiple_violations'
+              ? 'bg-rose-700 text-white shadow-md shadow-rose-700/30 ring-2 ring-rose-400'
+              : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
+              }`}
           >
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             <span>Total of Multiple Violations ({multipleOffenders.length})</span>
@@ -695,11 +691,10 @@ export const ViolationEntryModal: React.FC = () => {
                     key={s}
                     type="button"
                     onClick={() => setStatusFilter(s)}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      statusFilter === s
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${statusFilter === s
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     {s}
                   </button>
@@ -714,11 +709,10 @@ export const ViolationEntryModal: React.FC = () => {
                     key={s}
                     type="button"
                     onClick={() => setStatusFilter(s)}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      statusFilter === s
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${statusFilter === s
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     {s}
                   </button>
@@ -734,11 +728,10 @@ export const ViolationEntryModal: React.FC = () => {
                       key={cat}
                       type="button"
                       onClick={() => setMultipleCategoryFilter(cat)}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        multipleCategoryFilter === cat
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${multipleCategoryFilter === cat
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
                     >
                       {cat === 'All' ? 'All Units' : cat}
                     </button>
@@ -751,11 +744,10 @@ export const ViolationEntryModal: React.FC = () => {
                       key={s}
                       type="button"
                       onClick={() => setStatusFilter(s)}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
-                        statusFilter === s
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${statusFilter === s
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                        }`}
                     >
                       {s === 'Active' ? 'Active Flagged' : s}
                     </button>
@@ -777,17 +769,17 @@ export const ViolationEntryModal: React.FC = () => {
                   activeTab === 'violations'
                     ? 'Search plate, driver, offense…'
                     : activeTab === 'reports'
-                    ? 'Search name, plate, issue…'
-                    : activeTab === 'multiple_violations'
-                    ? 'Search plate, operator, offense…'
-                    : 'Search removed audit logs…'
+                      ? 'Search name, plate, issue…'
+                      : activeTab === 'multiple_violations'
+                        ? 'Search plate, operator, offense…'
+                        : 'Search removed audit logs…'
                 }
                 className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-l-xl text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
               />
             </div>
             <button
               type="button"
-              onClick={() => {}}
+              onClick={() => { }}
               className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-r-xl text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shrink-0 border border-rose-600 shadow-xs"
             >
               <Search className="h-3.5 w-3.5" />
@@ -833,181 +825,178 @@ export const ViolationEntryModal: React.FC = () => {
                         ? (rawImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawImg}`)
                         : rawImg;
                       return (
-                      <React.Fragment key={v.id}>
-                        <tr
-                          className={`hover:bg-slate-50 transition-colors ${
-                            expandedId === v.id ? 'bg-slate-50/80' : ''
-                          }`}
-                        >
-                          <td className="px-4 py-3 font-mono whitespace-nowrap">
-                            <div className="font-bold text-slate-900">{v.cityPlateNumber || v.mtopNumber || 'N/A'}</div>
-                            {evidenceImg && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setLightboxImage({
-                                    url: evidenceImg,
-                                    title: `Enforcer Violation Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
-                                  });
-                                }}
-                                className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
-                                title="Click to view attached evidence photo"
+                        <React.Fragment key={v.id}>
+                          <tr
+                            className={`hover:bg-slate-50 transition-colors ${expandedId === v.id ? 'bg-slate-50/80' : ''
+                              }`}
+                          >
+                            <td className="px-4 py-3 font-mono whitespace-nowrap">
+                              <div className="font-bold text-slate-900">{v.cityPlateNumber || v.mtopNumber || 'N/A'}</div>
+                              {evidenceImg && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLightboxImage({
+                                      url: evidenceImg,
+                                      title: `Enforcer Violation Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}`
+                                    });
+                                  }}
+                                  className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
+                                  title="Click to view attached evidence photo"
+                                >
+                                  <ImageIcon className="h-2.5 w-2.5 text-emerald-600" />
+                                  <span>Evidence Photo</span>
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-slate-900">{v.operatorName || '—'}</div>
+                              <div className="text-[11px] text-slate-500">Driver: <strong className="text-slate-800">{v.driverName || '—'}</strong></div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-rose-600">{v.violationType || 'General Violation'}</div>
+                              <div className="text-[11px] text-slate-500 truncate max-w-[180px]">
+                                {v.location || '—'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
+                              ₱{(Number(v.fineAmount) || 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                              {v.enforcerName || 'Issuing Officer'}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                              {v.dateSubmitted || '—'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getViolationStatusStyle(v.status)}`}
                               >
-                                <ImageIcon className="h-2.5 w-2.5 text-emerald-600" />
-                                <span>Evidence Photo</span>
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-semibold text-slate-900">{v.operatorName || '—'}</div>
-                            <div className="text-[11px] text-slate-500">Driver: <strong className="text-slate-800">{v.driverName || '—'}</strong></div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-rose-600">{v.violationType || 'General Violation'}</div>
-                            <div className="text-[11px] text-slate-500 truncate max-w-[180px]">
-                              {v.location || '—'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
-                            ₱{(Number(v.fineAmount) || 0).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                            {v.enforcerName || 'Issuing Officer'}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                            {v.dateSubmitted || '—'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getViolationStatusStyle(v.status)}`}
-                            >
-                              {v.status === 'Settled' && <CheckCircle2 className="h-3 w-3" />}
-                              {v.status === 'Pending' && <Clock className="h-3 w-3" />}
-                              <span>{v.status}</span>
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleExpand(v.id)}
-                                className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                                  expandedId === v.id
+                                {v.status === 'Settled' && <CheckCircle2 className="h-3 w-3" />}
+                                {v.status === 'Pending' && <Clock className="h-3 w-3" />}
+                                <span>{v.status}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExpand(v.id)}
+                                  className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${expandedId === v.id
                                     ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-slate-400'
                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                }`}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                <span>Manage</span>
-                                {expandedId === v.id ? (
-                                  <ChevronUp className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDown className="h-3 w-3" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeletingViolation(v);
-                                }}
-                                className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-colors cursor-pointer shadow-xs"
-                                title="Delete Violation Citation Record (Admin Passcode Required)"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expandable manage panel with prominent border drop shadow */}
-                        {expandedId === v.id && (
-                          <tr className="bg-slate-50/50">
-                            <td colSpan={8} className="px-4 sm:px-6 py-4">
-                              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                  {/* Status change */}
-                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
-                                    <p className="text-xs font-bold text-slate-700 mb-3">
-                                      Update Violation Status
-                                    </p>
-                                    <div className="flex flex-col gap-2">
-                                      {violationStatusOptions.map(s => (
-                                        <button
-                                          key={s}
-                                          type="button"
-                                          onClick={() =>
-                                            handleViolationStatusUpdate(v.id, s)
-                                          }
-                                          className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
-                                            v.status === s
-                                              ? getViolationStatusStyle(s) +
-                                                ' ring-2 ring-offset-1 ring-slate-300'
-                                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                                          }`}
-                                        >
-                                          {s === 'Settled' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                          {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
-                                          <span>{s}</span>
-                                        </button>
-                                      ))}
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeletingViolation(v)}
-                                        className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        <span>Delete Citation</span>
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Evidence photo preview */}
-                                  {evidenceImg && (
-                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
-                                      <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
-                                        <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
-                                        <span>Attached Photo Evidence</span>
-                                      </p>
-                                      <div
-                                        onClick={() => setLightboxImage({ url: evidenceImg, title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}` })}
-                                        className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all"
-                                      >
-                                        <img src={evidenceImg} alt="Proof" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
-                                          <ZoomIn className="h-4 w-4" />
-                                          <span>Click to Zoom</span>
-                                        </div>
-                                      </div>
-                                    </div>
+                                    }`}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  <span>Manage</span>
+                                  {expandedId === v.id ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
                                   )}
-
-                                  {/* Admin notes */}
-                                  <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
-                                    <p className="text-xs font-bold text-slate-700">Internal Admin Notes</p>
-                                    <textarea
-                                      rows={3}
-                                      value={adminNotes[v.id] ?? (v.remarks || '')}
-                                      onChange={e =>
-                                        setAdminNotes(prev => ({ ...prev, [v.id]: e.target.value }))
-                                      }
-                                      placeholder="Add internal admin notes about this violation citation..."
-                                      className="w-full p-2.5 text-[11px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium text-slate-800 resize-none shadow-2xs"
-                                    />
-                                    {v.remarks && (
-                                      <p className="text-[10px] text-slate-400">
-                                        <span className="font-semibold">Issuing citation remark:</span>{' '}
-                                        {v.remarks}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingViolation(v);
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-colors cursor-pointer shadow-xs"
+                                  title="Delete Violation Citation Record (Admin Passcode Required)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               </div>
                             </td>
                           </tr>
-                        )}
-                      </React.Fragment>
+
+                          {/* Expandable manage panel with prominent border drop shadow */}
+                          {expandedId === v.id && (
+                            <tr className="bg-slate-50/50">
+                              <td colSpan={8} className="px-4 sm:px-6 py-4">
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
+                                  <div className="flex flex-col sm:flex-row gap-4">
+                                    {/* Status change */}
+                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
+                                      <p className="text-xs font-bold text-slate-700 mb-3">
+                                        Update Violation Status
+                                      </p>
+                                      <div className="flex flex-col gap-2">
+                                        {violationStatusOptions.map(s => (
+                                          <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() =>
+                                              handleViolationStatusUpdate(v.id, s)
+                                            }
+                                            className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${v.status === s
+                                              ? getViolationStatusStyle(s) +
+                                              ' ring-2 ring-offset-1 ring-slate-300'
+                                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                              }`}
+                                          >
+                                            {s === 'Settled' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
+                                            <span>{s}</span>
+                                          </button>
+                                        ))}
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeletingViolation(v)}
+                                          className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          <span>Delete Citation</span>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Evidence photo preview */}
+                                    {evidenceImg && (
+                                      <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
+                                        <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                          <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
+                                          <span>Attached Photo Evidence</span>
+                                        </p>
+                                        <div
+                                          onClick={() => setLightboxImage({ url: evidenceImg, title: `Enforcer Citation Proof — Plate ${v.cityPlateNumber || v.mtopNumber}` })}
+                                          className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-emerald-500 transition-all"
+                                        >
+                                          <img src={evidenceImg} alt="Proof" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                            <ZoomIn className="h-4 w-4" />
+                                            <span>Click to Zoom</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Admin notes */}
+                                    <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
+                                      <p className="text-xs font-bold text-slate-700">Internal Admin Notes</p>
+                                      <textarea
+                                        rows={3}
+                                        value={adminNotes[v.id] ?? (v.remarks || '')}
+                                        onChange={e =>
+                                          setAdminNotes(prev => ({ ...prev, [v.id]: e.target.value }))
+                                        }
+                                        placeholder="Add internal admin notes about this violation citation..."
+                                        className="w-full p-2.5 text-[11px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium text-slate-800 resize-none shadow-2xs"
+                                      />
+                                      {v.remarks && (
+                                        <p className="text-[10px] text-slate-400">
+                                          <span className="font-semibold">Issuing citation remark:</span>{' '}
+                                          {v.remarks}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })
                   )}
@@ -1052,231 +1041,226 @@ export const ViolationEntryModal: React.FC = () => {
                         ? (rawCompImg.startsWith('/storage/') ? `https://ynyjkwcjjfswcfzwgumv.supabase.co${rawCompImg}` : `https://ynyjkwcjjfswcfzwgumv.supabase.co/storage/v1/object/public/complaint_evidence/${rawCompImg}`)
                         : rawCompImg;
                       return (
-                      <React.Fragment key={c.id}>
-                        <tr
-                          className={`hover:bg-slate-50 transition-colors ${
-                            expandedId === c.id ? 'bg-slate-50/80' : ''
-                          }`}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="font-semibold text-slate-900">
-                              {maskName(c.complainantName)}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-mono">
-                              {c.contactNumber || 'No phone'}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-mono whitespace-nowrap">
-                            <div className="font-bold text-slate-900">{c.cityPlateNumber || c.mtopNumber || 'N/A'}</div>
-                            {compEvidenceImg && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setLightboxImage({
-                                    url: compEvidenceImg,
-                                    title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}`
-                                  });
-                                }}
-                                className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
-                                title="Click to view attached citizen photo evidence"
+                        <React.Fragment key={c.id}>
+                          <tr
+                            className={`hover:bg-slate-50 transition-colors ${expandedId === c.id ? 'bg-slate-50/80' : ''
+                              }`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-slate-900">
+                                {maskName(c.complainantName)}
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono">
+                                {c.contactNumber || 'No phone'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-mono whitespace-nowrap">
+                              <div className="font-bold text-slate-900">{c.cityPlateNumber || c.mtopNumber || 'N/A'}</div>
+                              {compEvidenceImg && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLightboxImage({
+                                      url: compEvidenceImg,
+                                      title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}`
+                                    });
+                                  }}
+                                  className="mt-1 inline-flex items-center space-x-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-full cursor-pointer transition-colors shadow-2xs"
+                                  title="Click to view attached citizen photo evidence"
+                                >
+                                  <ImageIcon className="h-2.5 w-2.5 text-sky-600" />
+                                  <span>Report Photo</span>
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-sky-700">{c.issueType}</div>
+                              <div className="text-[11px] text-slate-500 line-clamp-1 max-w-[240px]">
+                                {c.description}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                              {c.incidentDate || (c as any).dateSubmitted || '—'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getComplaintStatusStyle(c.status)}`}
                               >
-                                <ImageIcon className="h-2.5 w-2.5 text-sky-600" />
-                                <span>Report Photo</span>
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-sky-700">{c.issueType}</div>
-                            <div className="text-[11px] text-slate-500 line-clamp-1 max-w-[240px]">
-                              {c.description}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                            {c.incidentDate || (c as any).dateSubmitted || '—'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getComplaintStatusStyle(c.status)}`}
-                            >
-                              {c.status === 'Resolved' && <CheckCircle2 className="h-3 w-3" />}
-                              {c.status === 'Pending' && <Clock className="h-3 w-3" />}
-                              {c.status === 'Escalated' && <ShieldAlert className="h-3 w-3" />}
-                              <span>{c.status}</span>
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleExpand(c.id)}
-                                className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                                  expandedId === c.id
+                                {c.status === 'Resolved' && <CheckCircle2 className="h-3 w-3" />}
+                                {c.status === 'Pending' && <Clock className="h-3 w-3" />}
+                                {c.status === 'Escalated' && <ShieldAlert className="h-3 w-3" />}
+                                <span>{c.status}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleExpand(c.id)}
+                                  className={`inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${expandedId === c.id
                                     ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-slate-400'
                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                }`}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                <span>Respond</span>
-                                {expandedId === c.id ? (
-                                  <ChevronUp className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDown className="h-3 w-3" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeletingComplaint(c);
-                                }}
-                                className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-colors cursor-pointer shadow-xs"
-                                title="Delete Citizen Report (Admin Passcode Required)"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                                    }`}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  <span>Respond</span>
+                                  {expandedId === c.id ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingComplaint(c);
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-colors cursor-pointer shadow-xs"
+                                  title="Delete Citizen Report (Admin Passcode Required)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
 
-                        {/* Expandable chat response panel */}
-                        {expandedId === c.id && (
-                          <tr className="bg-slate-50/50">
-                            <td colSpan={6} className="px-4 sm:px-6 py-4">
-                              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
-                                <div className="flex flex-col lg:flex-row gap-4">
-                                  {/* Complainant attached photo preview */}
-                                  {compEvidenceImg && (
-                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
-                                      <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
-                                        <ImageIcon className="h-3.5 w-3.5 text-sky-600" />
-                                        <span>Attached Citizen Photo</span>
-                                      </p>
-                                      <div
-                                        onClick={() => setLightboxImage({ url: compEvidenceImg, title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}` })}
-                                        className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-sky-500 transition-all"
-                                      >
-                                        <img src={compEvidenceImg} alt="Report evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
-                                          <ZoomIn className="h-4 w-4" />
-                                          <span>Click to Zoom</span>
+                          {/* Expandable chat response panel */}
+                          {expandedId === c.id && (
+                            <tr className="bg-slate-50/50">
+                              <td colSpan={6} className="px-4 sm:px-6 py-4">
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xl shadow-slate-300/50 ring-1 ring-slate-900/5 transition-all animate-fadeIn">
+                                  <div className="flex flex-col lg:flex-row gap-4">
+                                    {/* Complainant attached photo preview */}
+                                    {compEvidenceImg && (
+                                      <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 shrink-0 shadow-sm">
+                                        <p className="text-xs font-bold text-slate-700 mb-2 flex items-center space-x-1">
+                                          <ImageIcon className="h-3.5 w-3.5 text-sky-600" />
+                                          <span>Attached Citizen Photo</span>
+                                        </p>
+                                        <div
+                                          onClick={() => setLightboxImage({ url: compEvidenceImg, title: `Passenger Report Photo Evidence — Plate ${c.cityPlateNumber || c.mtopNumber}` })}
+                                          className="group relative h-28 w-40 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 cursor-pointer shadow-xs hover:ring-2 hover:ring-sky-500 transition-all"
+                                        >
+                                          <img src={compEvidenceImg} alt="Report evidence" className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold space-x-1">
+                                            <ZoomIn className="h-4 w-4" />
+                                            <span>Click to Zoom</span>
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
 
-                                  {/* Status update options */}
-                                  <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
-                                    <p className="text-xs font-bold text-slate-700 mb-3">
-                                      Update Report Status
-                                    </p>
-                                    <div className="flex flex-col gap-2">
-                                      {reportStatusOptions.map(s => (
-                                        <button
-                                          key={s}
-                                          type="button"
-                                          onClick={() => handleReportStatusUpdate(c.id, s)}
-                                          className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${
-                                            c.status === s
+                                    {/* Status update options */}
+                                    <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 min-w-[220px] shadow-sm">
+                                      <p className="text-xs font-bold text-slate-700 mb-3">
+                                        Update Report Status
+                                      </p>
+                                      <div className="flex flex-col gap-2">
+                                        {reportStatusOptions.map(s => (
+                                          <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() => handleReportStatusUpdate(c.id, s)}
+                                            className={`px-3 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-all text-left flex items-center space-x-2 ${c.status === s
                                               ? getComplaintStatusStyle(s) + ' ring-2 ring-offset-1 ring-slate-300'
                                               : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                                          }`}
-                                        >
-                                          {s === 'Resolved' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                          {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
-                                          {s === 'Escalated' && <ShieldAlert className="h-3.5 w-3.5" />}
-                                          <span>{s}</span>
-                                        </button>
-                                      ))}
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeletingComplaint(c)}
-                                        className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        <span>Delete Report</span>
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Citizen message details & respond thread */}
-                                  <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
-                                  <div>
-                                    <span className="text-[10px] uppercase font-bold text-slate-400">Original Citizen Report:</span>
-                                    <p className="text-xs font-medium text-slate-800 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                      "{c.description}"
-                                    </p>
-                                  </div>
-
-                                  {/* Direct Reply Box */}
-                                  <div className="space-y-1.5">
-                                    <label className="text-[11px] font-bold text-slate-700">
-                                      Send Official Response to Passenger:
-                                    </label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="text"
-                                        value={replyInput}
-                                        onChange={e => setReplyInput(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && handleSendReply(c.id)}
-                                        placeholder="Type official reply and press Enter or Send…"
-                                        className="flex-1 p-2 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 font-medium text-slate-800"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSendReply(c.id)}
-                                        className="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg cursor-pointer transition-colors"
-                                      >
-                                        <Send className="h-3.5 w-3.5" />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Message thread */}
-                                  {(c.chatMessages || []).length > 0 && (
-                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                                      {(c.chatMessages || []).map(msg => {
-                                        const msgImg = msg.image || (msg.sender !== 'admin' ? c.evidenceImage : undefined);
-                                        return (
-                                          <div
-                                            key={msg.id}
-                                            className={`flex ${
-                                              msg.sender === 'admin' ? 'justify-end' : 'justify-start'
-                                            }`}
-                                          >
-                                            <div
-                                              className={`px-3 py-2 rounded-xl text-[11px] max-w-[85%] space-y-1.5 ${
-                                                msg.sender === 'admin'
-                                                  ? 'bg-sky-600 text-white'
-                                                  : 'bg-slate-100 text-slate-700'
                                               }`}
-                                            >
-                                              <p className="font-bold text-[10px] opacity-70">
-                                                {msg.senderName}
-                                              </p>
-                                              <p className="whitespace-pre-wrap">{msg.message}</p>
-                                              {msgImg && (
-                                                <div className="mt-1 rounded-lg overflow-hidden border border-slate-300/50 bg-black/10">
-                                                  <img
-                                                    src={msgImg}
-                                                    alt={msg.filename || c.evidenceFilename || 'Proof'}
-                                                    className="max-h-36 w-full object-contain"
-                                                  />
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
+                                          >
+                                            {s === 'Resolved' && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {s === 'Pending' && <Clock className="h-3.5 w-3.5" />}
+                                            {s === 'Escalated' && <ShieldAlert className="h-3.5 w-3.5" />}
+                                            <span>{s}</span>
+                                          </button>
+                                        ))}
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeletingComplaint(c)}
+                                          className="mt-2 px-3 py-2 rounded-lg text-[11px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 cursor-pointer transition-all flex items-center justify-center space-x-1.5"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          <span>Delete Report</span>
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
+
+                                    {/* Citizen message details & respond thread */}
+                                    <div className="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3 shadow-sm">
+                                      <div>
+                                        <span className="text-[10px] uppercase font-bold text-slate-400">Original Citizen Report:</span>
+                                        <p className="text-xs font-medium text-slate-800 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                          "{c.description}"
+                                        </p>
+                                      </div>
+
+                                      {/* Direct Reply Box */}
+                                      <div className="space-y-1.5">
+                                        <label className="text-[11px] font-bold text-slate-700">
+                                          Send Official Response to Passenger:
+                                        </label>
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            value={replyInput}
+                                            onChange={e => setReplyInput(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleSendReply(c.id)}
+                                            placeholder="Type official reply and press Enter or Send…"
+                                            className="flex-1 p-2 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 font-medium text-slate-800"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSendReply(c.id)}
+                                            className="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg cursor-pointer transition-colors"
+                                          >
+                                            <Send className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Message thread */}
+                                      {(c.chatMessages || []).length > 0 && (
+                                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                          {(c.chatMessages || []).map(msg => {
+                                            const msgImg = msg.image || (msg.sender !== 'admin' ? c.evidenceImage : undefined);
+                                            return (
+                                              <div
+                                                key={msg.id}
+                                                className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'
+                                                  }`}
+                                              >
+                                                <div
+                                                  className={`px-3 py-2 rounded-xl text-[11px] max-w-[85%] space-y-1.5 ${msg.sender === 'admin'
+                                                    ? 'bg-sky-600 text-white'
+                                                    : 'bg-slate-100 text-slate-700'
+                                                    }`}
+                                                >
+                                                  <p className="font-bold text-[10px] opacity-70">
+                                                    {msg.senderName}
+                                                  </p>
+                                                  <p className="whitespace-pre-wrap">{msg.message}</p>
+                                                  {msgImg && (
+                                                    <div className="mt-1 rounded-lg overflow-hidden border border-slate-300/50 bg-black/10">
+                                                      <img
+                                                        src={msgImg}
+                                                        alt={msg.filename || c.evidenceFilename || 'Proof'}
+                                                        className="max-h-36 w-full object-contain"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                        )}
-                      </React.Fragment>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })
                   )}
@@ -1330,11 +1314,10 @@ export const ViolationEntryModal: React.FC = () => {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
                       <div className="flex items-center space-x-2">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                          log.recordType === 'Passenger Complaint'
-                            ? 'bg-sky-50 text-sky-700 border-sky-200'
-                            : 'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${log.recordType === 'Passenger Complaint'
+                          ? 'bg-sky-50 text-sky-700 border-sky-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
                           {log.recordType}
                         </span>
                         <span className="font-mono text-xs font-bold text-slate-900">
@@ -1401,7 +1384,7 @@ export const ViolationEntryModal: React.FC = () => {
                     </h4>
                   </div>
                   <p className="text-xs text-slate-700 mt-1 font-medium leading-relaxed">
-                    The system flagged <strong className="text-rose-700 font-bold">{filteredMultipleOffenders.length} driver(s) / unit(s)</strong> with repeated offenses (2 or more citations &amp; passenger reports). 
+                    The system flagged <strong className="text-rose-700 font-bold">{filteredMultipleOffenders.length} driver(s) / unit(s)</strong> with repeated offenses (2 or more citations &amp; passenger reports).
                     Immediate administrative sanction (<strong className="text-amber-900 font-bold">Suspend Driver</strong>) is recommended for drivers with too many violations.
                   </p>
                 </div>
@@ -1464,11 +1447,10 @@ export const ViolationEntryModal: React.FC = () => {
                             {/* Category Badge */}
                             <td className="px-4 py-3.5 whitespace-nowrap">
                               <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                                  row.vehicleCategory === 'Pedicab'
-                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                                }`}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${row.vehicleCategory === 'Pedicab'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }`}
                               >
                                 {row.vehicleCategory}
                               </span>
@@ -1558,11 +1540,10 @@ export const ViolationEntryModal: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => openSuspendModal(row)}
-                                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
-                                    isSuspended
-                                      ? 'bg-purple-700 hover:bg-purple-800 text-white ring-2 ring-purple-400'
-                                      : 'bg-amber-600 hover:bg-amber-700 text-white'
-                                  }`}
+                                  className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${isSuspended
+                                    ? 'bg-purple-700 hover:bg-purple-800 text-white ring-2 ring-purple-400'
+                                    : 'bg-amber-600 hover:bg-amber-700 text-white'
+                                    }`}
                                   title={isSuspended ? "Driver is currently Suspended. Click to manage or lift suspension." : "Suspend Driver for excessive repeated violations"}
                                 >
                                   <PauseCircle className="h-3.5 w-3.5" />
@@ -1637,11 +1618,10 @@ export const ViolationEntryModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSuspendActionType('suspend')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                      suspendActionType === 'suspend'
-                        ? 'bg-amber-50 border-amber-500 text-amber-950 ring-2 ring-amber-400 shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${suspendActionType === 'suspend'
+                      ? 'bg-amber-50 border-amber-500 text-amber-950 ring-2 ring-amber-400 shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
                   >
                     <div className="flex items-center space-x-1.5 font-bold text-amber-800">
                       <PauseCircle className="h-4 w-4 text-amber-600" />
@@ -1656,11 +1636,10 @@ export const ViolationEntryModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSuspendActionType('lift')}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                        suspendActionType === 'lift'
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400 shadow-xs'
-                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${suspendActionType === 'lift'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-400 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
                     >
                       <div className="flex items-center space-x-1.5 font-bold text-emerald-800">
                         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -1684,11 +1663,10 @@ export const ViolationEntryModal: React.FC = () => {
                         key={dur}
                         type="button"
                         onClick={() => setSuspensionDurationInput(dur)}
-                        className={`py-2 px-2 text-center rounded-lg font-bold text-xs border cursor-pointer transition-all ${
-                          suspensionDurationInput === dur
-                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                        }`}
+                        className={`py-2 px-2 text-center rounded-lg font-bold text-xs border cursor-pointer transition-all ${suspensionDurationInput === dur
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                          }`}
                       >
                         {dur}
                       </button>
@@ -1730,11 +1708,10 @@ export const ViolationEntryModal: React.FC = () => {
                 type="button"
                 disabled={isSubmittingSanction}
                 onClick={handleConfirmSanction}
-                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer flex items-center space-x-1.5 ${
-                  suspendActionType === 'lift'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-amber-600 hover:bg-amber-700'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer flex items-center space-x-1.5 ${suspendActionType === 'lift'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
               >
                 {isSubmittingSanction && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>

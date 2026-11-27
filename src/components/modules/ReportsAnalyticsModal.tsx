@@ -680,33 +680,30 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveVehicleFilter('all')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeVehicleFilter === 'all'
-                      ? 'bg-slate-900 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${activeVehicleFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   All Active ({allActiveFranchises.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveVehicleFilter('Tricycle')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeVehicleFilter === 'Tricycle'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${activeVehicleFilter === 'Tricycle'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   Tricycle ({activeTricycleCount})
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveVehicleFilter('Pedicab')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeVehicleFilter === 'Pedicab'
-                      ? 'bg-sky-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${activeVehicleFilter === 'Pedicab'
+                    ? 'bg-sky-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   Pedicab ({activePedicabCount})
                 </button>
@@ -764,11 +761,10 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                       {/* Vehicle Category */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                            item.vehicleCategory === 'Pedicab'
-                              ? 'bg-sky-50 text-sky-700 border-sky-200'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          }`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${item.vehicleCategory === 'Pedicab'
+                            ? 'bg-sky-50 text-sky-700 border-sky-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            }`}
                         >
                           {item.vehicleCategory}
                         </span>
@@ -854,17 +850,15 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedMonth('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-                  selectedMonth === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${selectedMonth === 'all'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                  }`}
               >
                 <span>All Months</span>
                 <span
-                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                    selectedMonth === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
+                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${selectedMonth === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
                 >
                   {filteredFranchises.length}
                 </span>
@@ -878,21 +872,19 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                     key={shortName}
                     type="button"
                     onClick={() => setSelectedMonth(idx)}
-                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : count > 0
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${isSelected
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : count > 0
                         ? 'bg-white hover:bg-emerald-50 text-slate-800 border border-emerald-200 hover:border-emerald-300'
                         : 'bg-white hover:bg-slate-100 text-slate-400 border border-slate-200/80'
-                    }`}
+                      }`}
                     title={`${monthNames[idx]}: ${count} registered unit(s)`}
                   >
                     <span>{shortName}</span>
                     {count > 0 && (
                       <span
-                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-                        }`}
+                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                          }`}
                       >
                         {count}
                       </span>
@@ -931,33 +923,30 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setVehicleFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      vehicleFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${vehicleFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     All Types
                   </button>
                   <button
                     type="button"
                     onClick={() => setVehicleFilter('Tricycle')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      vehicleFilter === 'Tricycle'
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${vehicleFilter === 'Tricycle'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     Tricycle
                   </button>
                   <button
                     type="button"
                     onClick={() => setVehicleFilter('Pedicab')}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                      vehicleFilter === 'Pedicab'
-                        ? 'bg-sky-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${vehicleFilter === 'Pedicab'
+                      ? 'bg-sky-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     Pedicab
                   </button>
@@ -1061,11 +1050,10 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                             <div className="flex items-center space-x-1.5">
                               <span className="font-mono">{item.cityPlateNumber || item.mtopNumber}</span>
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
-                                  item.vehicleCategory === 'Pedicab'
-                                    ? 'bg-sky-50 text-sky-800 border-sky-200'
-                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                }`}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${item.vehicleCategory === 'Pedicab'
+                                  ? 'bg-sky-50 text-sky-800 border-sky-200'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  }`}
                               >
                                 {item.vehicleCategory}
                               </span>
@@ -1095,13 +1083,12 @@ export const ReportsAnalyticsModal: React.FC<ReportsAnalyticsModalProps> = ({
                           {/* Status */}
                           <td className="px-4 py-3.5 text-center whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                item.status === 'Active'
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : item.status === 'Expired'
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${item.status === 'Active'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : item.status === 'Expired'
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                   : 'bg-amber-100 text-amber-800 border border-amber-200'
-                              }`}
+                                }`}
                             >
                               {item.status || 'Active'}
                             </span>

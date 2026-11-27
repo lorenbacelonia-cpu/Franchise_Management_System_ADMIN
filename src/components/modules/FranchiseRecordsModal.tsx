@@ -178,7 +178,6 @@ export const FranchiseRecordsModal: React.FC = () => {
       const driverFullName = [f.driverFirstName, f.driverMiddleName, f.driverLastName].filter(Boolean).join(' ') || f.driverName || '—';
       const operatorFullName = [f.operatorFirstName || f.ownerFirstName, f.operatorMiddleName || f.ownerMiddleName, f.operatorLastName || f.ownerLastName].filter(Boolean).join(' ') || f.operatorName || f.ownerName || '—';
       const driverAddr = f.driverAddress || 'Tabaco City';
-      const licenseNo = f.driverLicenseNo || 'On File';
       const contact = [f.operatorContact || f.ownerContact, f.gmail || f.email].filter(Boolean).join(' / ') || '—';
       const operatorAddr = f.operatorAddress || f.residentialAddress || f.ownerAddress || 'Tabaco City';
       const modelColor = `${f.modelMake || f.makeModel || (f.vehicleCategory === 'Pedicab' ? 'Pedicab' : 'TMX 125')} / ${f.color || 'Standard'}`;
@@ -196,7 +195,6 @@ export const FranchiseRecordsModal: React.FC = () => {
           <td style="border: 1px solid #000; padding: 2px; text-align: center; font-family: monospace;">${f.applicationNo || '—'}</td>
           <td style="border: 1px solid #000; padding: 2px; font-weight: bold;">${driverFullName}</td>
           <td style="border: 1px solid #000; padding: 2px;">${driverAddr}</td>
-          <td style="border: 1px solid #000; padding: 2px; font-family: monospace; text-align: center;">${licenseNo}</td>
           <td style="border: 1px solid #000; padding: 2px;">${operatorFullName}</td>
           <td style="border: 1px solid #000; padding: 2px; font-family: monospace;">${contact}</td>
           <td style="border: 1px solid #000; padding: 2px;">${operatorAddr}</td>
@@ -380,9 +378,8 @@ export const FranchiseRecordsModal: React.FC = () => {
               <th style="width: 7%;">Plate/MTOP</th>
               <th style="width: 7%; text-align: center;">App No.</th>
               <th style="width: 10%;">Driver Name</th>
-              <th style="width: 9%;">Driver Address</th>
-              <th style="width: 7%; text-align: center;">License</th>
-              <th style="width: 10%;">Operator</th>
+              <th style="width: 12%;">Driver Address</th>
+              <th style="width: 12%;">Operator</th>
               <th style="width: 7%;">Contact</th>
               <th style="width: 9%;">Operator Address</th>
               <th style="width: 8%;">Make/Model/Color</th>
@@ -414,9 +411,8 @@ export const FranchiseRecordsModal: React.FC = () => {
               <th style="width: 7%;">Body No.</th>
               <th style="width: 7%; text-align: center;">App No.</th>
               <th style="width: 10%;">Driver Name</th>
-              <th style="width: 9%;">Driver Address</th>
-              <th style="width: 7%; text-align: center;">License</th>
-              <th style="width: 10%;">Operator</th>
+              <th style="width: 12%;">Driver Address</th>
+              <th style="width: 12%;">Operator</th>
               <th style="width: 7%;">Contact</th>
               <th style="width: 9%;">Operator Address</th>
               <th style="width: 8%;">Make/Model/Color</th>
@@ -628,7 +624,7 @@ export const FranchiseRecordsModal: React.FC = () => {
           <div className="p-4 sm:p-5 space-y-4">
             {/* 2-Column Compact Registration Form Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-              
+
               {/* ============ LEFT COLUMN: OPERATOR & DRIVER ============ */}
               <div className="space-y-3">
                 {/* Operator Details Box */}
@@ -687,9 +683,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                       <Users className="h-3.5 w-3.5 text-indigo-600" />
                       <span>Driver Details</span>
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800">
-                      {viewDetailsRecord.availability || 'Active Full-time'}
-                    </span>
                   </div>
 
                   {/* Driver Photo & Full Name header */}
@@ -708,7 +701,6 @@ export const FranchiseRecordsModal: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <div className="text-[10px] uppercase font-bold text-slate-400">Driver Full Name</div>
                       <div className="font-bold text-slate-900 text-sm truncate">{viewDetailsRecord.driverName || '—'}</div>
-                      <div className="text-[11px] text-slate-500 font-mono mt-0.5">License: <span className="font-bold text-indigo-700">{viewDetailsRecord.driverLicenseNo || 'TRD-DRV-ON-FILE'}</span></div>
                     </div>
                   </div>
 
@@ -1190,11 +1182,10 @@ export const FranchiseRecordsModal: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                            currentPage === pageNum
-                              ? 'bg-slate-900 text-white shadow-xs scale-105'
-                              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400'
-                          }`}
+                          className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${currentPage === pageNum
+                            ? 'bg-slate-900 text-white shadow-xs scale-105'
+                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400'
+                            }`}
                         >
                           {pageNum}
                         </button>

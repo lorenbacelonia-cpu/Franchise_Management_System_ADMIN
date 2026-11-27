@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFranchise } from '../../context/FranchiseContext';
-import { 
-  QrCode, 
-  Search, 
-  User, 
-  Printer, 
-  CheckCircle2, 
-  ChevronDown, 
-  Lock, 
+import {
+  QrCode,
+  Search,
+  User,
+  Printer,
+  CheckCircle2,
+  ChevronDown,
+  Lock,
   Sparkles,
   AlertTriangle,
   RefreshCw,
@@ -19,19 +19,19 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { 
-  cleanFare, 
-  formatExpDate, 
-  getDefaultFareMatrix, 
+import {
+  cleanFare,
+  formatExpDate,
+  getDefaultFareMatrix,
   buildPermanentQrPayload
 } from '../../utils/fareUtils';
 import { downloadFranchiseDocx } from '../../utils/docxExport';
 import { generateQrDataUrl, getSvgQrDataUrl } from '../../utils/qrGenerator';
 
 export const QRScannerModal: React.FC = () => {
-  const { 
-    activeModule, 
-    franchises, 
+  const {
+    activeModule,
+    franchises,
     selectedFranchiseId: contextSelectedId,
     generatePermanentQr,
     renewFranchise
@@ -54,12 +54,12 @@ export const QRScannerModal: React.FC = () => {
     } else if (franchises[0]) {
       setSelectedFranchiseId(franchises[0].id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeModule]);
 
-  const currentFranchise = 
-    franchises.find((f) => f.id === selectedFranchiseId) || 
-    franchises[0] || 
+  const currentFranchise =
+    franchises.find((f) => f.id === selectedFranchiseId) ||
+    franchises[0] ||
     null;
 
   const filteredFranchises = useMemo(() => {
@@ -174,17 +174,16 @@ export const QRScannerModal: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-800">
                   Search Body No. / Driver :
                 </label>
-                
+
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     disabled={!currentFranchise}
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className={`font-bold text-xs px-4 py-2 rounded-full flex items-center space-x-1 shrink-0 transition-colors ${
-                      currentFranchise 
-                        ? 'bg-slate-800 hover:bg-slate-700 text-white shadow-xs cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`font-bold text-xs px-4 py-2 rounded-full flex items-center space-x-1 shrink-0 transition-colors ${currentFranchise
+                      ? 'bg-slate-800 hover:bg-slate-700 text-white shadow-xs cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     <span>{currentFranchise?.mtopNumber || 'No Units'}</span>
                     <ChevronDown className="h-3 w-3" />
@@ -216,9 +215,8 @@ export const QRScannerModal: React.FC = () => {
                           key={f.id}
                           type="button"
                           onClick={() => handleSelectFranchise(f.id)}
-                          className={`w-full text-left px-4 py-2.5 text-xs flex items-center justify-between hover:bg-emerald-50 transition-colors cursor-pointer ${
-                            f.id === currentFranchise?.id ? 'bg-emerald-50 font-bold text-emerald-900' : 'text-slate-700'
-                          }`}
+                          className={`w-full text-left px-4 py-2.5 text-xs flex items-center justify-between hover:bg-emerald-50 transition-colors cursor-pointer ${f.id === currentFranchise?.id ? 'bg-emerald-50 font-bold text-emerald-900' : 'text-slate-700'
+                            }`}
                         >
                           <span className="font-mono font-bold">{f.mtopNumber}</span>
                           <span className="text-slate-500 truncate max-w-[180px]">{f.driverName}</span>
@@ -252,13 +250,12 @@ export const QRScannerModal: React.FC = () => {
                           <span>Renew Here</span>
                         </button>
                       )}
-                      <span className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                        currentFranchise.status === 'Expired'
-                          ? 'bg-rose-100 text-rose-800 border-rose-300'
-                          : isPermanentActive 
+                      <span className={`inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${currentFranchise.status === 'Expired'
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : isPermanentActive
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                           : 'bg-amber-100 text-amber-800 border-amber-200'
-                      }`}>
+                        }`}>
                         {currentFranchise.status === 'Expired' ? (
                           <>
                             <AlertTriangle className="h-3 w-3 text-rose-600" />
@@ -331,12 +328,6 @@ export const QRScannerModal: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex justify-between items-center pt-2">
-                      <span className="font-medium text-slate-700">• Driver License Ref:</span>
-                      <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[11px]">
-                        {currentFranchise.driverLicenseNo || `TRD-DRV-${currentFranchise.mtopNumber}`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Route/Parada:</span>
                       <span className="font-bold text-slate-900">{currentFranchise.routeParada || 'Sua-Igot 24'}</span>
                     </div>
@@ -375,8 +366,8 @@ export const QRScannerModal: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-800">
-                            {(currentFranchise.fareMatrix && currentFranchise.fareMatrix.length > 0 
-                              ? currentFranchise.fareMatrix 
+                            {(currentFranchise.fareMatrix && currentFranchise.fareMatrix.length > 0
+                              ? currentFranchise.fareMatrix
                               : getDefaultFareMatrix(currentFranchise.vehicleCategory)
                             ).map((f, idx) => {
                               const fallback = currentFranchise.vehicleCategory === 'Pedicab' ? '15.00' : '20.00';
@@ -402,13 +393,12 @@ export const QRScannerModal: React.FC = () => {
 
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-medium text-slate-700">• Status:</span>
-                      <span className={`font-bold text-[11px] px-2.5 py-0.5 rounded-full border ${
-                        currentFranchise.status === 'Expired'
-                          ? 'bg-rose-100 text-rose-800 border-rose-300'
-                          : currentFranchise.status === 'Active'
+                      <span className={`font-bold text-[11px] px-2.5 py-0.5 rounded-full border ${currentFranchise.status === 'Expired'
+                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                        : currentFranchise.status === 'Active'
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                           : 'bg-amber-100 text-amber-800 border-amber-200'
-                      }`}>
+                        }`}>
                         {currentFranchise.status || 'Active'} (Expires: {formatExpDate(currentFranchise.expirationDate)})
                       </span>
                     </div>
@@ -460,11 +450,10 @@ export const QRScannerModal: React.FC = () => {
                 {currentFranchise ? (
                   isPermanentActive ? (
                     <>
-                      <div className={`flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full border ${
-                        currentFranchise.status === 'Expired'
-                          ? 'text-rose-800 bg-rose-50 border-rose-300'
-                          : 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                      }`}>
+                      <div className={`flex items-center space-x-1.5 text-[11px] font-bold px-3 py-1 rounded-full border ${currentFranchise.status === 'Expired'
+                        ? 'text-rose-800 bg-rose-50 border-rose-300'
+                        : 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                        }`}>
                         {currentFranchise.status === 'Expired' ? (
                           <>
                             <AlertTriangle className="h-3 w-3 text-rose-600" />
@@ -503,7 +492,7 @@ export const QRScannerModal: React.FC = () => {
                           UNIT ID: {currentFranchise.mtopNumber}
                         </p>
                         <p className="text-[11px] font-semibold text-slate-600">
-                          Driver: <span className="text-slate-900 font-bold">{currentFranchise.driverName}</span> • License: <span className="font-mono text-emerald-800 font-bold">{currentFranchise.driverLicenseNo || `TRD-DRV-${currentFranchise.mtopNumber}`}</span>
+                          Driver: <span className="text-slate-900 font-bold">{currentFranchise.driverName}</span>
                         </p>
                         <p className="text-[10px] text-slate-500 font-medium">
                           Operator: {currentFranchise.operatorName} • Valid Until: {formatExpDate(currentFranchise.expirationDate)}
@@ -516,11 +505,10 @@ export const QRScannerModal: React.FC = () => {
                             <Globe className="h-3 w-3 text-emerald-600" />
                             <span>Google Lens &amp; Built-in Camera Target URL:</span>
                           </span>
-                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                            currentFranchise.status === 'Expired'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}>
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${currentFranchise.status === 'Expired'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                            }`}>
                             {currentFranchise.status === 'Expired' ? 'Status: EXPIRED' : 'Status: ACTIVE'}
                           </span>
                         </div>
@@ -578,11 +566,10 @@ export const QRScannerModal: React.FC = () => {
                     type="button"
                     disabled={!isPermanentActive || isExportingDocx}
                     onClick={handleDownloadDocx}
-                    className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${
-                      isPermanentActive && !isExportingDocx
-                        ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${isPermanentActive && !isExportingDocx
+                      ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     <FileDown className="h-4 w-4 shrink-0" />
                     <span>{isExportingDocx ? 'Generating Word...' : 'Download Word (.docx)'}</span>
@@ -592,11 +579,10 @@ export const QRScannerModal: React.FC = () => {
                     type="button"
                     disabled={!isPermanentActive}
                     onClick={handleDownloadAndPrint}
-                    className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${
-                      isPermanentActive
-                        ? 'bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white cursor-pointer'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`w-full font-bold text-xs py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 ${isPermanentActive
+                      ? 'bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     <Printer className="h-4 w-4 shrink-0" />
                     <span>Print / Save PDF (1-Page)</span>
@@ -610,8 +596,8 @@ export const QRScannerModal: React.FC = () => {
 
       {/* Printable 1-Page QR Certificate */}
       {currentFranchise && typeof document !== 'undefined' && createPortal(
-        <div 
-          id="printable-qr-certificate" 
+        <div
+          id="printable-qr-certificate"
           className="hidden print:flex flex-col items-center justify-between font-sans text-slate-900 bg-white h-full max-h-[96vh] p-4 sm:p-5 border-2 border-slate-900 rounded-xl box-border overflow-hidden"
         >
           <div className="w-full text-center pb-2 border-b-2 border-slate-900">
@@ -638,11 +624,10 @@ export const QRScannerModal: React.FC = () => {
             </div>
             <div>
               <span className="text-[9px] uppercase font-bold text-slate-500 block">Permit Status</span>
-              <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                currentFranchise.status === 'Active'
-                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
-                  : 'bg-rose-100 text-rose-900 border-rose-400'
-              }`}>
+              <span className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${currentFranchise.status === 'Active'
+                ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                : 'bg-rose-100 text-rose-900 border-rose-400'
+                }`}>
                 {currentFranchise.status}
               </span>
             </div>

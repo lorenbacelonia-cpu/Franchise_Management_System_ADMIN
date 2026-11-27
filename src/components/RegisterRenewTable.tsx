@@ -147,11 +147,10 @@ export const RegisterRenewTable: React.FC = () => {
             setCategoryFilter('Tricycle');
             setTransactionFilter('registered');
           }}
-          className={`bg-emerald-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
-            categoryFilter === 'Tricycle' && transactionFilter === 'registered'
-              ? 'border-emerald-600 ring-2 ring-emerald-500/30 shadow-xs'
-              : 'border-emerald-200/80 hover:border-emerald-400'
-          }`}
+          className={`bg-emerald-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'Tricycle' && transactionFilter === 'registered'
+            ? 'border-emerald-600 ring-2 ring-emerald-500/30 shadow-xs'
+            : 'border-emerald-200/80 hover:border-emerald-400'
+            }`}
           title="Click to filter by Newly Registered Tricycles"
         >
           <div className="flex items-center justify-between">
@@ -175,11 +174,10 @@ export const RegisterRenewTable: React.FC = () => {
             setCategoryFilter('Tricycle');
             setTransactionFilter('renewed');
           }}
-          className={`bg-blue-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
-            categoryFilter === 'Tricycle' && transactionFilter === 'renewed'
-              ? 'border-blue-600 ring-2 ring-blue-500/30 shadow-xs'
-              : 'border-blue-200/80 hover:border-blue-400'
-          }`}
+          className={`bg-blue-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'Tricycle' && transactionFilter === 'renewed'
+            ? 'border-blue-600 ring-2 ring-blue-500/30 shadow-xs'
+            : 'border-blue-200/80 hover:border-blue-400'
+            }`}
           title="Click to filter by Renewed Tricycles"
         >
           <div className="flex items-center justify-between">
@@ -203,11 +201,10 @@ export const RegisterRenewTable: React.FC = () => {
             setCategoryFilter('Pedicab');
             setTransactionFilter('registered');
           }}
-          className={`bg-sky-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
-            categoryFilter === 'Pedicab' && transactionFilter === 'registered'
-              ? 'border-sky-600 ring-2 ring-sky-500/30 shadow-xs'
-              : 'border-sky-200/80 hover:border-sky-400'
-          }`}
+          className={`bg-sky-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'Pedicab' && transactionFilter === 'registered'
+            ? 'border-sky-600 ring-2 ring-sky-500/30 shadow-xs'
+            : 'border-sky-200/80 hover:border-sky-400'
+            }`}
           title="Click to filter by Newly Registered Pedicabs"
         >
           <div className="flex items-center justify-between">
@@ -231,11 +228,10 @@ export const RegisterRenewTable: React.FC = () => {
             setCategoryFilter('Pedicab');
             setTransactionFilter('renewed');
           }}
-          className={`bg-indigo-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${
-            categoryFilter === 'Pedicab' && transactionFilter === 'renewed'
-              ? 'border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs'
-              : 'border-indigo-200/80 hover:border-indigo-400'
-          }`}
+          className={`bg-indigo-50/70 border rounded-2xl p-3.5 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'Pedicab' && transactionFilter === 'renewed'
+            ? 'border-indigo-600 ring-2 ring-indigo-500/30 shadow-xs'
+            : 'border-indigo-200/80 hover:border-indigo-400'
+            }`}
           title="Click to filter by Renewed Pedicabs"
         >
           <div className="flex items-center justify-between">
@@ -260,8 +256,8 @@ export const RegisterRenewTable: React.FC = () => {
             setTransactionFilter('all');
           }}
           className={`bg-slate-900 text-white rounded-2xl p-3.5 col-span-2 lg:col-span-1 shadow-xs cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-98 select-none ${categoryFilter === 'all' && transactionFilter === 'all'
-              ? 'ring-2 ring-emerald-400 shadow-md'
-              : 'hover:bg-slate-800'
+            ? 'ring-2 ring-emerald-400 shadow-md'
+            : 'hover:bg-slate-800'
             }`}
           title="Click to view all units"
         >
@@ -436,8 +432,8 @@ export const RegisterRenewTable: React.FC = () => {
                     {/* Vehicle Category */}
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${record.vehicleCategory === 'Pedicab'
-                          ? 'bg-sky-50 text-sky-700 border-sky-200'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        ? 'bg-sky-50 text-sky-700 border-sky-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                         }`}>
                         {record.vehicleCategory}
                       </span>
@@ -470,11 +466,6 @@ export const RegisterRenewTable: React.FC = () => {
                       <div className="font-bold text-slate-800">
                         {record.driverName || '—'}
                       </div>
-                      {record.driverLicenseNo && (
-                        <div className="text-[10px] font-mono text-slate-400">
-                          Lic: {record.driverLicenseNo}
-                        </div>
-                      )}
                     </td>
 
                     {/* Transaction Type */}
@@ -519,10 +510,10 @@ export const RegisterRenewTable: React.FC = () => {
                     {/* Status */}
                     <td className="py-3 px-4 whitespace-nowrap text-center">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isExpired
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : record.status === 'Pending Renewal'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
-                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : record.status === 'Pending Renewal'
+                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                         }`}>
                         {isExpired ? 'Expired' : record.status}
                       </span>

@@ -1444,9 +1444,6 @@ export const DriverRegistryModal: React.FC = () => {
                           <UserCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                           <span>Authorized Driver</span>
                         </div>
-                        <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                          Active
-                        </span>
                       </div>
                       <div className="flex items-center space-x-2.5 pt-0.5">
                         {item.driverPhoto ? (

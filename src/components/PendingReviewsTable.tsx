@@ -148,8 +148,8 @@ const ComplaintChatPanel: React.FC<{
           {syncFeedback && (
             <div
               className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${syncFeedback.type === 'loading'
-                  ? 'bg-sky-50 border border-sky-200 text-sky-800'
-                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                ? 'bg-sky-50 border border-sky-200 text-sky-800'
+                : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                 }`}
             >
               {syncFeedback.type === 'loading' ? (
@@ -175,12 +175,12 @@ const ComplaintChatPanel: React.FC<{
                     onClick={() => handleStatusChange(s)}
                     disabled={isCurrent || !!isUpdatingStatus}
                     className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${isLoadingThis
-                        ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
-                        : isCurrent
-                          ? statusColors[s] + ' opacity-70 cursor-default ring-1 ring-slate-400'
-                          : isUpdatingStatus
-                            ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
+                      ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
+                      : isCurrent
+                        ? statusColors[s] + ' opacity-70 cursor-default ring-1 ring-slate-400'
+                        : isUpdatingStatus
+                          ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
                       }`}
                   >
                     {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
@@ -237,8 +237,8 @@ const ComplaintChatPanel: React.FC<{
                       </div>
 
                       <div className={`p-3 rounded-2xl text-xs leading-relaxed space-y-2.5 ${isAdmin
-                          ? 'bg-indigo-600 text-white rounded-tr-sm shadow-sm shadow-indigo-200'
-                          : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm shadow-xs'
+                        ? 'bg-indigo-600 text-white rounded-tr-sm shadow-sm shadow-indigo-200'
+                        : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm shadow-xs'
                         }`}>
                         {/* Text Message Content */}
                         <div className="whitespace-pre-wrap">{msg.message}</div>
@@ -484,8 +484,8 @@ const ViolationDetailPanel: React.FC<{
             {syncFeedback && (
               <div
                 className={`p-2 rounded-lg text-[10px] font-bold flex items-center space-x-1.5 animate-fadeIn ${syncFeedback.type === 'loading'
-                    ? 'bg-sky-50 border border-sky-200 text-sky-800'
-                    : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                  ? 'bg-sky-50 border border-sky-200 text-sky-800'
+                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                   }`}
               >
                 {syncFeedback.type === 'loading' ? (
@@ -511,12 +511,12 @@ const ViolationDetailPanel: React.FC<{
                       onClick={() => handleStatusChange(s)}
                       disabled={isCurrent || !!isUpdatingStatus}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border flex items-center space-x-1 ${isLoadingThis
-                          ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
-                          : isCurrent
-                            ? statusColors[s] + ' opacity-80 cursor-default ring-1 ring-slate-400'
-                            : isUpdatingStatus
-                              ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
+                        ? 'bg-sky-100 text-sky-800 border-sky-300 opacity-90 cursor-wait'
+                        : isCurrent
+                          ? statusColors[s] + ' opacity-80 cursor-default ring-1 ring-slate-400'
+                          : isUpdatingStatus
+                            ? 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 cursor-pointer'
                         }`}
                     >
                       {isLoadingThis && <Loader2 className="h-2.5 w-2.5 animate-spin text-sky-700" />}
@@ -936,8 +936,8 @@ export const PendingReviewsTable: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('reviews')}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${activeTab === 'reviews'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-700 bg-transparent'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-700 bg-transparent'
                 }`}
             >
               Pending Reviews
@@ -947,8 +947,8 @@ export const PendingReviewsTable: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('complaints')}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'complaints'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-700 bg-transparent'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-700 bg-transparent'
                 }`}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -965,8 +965,8 @@ export const PendingReviewsTable: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('violations')}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'violations'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-700 bg-transparent'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-700 bg-transparent'
                 }`}
             >
               <ShieldAlert className="h-3.5 w-3.5" />
@@ -983,8 +983,8 @@ export const PendingReviewsTable: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('logs')}
               className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${activeTab === 'logs'
-                  ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
-                  : 'text-slate-400 hover:text-slate-700 bg-transparent'
+                ? 'bg-rose-600 text-white shadow-sm shadow-rose-600/30'
+                : 'text-slate-400 hover:text-slate-700 bg-transparent'
                 }`}
             >
               <History className="h-3.5 w-3.5" />
@@ -1053,8 +1053,8 @@ export const PendingReviewsTable: React.FC = () => {
                 type="button"
                 onClick={() => setVehicleCategoryFilter('all')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 <span>All</span>
@@ -1068,8 +1068,8 @@ export const PendingReviewsTable: React.FC = () => {
                 type="button"
                 onClick={() => setVehicleCategoryFilter('Tricycle')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'Tricycle'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 <span>Tricycle</span>
@@ -1083,8 +1083,8 @@ export const PendingReviewsTable: React.FC = () => {
                 type="button"
                 onClick={() => setVehicleCategoryFilter('Pedicab')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 ${vehicleCategoryFilter === 'Pedicab'
-                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 <span>Pedicab</span>
@@ -1163,8 +1163,8 @@ export const PendingReviewsTable: React.FC = () => {
                         </td>
                         <td className="px-6 py-3.5 text-slate-700">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${review.vehicleCategory === 'Pedicab'
-                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             }`}>
                             {review.vehicleCategory}
                           </span>
@@ -1299,8 +1299,8 @@ export const PendingReviewsTable: React.FC = () => {
                               <span className="text-[11px] text-slate-500 font-mono">
                                 <span className="font-bold text-slate-700">{c.cityPlateNumber}</span> ·{' '}
                                 <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${category === 'Pedicab'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-emerald-100 text-emerald-800'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-emerald-100 text-emerald-800'
                                   }`}>
                                   {category}
                                 </span>
@@ -1455,8 +1455,8 @@ export const PendingReviewsTable: React.FC = () => {
                               <span className="text-[11px] text-slate-500 font-mono">
                                 <span className="font-bold text-slate-700">{v.cityPlateNumber || v.mtopNumber}</span> ·{' '}
                                 <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-semibold text-[10px] ${category === 'Pedicab'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-emerald-100 text-emerald-800'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-emerald-100 text-emerald-800'
                                   }`}>
                                   {category}
                                 </span>
@@ -1570,8 +1570,8 @@ export const PendingReviewsTable: React.FC = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                         <div className="flex items-center space-x-2.5">
                           <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${log.recordType === 'Passenger Complaint'
-                              ? 'bg-sky-50 text-sky-700 border-sky-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                            ? 'bg-sky-50 text-sky-700 border-sky-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
                             }`}>
                             {log.recordType}
                           </span>
@@ -1579,8 +1579,8 @@ export const PendingReviewsTable: React.FC = () => {
                             Plate: {log.cityPlateNumber}
                           </span>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold ${log.vehicleCategory === 'Pedicab'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}>
                             {log.vehicleCategory}
                           </span>

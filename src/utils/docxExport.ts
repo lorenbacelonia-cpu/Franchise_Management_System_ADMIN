@@ -121,8 +121,8 @@ export async function downloadFranchiseDocx(
             children: [
               new Paragraph({
                 children: [
-                  new TextRun({ text: 'DRIVER LICENSE REF\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
-                  new TextRun({ text: franchise.driverLicenseNo || `TRD-DRV-${plate}`, bold: true, size: 20, color: '059669', font: 'Arial' }),
+                  new TextRun({ text: 'FRANCHISE STATUS\n', bold: true, size: 16, color: '64748B', font: 'Arial' }),
+                  new TextRun({ text: (franchise.status || 'Active').toUpperCase(), bold: true, size: 20, color: franchise.status === 'Active' ? '059669' : 'DC2626', font: 'Arial' }),
                 ],
               }),
             ],
