@@ -1569,17 +1569,9 @@ export const ProcessRenewalModal: React.FC = () => {
                         {item.applicationNo || '—'}
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-800">
-                        {item.operatorName}
+                        <div>{item.operatorName}</div>
                         <p className="text-[11px] text-slate-500 font-normal">
                           Driver: {item.driverName}
-                          {lastLog && (() => {
-                            const isToday = new Date(lastLog.timestamp).toDateString() === new Date().toDateString();
-                            return (
-                              <span className="ml-2 text-[10px] text-amber-800 font-semibold bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-300">
-                                • Reminded {isToday ? 'Today' : new Date(lastLog.timestamp).toLocaleDateString()}
-                              </span>
-                            );
-                          })()}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">
