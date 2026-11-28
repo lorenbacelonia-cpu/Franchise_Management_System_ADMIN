@@ -13,6 +13,7 @@ import type {
   AdminAccount,
   EnforcerAccount,
   PassengerAccount,
+  FranchiseTransactionItem,
   DeletionLog,
   AdminActivityLog
 } from '../types';
@@ -1623,10 +1624,34 @@ export const FranchiseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const match = (f.cityPlateNumber || '').toLowerCase() === cleanPlate.toLowerCase() ||
                     (f.mtopNumber || '').toLowerCase() === cleanPlate.toLowerCase();
       if (!match) return f;
+
+      const isSuspended = status === 'Suspended' || /suspend/i.test(status);
+      const isLifted = status === 'Active' && (f.status === 'Suspended' || /suspend/i.test(f.availability || ''));
+
+      const statusTx: FranchiseTransactionItem = {
+        id: `tx-status-${Date.now()}`,
+        type: 'Status Update',
+        description: isSuspended
+          ? `Administrative Suspension: Driver ${f.driverName} officially placed on suspension. Operating privileges revoked. Reason: ${reason || 'Excessive / Repeated Violations'}.`
+          : isLifted
+            ? `Suspension Lifted: Driver ${f.driverName} reinstated to Active status. Reason: ${reason || 'Administrative clearance'}.`
+            : `Franchise status updated to ${status}. ${reason ? `Notes: ${reason}` : ''}`,
+        date: new Date().toISOString(),
+        processedBy: 'TRD Admin',
+        amountPaid: 0,
+        paymentPurpose: isSuspended ? 'Administrative Sanction (Driver Suspension)' : 'Status Update',
+        details: {
+          status,
+          previousStatus: f.status,
+          reason: reason || (isSuspended ? 'Driver Suspension Sanction' : 'Status Update'),
+        }
+      };
+
       const updated: FranchiseRecord = {
         ...f,
         status,
-        availability: status === 'Suspended' ? 'Suspended' : (status === 'Active' ? 'Available / On-Duty' : f.availability)
+        availability: status === 'Suspended' ? 'Suspended' : (status === 'Active' ? 'Available / On-Duty' : f.availability),
+        transactionHistory: [statusTx, ...(f.transactionHistory || [])]
       };
       updated.qrCodeData = buildPermanentQrPayload(updated);
       return updated;

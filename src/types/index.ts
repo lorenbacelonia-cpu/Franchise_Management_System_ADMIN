@@ -111,6 +111,7 @@ export interface FranchiseTransactionItem {
   applicationNo?: string;
   orNumber?: string;
   amountPaid?: number | string;
+  paymentPurpose?: string;
   details?: Record<string, any>;
 }
 

@@ -34,6 +34,8 @@ export const FranchiseRecordsModal: React.FC = () => {
     activeModule,
     franchises,
     deleteFranchise,
+    activityLogs,
+    violations,
   } = useFranchise();
 
   const [search, setSearch] = useState('');
@@ -55,45 +57,150 @@ export const FranchiseRecordsModal: React.FC = () => {
 
   if (activeModule !== 'franchise_records') return null;
 
+  // ── Helper: Resolve payment purpose for previous transaction ──
+  const getPaymentPurpose = (tx: FranchiseTransactionItem): string => {
+    if (tx.paymentPurpose) return tx.paymentPurpose;
+    if (tx.details?.paymentPurpose) return tx.details.paymentPurpose;
+    if (tx.type === 'Registration') return 'New Franchise Registration & Conveyance Permit Fee';
+    if (tx.type === 'Renewal') return 'Annual Franchise Permit Renewal Fee';
+    if (tx.type === 'Fee Payment') return 'Traffic Citation Settlement Fine';
+    if (tx.type === 'Driver Change' || tx.type === 'Operator Change') return 'Driver Assignment Amendment Fee';
+    if (/suspend/i.test(tx.description) || /suspend/i.test(tx.type)) return 'N/A - Administrative Sanction (Driver Suspension)';
+    if (tx.type === 'Status Update') return 'Administrative Status Update';
+    return 'Municipal Conveyance Service Fee';
+  };
+
   // ── Helper: Retrieve / synthesize complete previous transaction history for Driver/Operator ──
   const getRecordTransactions = (rec: FranchiseRecord): FranchiseTransactionItem[] => {
-    if (rec.transactionHistory && rec.transactionHistory.length > 0) {
-      return rec.transactionHistory;
-    }
     const txs: FranchiseTransactionItem[] = [];
-    if (rec.registrationDate || rec.paymentDate) {
-      txs.push({
+    const seen = new Set<string>();
+
+    const addTx = (item: FranchiseTransactionItem) => {
+      const key = `${item.type}-${item.date}-${item.description}`.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        txs.push(item);
+      }
+    };
+
+    // 1. Existing stored transaction history on record
+    if (rec.transactionHistory && Array.isArray(rec.transactionHistory)) {
+      rec.transactionHistory.forEach((t) => addTx(t));
+    }
+
+    // 2. Initial Registration transaction with amount and payment purpose
+    const hasReg = txs.some((t) => t.type === 'Registration');
+    if (!hasReg) {
+      const standardFee = rec.vehicleCategory === 'Pedicab' ? 250 : 450;
+      const regAmount = rec.amountPaid !== undefined && rec.amountPaid !== null && Number(rec.amountPaid) > 0
+        ? Number(rec.amountPaid)
+        : standardFee;
+      addTx({
         id: `reg-${rec.id}`,
         type: 'Registration',
-        description: `Official registration for ${rec.vehicleCategory} (Driver: ${rec.driverName}, Operator: ${rec.operatorName || rec.ownerName})`,
+        description: `Official registration for ${rec.vehicleCategory} (Driver: ${rec.driverName}, Operator: ${rec.operatorName || rec.ownerName || '—'})`,
         date: rec.registrationDate || rec.paymentDate || '2026-01-01',
         processedBy: 'TRD Records Officer',
-        applicationNo: rec.applicationNo,
-        orNumber: rec.receiptNumber || rec.orNumber,
-        amountPaid: rec.amountPaid,
+        applicationNo: rec.applicationNo || '—',
+        orNumber: rec.receiptNumber || rec.orNumber || '—',
+        amountPaid: regAmount,
+        paymentPurpose: 'New Franchise Registration & Conveyance Permit Fee',
       });
     }
+
+    // 3. Name change history (Driver / Operator updates)
     if (rec.nameChangeHistory && rec.nameChangeHistory.length > 0) {
       rec.nameChangeHistory.forEach((nc) => {
-        txs.push({
+        addTx({
           id: nc.id,
           type: 'Driver Change',
           description: `Driver updated to "${nc.newDriverName}" (Previous: "${nc.previousDriverName}"). Operator: "${nc.newOperatorName}".`,
           date: nc.changedAt,
           processedBy: nc.changedBy || 'TRD Admin',
+          amountPaid: 0,
+          paymentPurpose: 'Driver Assignment Amendment',
         });
       });
     }
-    if (rec.expirationDate) {
-      txs.push({
-        id: `status-${rec.id}`,
-        type: 'Status Update',
-        description: `Permit valid until ${rec.expirationDate} (Status: ${rec.status})`,
-        date: rec.registrationDate || '2026-01-01',
-        processedBy: 'TRD Admin',
+
+    // 4. Audit Suspensions for this driver / plate:
+    const plateKey = (rec.cityPlateNumber || rec.mtopNumber || '').trim();
+
+    // a) From persistent multiple violation sanctions
+    try {
+      const rawSanctions = localStorage.getItem('tabaco_trd_multiple_violation_sanctions_v2');
+      if (rawSanctions) {
+        const sanctionsMap = JSON.parse(rawSanctions);
+        const sanction = sanctionsMap[plateKey];
+        if (sanction && (sanction.sanctionStatus === 'Suspended' || sanction.lastUpdated)) {
+          addTx({
+            id: `sanction-${rec.id}-${sanction.lastUpdated || 'active'}`,
+            type: 'Status Update',
+            description: `Administrative Suspension: Driver ${rec.driverName} placed on ${sanction.suspensionDuration || '15 Days'} suspension. Reason: ${sanction.sanctionReason || 'Repeated / Excessive Violations'}. Operating privileges revoked.`,
+            date: sanction.lastUpdated || rec.registrationDate || new Date().toISOString(),
+            processedBy: sanction.updatedBy || 'TRD Admin',
+            amountPaid: 0,
+            paymentPurpose: 'N/A - Administrative Sanction (Driver Suspension)',
+          });
+        }
+      }
+    } catch {}
+
+    // b) From Admin Activity Logs: check any logs where this plate was suspended
+    if (activityLogs && Array.isArray(activityLogs)) {
+      activityLogs.forEach((log) => {
+        const text = `${log.action} ${log.details || ''}`.toLowerCase();
+        if (plateKey && text.includes(plateKey.toLowerCase()) && text.includes('suspend')) {
+          addTx({
+            id: `act-log-${log.id}`,
+            type: 'Status Update',
+            description: `Administrative Suspension: Driver ${rec.driverName} placed on suspension. ${log.details || log.action}.`,
+            date: log.createdAt || new Date().toISOString(),
+            processedBy: log.adminName || 'TRD Admin',
+            amountPaid: 0,
+            paymentPurpose: 'N/A - Administrative Sanction (Driver Suspension)',
+          });
+        }
       });
     }
-    return txs;
+
+    // c) If record status or availability is currently Suspended:
+    const isCurrentlySuspended = rec.status === 'Suspended' || /suspend/i.test(rec.availability || '');
+    const hasSuspensionTx = txs.some((t) => t.type === 'Status Update' && /suspend/i.test(t.description));
+    if (isCurrentlySuspended && !hasSuspensionTx) {
+      addTx({
+        id: `status-suspended-${rec.id}`,
+        type: 'Status Update',
+        description: `Administrative Suspension: Driver ${rec.driverName} officially placed on suspension. Operating privileges revoked due to violation sanction.`,
+        date: rec.registrationDate || new Date().toISOString(),
+        processedBy: 'TRD Admin',
+        amountPaid: 0,
+        paymentPurpose: 'N/A - Administrative Sanction (Driver Suspension)',
+      });
+    }
+
+    // 5. Settled violations fines (if any recorded and paid for this unit)
+    if (violations && Array.isArray(violations)) {
+      violations
+        .filter((v) => {
+          const vPlate = (v.cityPlateNumber || v.mtopNumber || '').trim().toLowerCase();
+          return vPlate && (vPlate === plateKey.toLowerCase() || (rec.mtopNumber && vPlate === rec.mtopNumber.toLowerCase())) && v.status === 'Settled';
+        })
+        .forEach((v) => {
+          addTx({
+            id: `viol-${v.id}`,
+            type: 'Fee Payment',
+            description: `Traffic Citation Settlement: ${v.violationType} (Location: ${v.location || 'Tabaco City'})`,
+            date: v.dateSubmitted || new Date().toISOString(),
+            processedBy: v.enforcerName || 'TRD Traffic Division',
+            amountPaid: v.fineAmount,
+            paymentPurpose: 'Traffic Citation Settlement Fine',
+          });
+        });
+    }
+
+    // Sort chronologically descending (latest transaction first)
+    return txs.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
   };
 
   // ── Totals Calculation: Total of all units, separated for Pedicab and Tricycle ──
@@ -853,43 +960,75 @@ export const FranchiseRecordsModal: React.FC = () => {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="px-3.5 py-2.5 w-32">Date / Time</th>
-                      <th className="px-3.5 py-2.5 w-36">Transaction Type</th>
+                      <th className="px-3.5 py-2.5 w-28 whitespace-nowrap">Date / Time</th>
+                      <th className="px-3.5 py-2.5 w-36 whitespace-nowrap">Transaction Type</th>
                       <th className="px-3.5 py-2.5">Transaction Details &amp; Changes</th>
-                      <th className="px-3.5 py-2.5 w-36">Processed By</th>
+                      <th className="px-3.5 py-2.5 w-52 whitespace-nowrap">Amount Paid &amp; Purpose</th>
+                      <th className="px-3.5 py-2.5 w-36 whitespace-nowrap">Processed By</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
-                    {getRecordTransactions(viewDetailsRecord).map((tx, idx) => (
-                      <tr key={tx.id || idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-3.5 py-2.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                          {tx.date ? new Date(tx.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                        </td>
-                        <td className="px-3.5 py-2.5 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${tx.type === 'Registration'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : tx.type === 'Renewal'
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : tx.type === 'Driver Change'
-                                ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                    {getRecordTransactions(viewDetailsRecord).map((tx, idx) => {
+                      const isSuspended = /suspend/i.test(tx.type) || /suspend/i.test(tx.description);
+                      const purpose = getPaymentPurpose(tx);
+                      const hasPaidAmount = tx.amountPaid !== undefined && tx.amountPaid !== null && Number(tx.amountPaid) > 0;
+
+                      return (
+                        <tr key={tx.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-3.5 py-2.5 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                            {tx.date ? new Date(tx.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                          </td>
+                          <td className="px-3.5 py-2.5 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              isSuspended
+                                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                : tx.type === 'Registration'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : tx.type === 'Renewal'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    : tx.type === 'Driver Change'
+                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                      : 'bg-amber-50 text-amber-800 border-amber-200'
                             }`}>
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-slate-800 font-medium">
-                          {tx.description}
-                          {tx.applicationNo && (
-                            <span className="font-mono text-[11px] text-slate-500 block">
-                              App No: {tx.applicationNo} • OR: {tx.orNumber || '—'} {tx.amountPaid ? `• Paid: ₱${tx.amountPaid}` : ''}
+                              {isSuspended ? 'Driver Suspension' : tx.type}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-3.5 py-2.5 text-slate-600 font-semibold text-[11px] whitespace-nowrap">
-                          {tx.processedBy || 'TRD Admin'}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-slate-800 font-medium">
+                            <div className="leading-snug">{tx.description}</div>
+                            {(tx.applicationNo || tx.orNumber) && (
+                              <div className="font-mono text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-x-2">
+                                {tx.applicationNo && tx.applicationNo !== '—' && <span>App No: {tx.applicationNo}</span>}
+                                {tx.orNumber && tx.orNumber !== '—' && <span>• OR No: {tx.orNumber}</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-2.5 whitespace-nowrap">
+                            {hasPaidAmount ? (
+                              <div>
+                                <span className="font-mono font-black text-emerald-700 text-xs">
+                                  ₱{Number(tx.amountPaid).toFixed(2)}
+                                </span>
+                                <span className="block text-[10px] text-slate-600 font-medium leading-tight">
+                                  {purpose}
+                                </span>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-mono font-bold text-slate-400 text-xs">
+                                  ₱0.00
+                                </span>
+                                <span className="block text-[10px] text-slate-400 italic leading-tight">
+                                  {isSuspended ? 'Administrative Sanction (No Fee)' : purpose}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-slate-600 font-semibold text-[11px] whitespace-nowrap">
+                            {tx.processedBy || 'TRD Admin'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
