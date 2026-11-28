@@ -19,6 +19,7 @@ import {
   Plus,
   Check,
   Clock,
+  Pencil,
 } from 'lucide-react';
 import { isRecordExpired } from '../../utils/fareUtils';
 import {
@@ -582,20 +583,9 @@ export const ProcessRenewalModal: React.FC = () => {
                             <span>Operator Email / Gmail</span>
                           </label>
                           {reminderOperatorGmail && (
-                            <div className="flex items-center space-x-1.5">
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
-                                ✓ On File
-                              </span>
-                              {!isAddingOperatorEmail && (
-                                <button
-                                  type="button"
-                                  onClick={() => setIsAddingOperatorEmail(true)}
-                                  className="text-[10px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
-                                >
-                                  Edit
-                                </button>
-                              )}
-                            </div>
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
+                              ✓ Email Saved
+                            </span>
                           )}
                         </div>
 
@@ -618,31 +608,51 @@ export const ProcessRenewalModal: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          /* Email Input Field with Save Action */
+                          /* Email Input Field with Save / Edit Action */
                           <div className="space-y-1.5">
                             <div className="flex items-center space-x-2">
                               <input
                                 type="email"
                                 value={reminderOperatorGmail}
-                                onChange={(e) => setReminderOperatorGmail(e.target.value)}
+                                onChange={(e) => {
+                                  setReminderOperatorGmail(e.target.value);
+                                  setIsAddingOperatorEmail(true);
+                                }}
+                                readOnly={!isAddingOperatorEmail && Boolean(reminderOperatorGmail)}
                                 placeholder="e.g. operator@gmail.com"
-                                className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all ${
+                                  !isAddingOperatorEmail && Boolean(reminderOperatorGmail)
+                                    ? 'bg-slate-50 border border-slate-200 text-slate-700 cursor-default'
+                                    : 'bg-white border border-slate-300 text-slate-900'
+                                }`}
                                 autoFocus={isAddingOperatorEmail && !reminderOperatorGmail}
                               />
-                              <button
-                                type="button"
-                                disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
-                                onClick={handleSaveOperatorEmail}
-                                className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
-                                title="Save email to operator record"
-                              >
-                                {isSavingEmailDirectly ? (
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="w-3.5 h-3.5" />
-                                )}
-                                <span>Save Email</span>
-                              </button>
+                              {!isAddingOperatorEmail && reminderOperatorGmail ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingOperatorEmail(true)}
+                                  className="px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs shadow-2xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
+                                  title="Edit operator email"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Edit</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isSavingEmailDirectly || !reminderOperatorGmail.trim()}
+                                  onClick={handleSaveOperatorEmail}
+                                  className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                                  title="Save email to operator record"
+                                >
+                                  {isSavingEmailDirectly ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>Save Email</span>
+                                </button>
+                              )}
                             </div>
                             <p className="text-[10px] text-slate-500">
                               Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
@@ -694,20 +704,9 @@ export const ProcessRenewalModal: React.FC = () => {
                             <span>Driver Email / Gmail</span>
                           </label>
                           {reminderDriverGmail && (
-                            <div className="flex items-center space-x-1.5">
-                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-md border border-emerald-300">
-                                ✓ On File
-                              </span>
-                              {!isAddingDriverEmail && (
-                                <button
-                                  type="button"
-                                  onClick={() => setIsAddingDriverEmail(true)}
-                                  className="text-[10px] text-emerald-800 hover:text-emerald-950 font-bold underline cursor-pointer"
-                                >
-                                  Edit
-                                </button>
-                              )}
-                            </div>
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300">
+                              ✓ Email Saved
+                            </span>
                           )}
                         </div>
 
@@ -730,31 +729,51 @@ export const ProcessRenewalModal: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          /* Driver Email Input Field with Save Action */
+                          /* Driver Email Input Field with Save / Edit Action */
                           <div className="space-y-1.5">
                             <div className="flex items-center space-x-2">
                               <input
                                 type="email"
                                 value={reminderDriverGmail}
-                                onChange={(e) => setReminderDriverGmail(e.target.value)}
+                                onChange={(e) => {
+                                  setReminderDriverGmail(e.target.value);
+                                  setIsAddingDriverEmail(true);
+                                }}
+                                readOnly={!isAddingDriverEmail && Boolean(reminderDriverGmail)}
                                 placeholder="e.g. driver@gmail.com"
-                                className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all ${
+                                  !isAddingDriverEmail && Boolean(reminderDriverGmail)
+                                    ? 'bg-slate-50 border border-slate-200 text-slate-700 cursor-default'
+                                    : 'bg-white border border-slate-300 text-slate-900'
+                                }`}
                                 autoFocus={isAddingDriverEmail && !reminderDriverGmail}
                               />
-                              <button
-                                type="button"
-                                disabled={isSavingDriverEmailDirectly || !reminderDriverGmail.trim()}
-                                onClick={handleSaveDriverEmail}
-                                className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
-                                title="Save email to driver record"
-                              >
-                                {isSavingDriverEmailDirectly ? (
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="w-3.5 h-3.5" />
-                                )}
-                                <span>Save Email</span>
-                              </button>
+                              {!isAddingDriverEmail && reminderDriverGmail ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingDriverEmail(true)}
+                                  className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs shadow-2xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer active:scale-95"
+                                  title="Edit driver email"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+                                  <span>Edit</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isSavingDriverEmailDirectly || !reminderDriverGmail.trim()}
+                                  onClick={handleSaveDriverEmail}
+                                  className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1 shrink-0 cursor-pointer disabled:opacity-40"
+                                  title="Save email to driver record"
+                                >
+                                  {isSavingDriverEmailDirectly ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>Save Email</span>
+                                </button>
+                              )}
                             </div>
                             <p className="text-[10px] text-slate-500">
                               Official City Hall renewal notice dispatched from tabacocitytrd@gmail.com.
