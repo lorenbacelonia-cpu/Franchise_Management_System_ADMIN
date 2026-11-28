@@ -395,6 +395,9 @@ export const ProcessRenewalModal: React.FC = () => {
       setNotification(res.summaryText);
       setTimeout(() => setNotification(null), 6000);
       setReminderLogs(getReminderLogs());
+      setTimeout(() => {
+        setSelectedForReminder(null);
+      }, 1800);
     } catch (err: any) {
       setReminderFeedback(`Dispatch failed: ${err?.message || 'Error occurred'}`);
     } finally {
@@ -1500,7 +1503,22 @@ export const ProcessRenewalModal: React.FC = () => {
                   const isExpired = item.status === 'Expired' || isRecordExpired(item.expirationDate);
                   const isSelectedRenewal = selectedForRenewal?.id === item.id;
                   const isSelectedReminder = selectedForReminder?.id === item.id;
-                  const lastLog = getLastReminderForRecord(item.cityPlateNumber || item.mtopNumber);
+
+                  const recordPlate = (item.cityPlateNumber || '').trim().toLowerCase();
+                  const recordMtop = (item.mtopNumber || '').trim().toLowerCase();
+                  const recordId = (item.id || '').trim().toLowerCase();
+
+                  const lastLog =
+                    reminderLogs.find((l) => {
+                      const logPlate = (l.cityPlateNumber || '').trim().toLowerCase();
+                      const logId = (l.recordId || '').trim().toLowerCase();
+                      return (
+                        (logPlate && (logPlate === recordPlate || logPlate === recordMtop)) ||
+                        (logId && (logId === recordId || logId === recordPlate || logId === recordMtop))
+                      );
+                    }) || getLastReminderForRecord(item.cityPlateNumber || item.mtopNumber);
+
+                  const isReminded = Boolean(lastLog);
 
                   return (
                     <tr
@@ -1603,15 +1621,36 @@ export const ProcessRenewalModal: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenReminder(item)}
-                            className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all inline-flex items-center space-x-1 cursor-pointer ${isSelectedReminder
-                              ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
-                              }`}
-                            title={`Send SMS & Gmail Expiration Reminder to ${item.driverName}`}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all inline-flex items-center space-x-1 cursor-pointer ${
+                              isSelectedReminder
+                                ? isReminded
+                                  ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                                  : 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                                : isReminded
+                                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs'
+                                  : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300'
+                            }`}
+                            title={
+                              isSelectedReminder
+                                ? 'Currently selected for reminder'
+                                : isReminded && lastLog
+                                  ? `Reminded on ${new Date(lastLog.timestamp).toLocaleDateString()} at ${new Date(lastLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Click to remind again.`
+                                  : `Send SMS & Gmail Expiration Reminder to ${item.driverName}`
+                            }
                           >
-                            <Send className="h-3 w-3 text-amber-600" />
-                            <span className="hidden sm:inline">
-                              {isSelectedReminder ? 'Reminding...' : 'Remind'}
+                            {isSelectedReminder ? (
+                              <Send className="h-3 w-3 text-slate-950" />
+                            ) : isReminded ? (
+                              <Check className="h-3 w-3 text-emerald-700" />
+                            ) : (
+                              <Send className="h-3 w-3 text-amber-600" />
+                            )}
+                            <span>
+                              {isSelectedReminder
+                                ? (isDispatching ? 'Reminding...' : isReminded ? 'Reminded' : 'Remind')
+                                : isReminded
+                                  ? 'Reminded'
+                                  : 'Remind'}
                             </span>
                           </button>
 

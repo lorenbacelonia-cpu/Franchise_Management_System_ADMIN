@@ -1118,11 +1118,19 @@ export function saveReminderLog(entry: ReminderLogEntry): void {
  */
 export function getLastReminderForRecord(plateOrMtop: string): ReminderLogEntry | null {
   const logs = getReminderLogs();
-  const found = logs.find(
-    (l) =>
-      l.cityPlateNumber.toLowerCase() === plateOrMtop.toLowerCase() ||
-      l.recordId === plateOrMtop
-  );
+  const clean = (plateOrMtop || '').trim().toLowerCase();
+  if (!clean) return null;
+  const cleanDigits = clean.replace(/\D/g, '');
+  const found = logs.find((l) => {
+    const lPlate = (l.cityPlateNumber || '').trim().toLowerCase();
+    const lRecId = (l.recordId || '').trim().toLowerCase();
+    const lDigits = lPlate.replace(/\D/g, '');
+    return (
+      (lPlate && lPlate === clean) ||
+      (lRecId && lRecId === clean) ||
+      (cleanDigits && lDigits && cleanDigits === lDigits)
+    );
+  });
   return found || null;
 }
 
